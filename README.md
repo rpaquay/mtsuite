@@ -1,6 +1,6 @@
 #mtsuite
 
-*mtsuite* is a collection of fast and SSD optimized disk utilities for Windows.
+**mtsuite** is a collection of fast and SSD optimized disk utilities for Windows.
 
 Each program in the collection
 
@@ -16,18 +16,18 @@ Each program in the collection
 
 The 4 programs included are
 
-* `**mtdel**`: deletes a directory recursively. This is much faster than
+* **mtdel**: deletes a directory recursively. This is much faster than
                using *Windows Explorer* or even `rmdir /s /q`.
 
-* `**mtcopy**`: copies a source directory recursively to a destination
+* **`mtcopy`**: copies a source directory recursively to a destination
                 directory. This is similar to using `XCOPY /S` or
                 `ROBOCOPY /S`.
 
-* `**mtmir**`: same as mtcopy, except extra files not present in the
+* **mtmir**: same as mtcopy, except extra files not present in the
                source are deleted from the destination. This is
                similar to `ROBOCOPY /MIR`.
 
-* `**mtinfo**`: displays file system statistics of a directory: number
+* **mtinfo**: displays file system statistics of a directory: number
                 of files, number of subdirectories, size, etc. This can
                 be 20x faster than using the `Properties` menu 
                 in *Windows Explorer* to find the size of a folder.
@@ -85,7 +85,9 @@ content, and are not Symbolic Links anymore in the new copy.
 With mtcopy and mtmir, Symbolic Links are copied as links, not as
 their target contents, so the end result of running the command
 
-> `mtcopy c:\test c:\test-copy`
+```
+mtcopy c:\test c:\test-copy
+```
 
 will be:
 
