@@ -19,7 +19,7 @@ The 4 programs included are
 * **mtdel**: deletes a directory recursively. This is much faster than
                using *Windows Explorer* or even `rmdir /s /q`.
 
-* **`mtcopy`**: copies a source directory recursively to a destination
+* **mtcopy**: copies a source directory recursively to a destination
                 directory. This is similar to using `XCOPY /S` or
                 `ROBOCOPY /S`.
 
@@ -29,7 +29,7 @@ The 4 programs included are
 
 * **mtinfo**: displays file system statistics of a directory: number
                 of files, number of subdirectories, size, etc. This can
-                be 20x faster than using the `Properties` menu 
+                be 20x faster than using the *Properties* menu 
                 in *Windows Explorer* to find the size of a folder.
 
 ## Symbolic Links support
