@@ -1,16 +1,17 @@
 #mtsuite
 
-**mtsuite** is a collection of fast and SSD optimized disk utilities for Windows.
+**mtsuite** is a collection of disk utilities for Windows, optimized for
+high performance on Solid State Drives (SSD).
 
 Each program in the collection
 
-* Support long paths, i.e. paths greater than 260 characters.
-
-* Use all the available CPU cores to achieve maximum disk throughput, making
+* Uses all the available CPU cores to achieve maximum disk throughput, making
   it typically much faster than other disk utilities, espcecially when run
-  on SSDs (Solid State Drives).
+  on Solid State Drives (SSD).
 
-* Fully support Symbolic Links.
+* Supports long paths, i.e. paths greater than 260 characters.
+
+* Supports Symbolic Links.
 
 ## Included utilities
 
