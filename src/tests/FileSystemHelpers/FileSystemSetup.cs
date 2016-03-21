@@ -28,6 +28,8 @@ namespace tests.FileSystemHelpers {
       _root = new Lazy<DirectorySetup>(CreateRootDirectory);
     }
 
+    public bool UseLongPaths { get; set; }
+
     public DirectorySetup Root { get { return _root.Value; } }
 
     public IFileSystem FileSystem { get { return _fileSystem; } }
@@ -77,7 +79,11 @@ namespace tests.FileSystemHelpers {
     }
 
     private FullPath CreateTemporaryFolder() {
-      var tempPath = new FullPath(Path.GetTempPath());
+      var temporaryPath = Path.GetTempPath();
+      if (UseLongPaths) {
+        temporaryPath = PathHelpers.MakeLongPath(temporaryPath);
+      }
+      var tempPath = new FullPath(temporaryPath);
       // Note: This is not 100% safe due to possible race conditions.
       for (var i = 0; i < 100; i++) {
         var folderPath = tempPath.Combine(Path.GetRandomFileName());

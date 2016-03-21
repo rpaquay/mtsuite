@@ -21,20 +21,87 @@ using System.Text;
 namespace mtsuite.shared.Files {
   public static class PathHelpers {
     private static readonly string DirectorySeparatorString = Path.DirectorySeparatorChar.ToString();
+    private static readonly string LongDiskPathPrefix = @"\\?\";
+    private static readonly string LongUncPathPrefix = @"\\?\UNC\";
+    private static readonly string UncPathPrefix  = @"\\";
 
-    private static string LongDiskPathPrefix {
-      get { return @"\\?\"; }
+    /// <summary>
+    /// Return <code>true</code> if <paramref name="path"/> is an absolute path.
+    /// </summary>
+    public static bool IsPathAbsolute(string path) {
+      return GetPathRootPrefixInfo(path).RootPrefixKind != RootPrefixKind.None;
     }
 
-    private static string LongUncPathPrefix {
-      get { return @"\\?\UNC\"; }
+    /// <summary>
+    /// Return <code>true</code> if <paramref name="path"/> is not an absolute path.
+    /// </summary>
+    public static bool IsPathRelative(string path) {
+      return !IsPathAbsolute(path);
     }
 
-    private static string UncPathPrefix {
-      get { return @"\\"; }
+    /// <summary>
+    /// Return the <paramref name="path"/> with its last last component removed,
+    /// or the empty string if the path is a "root" path (.e.g "c:\). Throws an
+    /// exception if <paramref name="path"/> is not an absolute path.
+    /// </summary>
+    public static string GetParent(string path) {
+      if (!IsPathAbsolute(path))
+        throw new ArgumentException("Path should be absolute", path);
+
+      // Ignore '\' at the end of path
+      var startIndex = path.Length - 1;
+      var count = path.Length;
+      if (path.Last() == Path.DirectorySeparatorChar) {
+        startIndex--;
+        count--;
+      }
+      var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
+      if (lastIndex < 0)
+        return "";
+
+      // Keep the terminating '\' to avoid returned invalid root path (e.g. 'c:')
+      var result = path.Substring(0, lastIndex + 1);
+      if (result == LongDiskPathPrefix || result == UncPathPrefix || result == LongUncPathPrefix)
+        return "";
+      return result;
     }
 
+    /// <summary>
+    /// Return the last component of the <paramref name="path"/>. Throws an
+    /// exception if <paramref name="path"/> is not an absolute path.
+    /// </summary>
+    public static string GetName(string path) {
+      if (!IsPathAbsolute(path))
+        throw new ArgumentException("Path should be absolute", path);
+
+      var startIndex = path.Length - 1;
+      var count = path.Length;
+      if (path.Last() == Path.DirectorySeparatorChar) {
+        startIndex--;
+        count--;
+      }
+      var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
+      if (lastIndex < 0)
+        return "";
+
+      // Check the remaining prefix is not a root path prefix (e.g. "\\").
+      var prefix = path.Substring(0, lastIndex + 1);
+      if (prefix == LongDiskPathPrefix || prefix == UncPathPrefix || prefix == LongUncPathPrefix)
+        return "";
+
+      return path.Substring(lastIndex + 1, count - lastIndex - 1);
+    }
+
+    /// <summary>
+    /// Return <paramref name="path"/> where the (optional) long path prefix is removed.
+    /// Note: An exception is thrown if <paramref name="path"/> is not an absolute path.
+    /// </summary>
     public static string StripLongPathPrefix(string path) {
+      if (string.IsNullOrEmpty(path))
+        throw new ArgumentNullException("path");
+
+      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
       var info = GetPathRootPrefixInfo(path);
       switch (info.RootPrefixKind) {
         case RootPrefixKind.None:
@@ -46,6 +113,33 @@ namespace mtsuite.shared.Files {
         case RootPrefixKind.UncPath:
         case RootPrefixKind.DiskPath:
           return path;
+        default:
+          throw new ArgumentOutOfRangeException();
+      }
+    }
+
+    /// <summary>
+    /// Return <paramref name="path"/> with the appropriate long path prefix.
+    /// Note: An exception is thrown if <paramref name="path"/> is not an absolute path.
+    /// </summary>
+    public static string MakeLongPath(string path) {
+      if (string.IsNullOrEmpty(path))
+        throw new ArgumentNullException("path");
+
+      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
+      var info = GetPathRootPrefixInfo(path);
+      switch (info.RootPrefixKind) {
+        case RootPrefixKind.LongDiskPath:
+          return path;
+        case RootPrefixKind.LongUncPath:
+          return path;
+        case RootPrefixKind.DiskPath:
+          return LongDiskPathPrefix + path;
+        case RootPrefixKind.UncPath:
+          return LongUncPathPrefix + path.Substring(2);
+        case RootPrefixKind.None:
+          throw new ArgumentException("Path should be absolute", path);
         default:
           throw new ArgumentOutOfRangeException();
       }
@@ -76,32 +170,29 @@ namespace mtsuite.shared.Files {
       return path;
     }
 
-    public static string MakeLongPath(string path) {
-      if (string.IsNullOrEmpty(path))
-        throw new ArgumentNullException("path");
-
-      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-      var info = GetPathRootPrefixInfo(path);
-      switch (info.RootPrefixKind) {
-        case RootPrefixKind.LongDiskPath:
-          return path;
-        case RootPrefixKind.LongUncPath:
-          return path;
-        case RootPrefixKind.DiskPath:
-          return LongDiskPathPrefix + path;
-        case RootPrefixKind.UncPath:
-          return LongUncPathPrefix + path.Substring(2);
-        case RootPrefixKind.None:
-          throw new ArgumentException("Path should be absolute", path);
-        default:
-          throw new ArgumentOutOfRangeException();
-      }
-    }
-
+    /// <summary>
+    /// Return <paramref name="path"/> ensuring <paramref name="path"/> has a trailing directory separator.
+    /// </summary>
     public static string AppendTrailingSeparator(string path) {
       if (string.IsNullOrEmpty(path))
         throw new ArgumentNullException("path");
 
+      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+      if (path[path.Length - 1] == Path.DirectorySeparatorChar)
+        return path;
+
+      return path + Path.DirectorySeparatorChar;
+    }
+
+    /// <summary>
+    /// Return <paramref name="path"/> ensuring if the (optional) trailing
+    /// directory separator is removed.
+    /// </summary>
+    public static string RemoveTrailingSeparator(string path) {
+      if (string.IsNullOrEmpty(path))
+        throw new ArgumentNullException("path");
+
+      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
       if (path[path.Length - 1] == Path.DirectorySeparatorChar)
         return path;
 
@@ -191,99 +282,6 @@ namespace mtsuite.shared.Files {
     /// <summary>
     /// Return <code>true</code> if <paramref name="path"/> is an absolute path.
     /// </summary>
-    public static bool IsPathAbsolute(string path) {
-      return GetPathRootPrefixInfo(path).RootPrefixKind != RootPrefixKind.None;
-    }
-
-    /// <summary>
-    /// Return <code>true</code> if <paramref name="path"/> is not an absolute path.
-    /// </summary>
-    public static bool IsPathRelative(string path) {
-      return !IsPathAbsolute(path);
-    }
-
-    /// <summary>
-    /// Return the <paramref name="path"/> with its last last component removed,
-    /// or the empty string if the path is a "root" path (.e.g "c:\). Throws an
-    /// exception if <paramref name="path"/> is not an absolute path.
-    /// </summary>
-    public static string GetParent(string path) {
-      if (!IsPathAbsolute(path))
-        throw new ArgumentException("Path should be absolute", path);
-
-      // Ignore '\' at the end of path
-      var startIndex = path.Length - 1;
-      var count = path.Length;
-      if (path.Last() == Path.DirectorySeparatorChar) {
-        startIndex--;
-        count--;
-      }
-      var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
-      if (lastIndex < 0)
-        return "";
-
-      // Keep the terminating '\' to avoid returned invalid root path (e.g. 'c:')
-      var result = path.Substring(0, lastIndex + 1);
-      if (result == LongDiskPathPrefix || result == UncPathPrefix || result == LongUncPathPrefix)
-        return "";
-      return result;
-    }
-
-    /// <summary>
-    /// Return the last component of the <paramref name="path"/>. Throws an
-    /// exception if <paramref name="path"/> is not an absolute path.
-    /// </summary>
-    public static string GetName(string path) {
-      if (!IsPathAbsolute(path))
-        throw new ArgumentException("Path should be absolute", path);
-
-      var startIndex = path.Length - 1;
-      var count = path.Length;
-      if (path.Last() == Path.DirectorySeparatorChar) {
-        startIndex--;
-        count--;
-      }
-      var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
-      if (lastIndex < 0)
-        return "";
-
-      // Check the remaining prefix is not a root path prefix (e.g. "\\").
-      var prefix = path.Substring(0, lastIndex + 1);
-      if (prefix == LongDiskPathPrefix || prefix == UncPathPrefix || prefix == LongUncPathPrefix)
-        return "";
-
-      return path.Substring(lastIndex + 1, count - lastIndex - 1);
-    }
-
-    private struct PathRootPrefixInfo {
-      private readonly int _length;
-      private readonly RootPrefixKind _rootPrefixKind;
-
-      public PathRootPrefixInfo(int length, RootPrefixKind rootPrefixKind) {
-        _length = length;
-        _rootPrefixKind = rootPrefixKind;
-      }
-
-      public int Length {
-        get { return _length; }
-      }
-
-      public RootPrefixKind RootPrefixKind {
-        get { return _rootPrefixKind; }
-      }
-    }
-
-    private enum RootPrefixKind {
-      None,
-      LongDiskPath,
-      LongUncPath,
-      DiskPath,
-      UncPath,
-    }
-
-    /// <summary>
-    /// Return <code>true</code> if <paramref name="path"/> is an absolute path.
-    /// </summary>
     private static PathRootPrefixInfo GetPathRootPrefixInfo(string path) {
       if (string.IsNullOrEmpty(path))
         return default(PathRootPrefixInfo);
@@ -317,6 +315,32 @@ namespace mtsuite.shared.Files {
         return 3;
       }
       return 0;
+    }
+
+    private struct PathRootPrefixInfo {
+      private readonly int _length;
+      private readonly RootPrefixKind _rootPrefixKind;
+
+      public PathRootPrefixInfo(int length, RootPrefixKind rootPrefixKind) {
+        _length = length;
+        _rootPrefixKind = rootPrefixKind;
+      }
+
+      public int Length {
+        get { return _length; }
+      }
+
+      public RootPrefixKind RootPrefixKind {
+        get { return _rootPrefixKind; }
+      }
+    }
+
+    private enum RootPrefixKind {
+      None,
+      LongDiskPath,
+      LongUncPath,
+      DiskPath,
+      UncPath,
     }
 
     private class PathLexer {

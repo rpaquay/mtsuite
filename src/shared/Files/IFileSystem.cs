@@ -51,13 +51,13 @@ namespace mtsuite.shared.Files {
     void DeleteEntry(FileSystemEntry entry);
 
     /// <summary>
-    /// Copy a file (or reparse point or symbolic link) given the <see
-    /// cref="FileSystemEntry"/> of the file, and a destination directory path.
-    /// <paramref name="callback"/> is invoked at least once when the file copy
-    /// operation succeeds. It is invoked at regular invervals when the file
-    /// copy operation takes more than a few milliseconds. Throws an exception
-    /// <paramref name="entry"/> does not exists or is a directory, or is not
+    /// Copy a file (or reparse point or symbolic link) given its corresponding <see
+    /// cref="FileSystemEntry"/> to <paramref name="destinationPath"/>.
+    /// <paramref name="callback"/> is invoked at regular invervals when the copy operation takes more than a few milliseconds.
+    /// 
+    /// Note: Throws an exception <paramref name="entry"/> does not exists, or is not
     /// accessible for some reason.
+    /// Note: Throws an exception when the destination 
     /// </summary>
     void CopyFile(FileSystemEntry entry, FullPath destinationPath, CopyFileCallback callback);
 

@@ -17,6 +17,7 @@ using mtsuite.shared.Collections;
 namespace mtsuite.shared.Win32 {
   public interface IStringSource {
     int Length { get; }
+    string Text { get; }
     void CopyTo(StringBuffer destination);
   }
 }

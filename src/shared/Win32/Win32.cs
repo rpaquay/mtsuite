@@ -186,9 +186,9 @@ namespace mtsuite.shared.Win32 {
         var callbackPtr = Marshal.GetFunctionPointerForDelegate(callback);
         var bCancel = 0;
         var flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
-        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, copyProgress, callbackPtr, ref bCancel,
-          flags))
+        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, copyProgress, callbackPtr, ref bCancel, flags)) {
           return;
+        }
 
         var lastWin32Error = Marshal.GetLastWin32Error();
         throw new LastWin32ErrorException(lastWin32Error,
@@ -473,77 +473,79 @@ namespace mtsuite.shared.Win32 {
       CreateDirectory(path);
 
       // 2. Open directory as reparse point handle
-      using (var fileHandle = OpenFileAsReparsePoint(path, /*readWrite*/true))
-      using (var substituteNameBufferPooled = _stringBufferPool.AllocateFrom())
-      using (var printNameBufferPooled = _stringBufferPool.AllocateFrom()) {
+      using (var fileHandle = OpenFileAsReparsePoint(path, /*readWrite*/true)) {
 
         // 3. Set reparse point to target
+        using (var substituteNameBufferPooled = _stringBufferPool.AllocateFrom())
+        using (var printNameBufferPooled = _stringBufferPool.AllocateFrom()) {
+          // The "Substitute name" is the target path using the "\??\<path>\" format.
+          var substituteNameBuffer = substituteNameBufferPooled.Item;
 
-        // The "Substitute name" is the target path using the "\??\<path>\" format.
-        var substituteNameBuffer = substituteNameBufferPooled.Item;
-        substituteNameBuffer.Append(@"\??\");
-        targetPath.CopyTo(substituteNameBuffer);
-        substituteNameBuffer.Append('\\');
-        var len = substituteNameBuffer.Length;
+          var targetPathFixed = targetPath.Text;
+          targetPathFixed = PathHelpers.StripLongPathPrefix(targetPathFixed);
 
-        // The "Print name" is the target path "as-is". Note that the print name
-        // is optional, i.e. most applications seem to be able to deal with an empty
-        // print name by falling back to the "substitute name". However, built-in
-        // applications such as "mklink" seem to always set a "print name".
-        var printNameBuffer = printNameBufferPooled.Item;
-        targetPath.CopyTo(printNameBuffer);
-        var len2 = printNameBuffer.Length;
+          substituteNameBuffer.Append(@"\??\");
+          substituteNameBuffer.Append(targetPathFixed);
+          substituteNameBuffer.Append('\\');
 
-        // Fill up an instance of "MountPointReparseBuffer" that defines the reparse point target.
-        NativeMethods.MountPointReparseBuffer reparseBuffer = new NativeMethods.MountPointReparseBuffer();
-        reparseBuffer.Header.ReparseTag = NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT;
-        // |ReparseDataLength| = the number of bytes after the |reparseBuffer.Header|.
-        reparseBuffer.Header.ReparseDataLength = (ushort)(
-          Marshal.SizeOf(reparseBuffer.SubstituteNameOffset) +
-          Marshal.SizeOf(reparseBuffer.SubstituteNameLength) +
-          Marshal.SizeOf(reparseBuffer.PrintNameOffset) +
-          Marshal.SizeOf(reparseBuffer.PrintNameLength) +
-          (substituteNameBuffer.Length + 1) * sizeof(char) +
-          (printNameBuffer.Length + 1) * sizeof(char));
+          // The "Print name" is the target path "as-is". Note that the print name
+          // is optional, i.e. most applications seem to be able to deal with an empty
+          // print name by falling back to the "substitute name". However, built-in
+          // applications such as "mklink" seem to always set a "print name".
+          var printNameBuffer = printNameBufferPooled.Item;
+          targetPath.CopyTo(printNameBuffer);
 
-        // Offset/Length of substitute name
-        // * both offset and count are counting *bytes*
-        // * length does not include the terminatning NULL character
-        reparseBuffer.SubstituteNameOffset = (ushort)0;
-        reparseBuffer.SubstituteNameLength = (ushort)(substituteNameBuffer.Length * sizeof(char));
+          // Fill up an instance of "MountPointReparseBuffer" that defines the reparse point target.
+          NativeMethods.MountPointReparseBuffer reparseBuffer = new NativeMethods.MountPointReparseBuffer();
+          reparseBuffer.Header.ReparseTag = NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT;
+          // |ReparseDataLength| = the number of bytes after the |reparseBuffer.Header|.
+          reparseBuffer.Header.ReparseDataLength = (ushort)(
+            Marshal.SizeOf(reparseBuffer.SubstituteNameOffset) +
+              Marshal.SizeOf(reparseBuffer.SubstituteNameLength) +
+              Marshal.SizeOf(reparseBuffer.PrintNameOffset) +
+              Marshal.SizeOf(reparseBuffer.PrintNameLength) +
+              (substituteNameBuffer.Length + 1) * sizeof(char) +
+              (printNameBuffer.Length + 1) * sizeof(char));
 
-        // Offset/Length of print name
-        // * both offset and count are counting *bytes*
-        // * length does not include the terminatning NULL character
-        reparseBuffer.PrintNameOffset = (ushort)((substituteNameBuffer.Length + 1) * sizeof(char));
-        reparseBuffer.PrintNameLength = (ushort)(printNameBuffer.Length * sizeof(char));
+          // Offset/Length of substitute name
+          // * both offset and count are counting *bytes*
+          // * length does not include the terminatning NULL character
+          reparseBuffer.SubstituteNameOffset = (ushort)0;
+          reparseBuffer.SubstituteNameLength = (ushort)(substituteNameBuffer.Length * sizeof(char));
 
-        // Copy the substitute name and print name sequentially into |PathBuffer|
-        // Note: The "+1" is because we need to copy the terminating NULL character.
-        reparseBuffer.PathBuffer = new char[NativeMethods.MountPointReparseBuffer.MaxUnicodePathLength];
-        Array.Copy(substituteNameBuffer.Data, 0, reparseBuffer.PathBuffer, 0, substituteNameBuffer.Length + 1);
-        Array.Copy(printNameBuffer.Data, 0, reparseBuffer.PathBuffer, substituteNameBuffer.Length + 1, printNameBuffer.Length + 1);
+          // Offset/Length of print name
+          // * both offset and count are counting *bytes*
+          // * length does not include the terminatning NULL character
+          reparseBuffer.PrintNameOffset = (ushort)((substituteNameBuffer.Length + 1) * sizeof(char));
+          reparseBuffer.PrintNameLength = (ushort)(printNameBuffer.Length * sizeof(char));
 
-        // Note: This is somewhat inefficient, because the struct. is currently almost 32K long, because
-        // of the way |PathBuffer| is defined.
-        var sizeOf = Marshal.SizeOf(reparseBuffer);
-        using (var reparseBufferPtr = new SafeHGlobalHandle(Marshal.AllocHGlobal(sizeOf))) {
-          Marshal.StructureToPtr(reparseBuffer, reparseBufferPtr.Pointer, false);
+          // Copy the substitute name and print name sequentially into |PathBuffer|
+          // Note: The "+1" is because we need to copy the terminating NULL character.
+          reparseBuffer.PathBuffer = new char[NativeMethods.MountPointReparseBuffer.MaxUnicodePathLength];
+          Array.Copy(substituteNameBuffer.Data, 0, reparseBuffer.PathBuffer, 0, substituteNameBuffer.Length + 1);
+          Array.Copy(printNameBuffer.Data, 0, reparseBuffer.PathBuffer, substituteNameBuffer.Length + 1, printNameBuffer.Length + 1);
 
-          int bytesReturned;
-          var success = NativeMethods.DeviceIoControl(
-            fileHandle,
-            NativeMethods.EIOControlCode.FsctlSetReparsePoint,
-            reparseBufferPtr.Pointer,
-            (int)reparseBuffer.Header.ReparseDataLength + Marshal.SizeOf(reparseBuffer.Header),
-            IntPtr.Zero,
-            0,
-            out bytesReturned,
-            IntPtr.Zero);
-          if (!success) {
-            var lastWin32Error = Marshal.GetLastWin32Error();
-            throw new LastWin32ErrorException(lastWin32Error,
-              string.Format("Error creating junction point \"{0}\"", StripPath(path)));
+          // Note: This is somewhat inefficient, because the struct. is currently almost 32K long, because
+          // of the way |PathBuffer| is defined.
+          var sizeOf = Marshal.SizeOf(reparseBuffer);
+          using (var reparseBufferPtr = new SafeHGlobalHandle(Marshal.AllocHGlobal(sizeOf))) {
+            Marshal.StructureToPtr(reparseBuffer, reparseBufferPtr.Pointer, false);
+
+            int bytesReturned;
+            var success = NativeMethods.DeviceIoControl(
+              fileHandle,
+              NativeMethods.EIOControlCode.FsctlSetReparsePoint,
+              reparseBufferPtr.Pointer,
+              (int)reparseBuffer.Header.ReparseDataLength + Marshal.SizeOf(reparseBuffer.Header),
+              IntPtr.Zero,
+              0,
+              out bytesReturned,
+              IntPtr.Zero);
+            if (!success) {
+              var lastWin32Error = Marshal.GetLastWin32Error();
+              throw new LastWin32ErrorException(lastWin32Error,
+                string.Format("Error creating junction point \"{0}\"", StripPath(path)));
+            }
           }
         }
       }

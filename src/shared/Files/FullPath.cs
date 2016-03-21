@@ -90,12 +90,16 @@ namespace mtsuite.shared.Files {
       return sb.ToString();
     }
 
-    public void CopyTo(StringBuffer sb) {
-      BuildPath(sb);
-    }
-
     public int Length {
       get { return GetLength(this); }
+    }
+
+    public string Text {
+      get { return ToString(); }
+    }
+
+    public void CopyTo(StringBuffer sb) {
+      BuildPath(sb);
     }
 
     private static int GetLength(FullPath path) {

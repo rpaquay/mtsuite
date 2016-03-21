@@ -67,6 +67,9 @@ namespace mtsuite.shared.Files {
 
     public void CopyFile(FileSystemEntry entry, FullPath destinationPath, CopyFileCallback callback) {
       var sourcePath = entry.Path;
+
+      // If the source is a reparse point, delete the destination and
+      // copy the reparse point.
       if (entry.IsDirectory && entry.IsReparsePoint) {
         //TODO: Find better way to deal with this
         try {
@@ -85,7 +88,23 @@ namespace mtsuite.shared.Files {
           // Nothing to do here, as CopyFile will report an exception below.
         }
 
-        _win32.CopyFile(sourcePath, destinationPath, callback);
+        try {
+          _win32.CopyFile(sourcePath, destinationPath, callback);
+        } catch (LastWin32ErrorException e) {
+          // If access denied, deleting the destination sometimes works around it.
+          // TODO: Figure out excatly wh so a test can be written.
+          if (e.NativeErrorCode != (int)Win32Errors.ERROR_ACCESS_DENIED)
+            throw;
+
+          try {
+            var destinationEntry = GetEntry(destinationPath);
+            DeleteEntry(destinationEntry);
+          } catch {
+            // Nothing to do here, as CopyFile will report an exception below.
+          }
+
+          _win32.CopyFile(sourcePath, destinationPath, callback);
+        }
       }
     }
 
@@ -151,8 +170,18 @@ namespace mtsuite.shared.Files {
       try {
         _win32.CreateDirectory(path);
       } catch {
-        CreateDirectoryWorker(path.Parent);
+        if (!TryCreateParent(path))
+          throw;
         _win32.CreateDirectory(path);
+      }
+    }
+
+    private bool TryCreateParent(FullPath path) {
+      try {
+        CreateDirectoryWorker(path.Parent);
+        return true;
+      } catch {
+        return false;
       }
     }
   }

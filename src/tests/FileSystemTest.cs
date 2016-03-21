@@ -56,6 +56,29 @@ namespace tests {
     }
 
     [TestMethod]
+    public void CreatedJunctionPointToLongPathWorks() {
+      _fileSystemSetup.UseLongPaths = true;
+
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
+      while (fooTarget.Path.Length < 300) {
+        fooTarget = fooTarget.CreateDirectory("subdir");
+      }
+      fooTarget.CreateFile("testfile.txt", 200);
+
+      // Act
+      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", fooTarget.Path.Text);
+
+      // Assert
+      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPoint.Path);
+      Assert.IsTrue(info.IsJunctionPoint);
+      Assert.IsFalse(info.IsTargetRelative);
+      Assert.AreEqual(fooTarget.Path.Path, info.Target);
+
+      Assert.IsTrue(_fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path.Combine("testfile.txt")).IsFile);
+    }
+
+    [TestMethod]
     public void GetReparsePointInfoWorks() {
       // Prepare
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
@@ -93,7 +116,7 @@ namespace tests {
       var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", "foo");
 
       // Act
-      var jct2Path = _fileSystemSetup.Root.Path.Combine("jct-copy");
+      var jct2Path = fooTarget.Path.Combine("jct-copy");
       var entry = _fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path);
       _fileSystemSetup.FileSystem.CopyFile(entry, jct2Path, (a, b) => { });
 
