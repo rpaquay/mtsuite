@@ -71,6 +71,7 @@
     <Compile Include="SmallSetTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PoolTest.cs" />
+    <Compile Include="FileSystemTest.cs" />
     <Compile Include="Win32Test.cs" />
     <Compile Include="StringBufferTest.cs" />
   </ItemGroup>

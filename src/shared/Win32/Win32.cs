@@ -112,6 +112,8 @@ namespace mtsuite.shared.Win32 {
     public void DeleteDirectory(IStringSource path) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
         path.CopyTo(sb.Item);
+        // Note: RemoveDirectory works for empty directories as well
+        // as for junction points, even if their target is not empty.
         if (NativeMethods.RemoveDirectory(sb.Item.Data))
           return;
 
@@ -451,11 +453,21 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
+    /// <summary>
+    /// Creates a (directory) junction point at <paramref name="path"/> with
+    /// <paramref name="targetPath"/> as the target of the junction point.
+    /// 
+    /// Note that <paramref name="targetPath"/> must be an absolute path,
+    /// but cannot start with a long path prefix "\\?\".
+    /// 
+    /// Note that <paramref name="path"/> must not exist on disk.
+    /// </summary>
     public void CreateJunctionPoint(IStringSource path, IStringSource targetPath) {
       // http://www.flexhex.com/docs/articles/hard-links.phtml
-      // To create a junction point, we need to first create a directory,
-      // then get the directory handle, then send a 
-      // FSCTL_SET_REPARSE_POINT I/O control to the handle.
+      // To create a junction point, we need to:
+      // 1. Create a regular directory entry
+      // 2. Open a r/w handle to the directory entry
+      // 3. Issue a FSCTL_SET_REPARSE_POINT I/O control to the directory handle
 
       // 1. Create directory
       CreateDirectory(path);
@@ -466,19 +478,26 @@ namespace mtsuite.shared.Win32 {
       using (var printNameBufferPooled = _stringBufferPool.AllocateFrom()) {
 
         // 3. Set reparse point to target
+
+        // The "Substitute name" is the target path using the "\??\<path>\" format.
         var substituteNameBuffer = substituteNameBufferPooled.Item;
         substituteNameBuffer.Append(@"\??\");
         targetPath.CopyTo(substituteNameBuffer);
         substituteNameBuffer.Append('\\');
         var len = substituteNameBuffer.Length;
 
+        // The "Print name" is the target path "as-is". Note that the print name
+        // is optional, i.e. most applications seem to be able to deal with an empty
+        // print name by falling back to the "substitute name". However, built-in
+        // applications such as "mklink" seem to always set a "print name".
         var printNameBuffer = printNameBufferPooled.Item;
         targetPath.CopyTo(printNameBuffer);
         var len2 = printNameBuffer.Length;
 
+        // Fill up an instance of "MountPointReparseBuffer" that defines the reparse point target.
         NativeMethods.MountPointReparseBuffer reparseBuffer = new NativeMethods.MountPointReparseBuffer();
         reparseBuffer.Header.ReparseTag = NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT;
-        // The number of bytes after the ReparseDataLength field
+        // |ReparseDataLength| = the number of bytes after the |reparseBuffer.Header|.
         reparseBuffer.Header.ReparseDataLength = (ushort)(
           Marshal.SizeOf(reparseBuffer.SubstituteNameOffset) +
           Marshal.SizeOf(reparseBuffer.SubstituteNameLength) +
@@ -487,18 +506,26 @@ namespace mtsuite.shared.Win32 {
           (substituteNameBuffer.Length + 1) * sizeof(char) +
           (printNameBuffer.Length + 1) * sizeof(char));
 
-        // Offset/byte count of substitute name
+        // Offset/Length of substitute name
+        // * both offset and count are counting *bytes*
+        // * length does not include the terminatning NULL character
         reparseBuffer.SubstituteNameOffset = (ushort)0;
         reparseBuffer.SubstituteNameLength = (ushort)(substituteNameBuffer.Length * sizeof(char));
 
-        // Offset/byte count of print name
+        // Offset/Length of print name
+        // * both offset and count are counting *bytes*
+        // * length does not include the terminatning NULL character
         reparseBuffer.PrintNameOffset = (ushort)((substituteNameBuffer.Length + 1) * sizeof(char));
         reparseBuffer.PrintNameLength = (ushort)(printNameBuffer.Length * sizeof(char));
 
+        // Copy the substitute name and print name sequentially into |PathBuffer|
+        // Note: The "+1" is because we need to copy the terminating NULL character.
         reparseBuffer.PathBuffer = new char[NativeMethods.MountPointReparseBuffer.MaxUnicodePathLength];
         Array.Copy(substituteNameBuffer.Data, 0, reparseBuffer.PathBuffer, 0, substituteNameBuffer.Length + 1);
         Array.Copy(printNameBuffer.Data, 0, reparseBuffer.PathBuffer, substituteNameBuffer.Length + 1, printNameBuffer.Length + 1);
 
+        // Note: This is somewhat inefficient, because the struct. is currently almost 32K long, because
+        // of the way |PathBuffer| is defined.
         var sizeOf = Marshal.SizeOf(reparseBuffer);
         using (var reparseBufferPtr = new SafeHGlobalHandle(Marshal.AllocHGlobal(sizeOf))) {
           Marshal.StructureToPtr(reparseBuffer, reparseBufferPtr.Pointer, false);
