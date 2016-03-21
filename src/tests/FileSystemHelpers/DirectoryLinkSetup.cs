@@ -17,4 +17,10 @@ namespace tests.FileSystemHelpers {
       : base(parent, name) {
     }
   }
+
+  public class JunctionPointSetup : SymbolicLinkSetup {
+    public JunctionPointSetup(DirectorySetup parent, string name)
+      : base(parent, name) {
+    }
+  }
 }

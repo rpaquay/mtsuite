@@ -54,6 +54,12 @@ namespace tests.FileSystemHelpers {
       return directoryLink;
     }
 
+    public JunctionPointSetup CreateJunctionPoint(string name, string target) {
+      var junctionPoint = new JunctionPointSetup(this, name);
+      FileSystemSetup.FileSystem.CreateJunctionPoint(junctionPoint.Path, target);
+      return junctionPoint;
+    }
+
     public DirectorySetup CreateDirectory(string name) {
       var directory = new DirectorySetup(this, name);
       FileSystemSetup.FileSystem.CreateDirectory(directory.Path);

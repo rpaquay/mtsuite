@@ -104,6 +104,19 @@ namespace mtsuite.shared.Files {
     void CreateDirectorySymbolicLink(FullPath path, string target);
 
     /// <summary>
+    /// Create a junction point given its path and <paramref name="target"/> --
+    /// a relative or absolute path.
+    /// 
+    /// Note that if <paramref name="target"/> is relative, the file system
+    /// will expand it to an absolute path, as the underlying file systems
+    /// only support absolute paths for junction point targets.
+    /// 
+    /// Throws if <paramref name="path"/> already exists, or if there is another
+    /// error condition preventing the junction point creation.
+    /// </summary>
+    void CreateJunctionPoint(FullPath path, string target);
+
+    /// <summary>
     /// Get the <see cref="ReparsePointInfo"/> for the given <paramref
     /// name="path"/>. A <em>reparse point</em> can be a file or directory
     /// symbolic link, and directory junction point or any other kind of reparse

@@ -612,42 +612,66 @@ namespace mtsuite.shared.Win32 {
     /// <remarks>
     /// Refer to http://msdn.microsoft.com/en-us/library/windows/hardware/ff552012%28v=vs.85%29.aspx
     /// </remarks>
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct REPARSE_DATA_BUFFER {
-      public const int MaxUnicodePathLength = 0x3FF4;
-
+    [StructLayout(LayoutKind.Sequential)]
+    public struct REPARSE_DATA_BUFFER_HEADER {
       public ReparseTagType ReparseTag;
       public ushort ReparseDataLength;
       public ushort Reserved;
-      public ushort SubstituteNameOffset;
-      public ushort SubstituteNameLength;
-      public ushort PrintNameOffset;
-      public ushort PrintNameLength;
-      [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxUnicodePathLength)]
-      public byte[] PathBuffer;
     }
 
-    [Flags]
-    public enum SymbolicLinkFlags : uint {
-      SYMLINK_FLAG_RELATIVE = 0x01
-    }
     /// <remarks>
     /// Refer to http://msdn.microsoft.com/en-us/library/windows/hardware/ff552012%28v=vs.85%29.aspx
     /// </remarks>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct SymbolicLinkReparseData {
       private const int MaxUnicodePathLength = 0x3FF0;
 
-      public ReparseTagType ReparseTag;
-      public ushort ReparseDataLength;
-      public ushort Reserved;
+      public REPARSE_DATA_BUFFER_HEADER Header;
+
       public ushort SubstituteNameOffset;
       public ushort SubstituteNameLength;
       public ushort PrintNameOffset;
       public ushort PrintNameLength;
       public SymbolicLinkFlags Flags;
+
       [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxUnicodePathLength)]
-      public byte[] PathBuffer;
+      public char[] PathBuffer;
+    }
+
+    /// <remarks>
+    /// See https://msdn.microsoft.com/en-us/library/windows/hardware/ff552012(v=vs.85).aspx
+    /// </remarks>
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct MountPointReparseBuffer {
+      public const int MaxUnicodePathLength = 0x3FF0;
+
+      public REPARSE_DATA_BUFFER_HEADER Header;
+
+      public ushort SubstituteNameOffset;
+      public ushort SubstituteNameLength;
+      public ushort PrintNameOffset;
+      public ushort PrintNameLength;
+
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxUnicodePathLength)]
+      public char[] PathBuffer;
+    }
+
+    /// <remarks>
+    /// Refer to http://msdn.microsoft.com/en-us/library/windows/hardware/ff552012%28v=vs.85%29.aspx
+    /// </remarks>
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct GenericReparseBuffer {
+      private const int MaxByteCount = 0x7FF0;
+
+      public REPARSE_DATA_BUFFER_HEADER Header;
+
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxByteCount)]
+      public byte[] DataBuffer;
+    }
+
+    [Flags]
+    public enum SymbolicLinkFlags : uint {
+      SYMLINK_FLAG_RELATIVE = 0x01
     }
 
     public enum ReparseTagType : uint {

@@ -16,6 +16,7 @@ using mtinfo;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
+using mtsuite.shared.Files;
 
 namespace tests {
   [TestClass]
@@ -106,6 +107,43 @@ namespace tests {
       Assert.AreEqual(1, summary.Stats.FileCount);
       Assert.AreEqual(1, summary.Stats.SymlinkCount);
       Assert.AreEqual(10, summary.Stats.FileBytesTotal);
+    }
+
+    [TestMethod]
+    public void MtInfoShouldWorkWithJunctionPoints() {
+      // [root]
+      //   [file] topdir-file.txt
+      //   [dir ] subdir
+      //     [file] subdir-file.txt
+      //   [jpt]  j1 <==> subdir
+      //   [jpt]  j2 <==> subdir
+      //   [jpt]  j3 <==> subdir
+      var root = _fileSystemSetup.Root;
+      root.CreateFile("topdir-file.txt", 10);
+      var subdir = root.CreateDirectory("subdir");
+      subdir.CreateFile("subdir-file.txt", 20);
+      var j1 = root.CreateJunctionPoint("j1", "subdir");
+      var j2 = root.CreateJunctionPoint("j2", ".\\subdir");
+      var j3 = root.CreateJunctionPoint("j3", root.Path.Combine("subdir").Path);
+
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem);
+
+      var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3 }).Summary;
+      Assert.AreEqual(1, summary.Stats.DirectoryCount);
+      Assert.AreEqual(2, summary.Stats.FileCount);
+      Assert.AreEqual(3, summary.Stats.SymlinkCount);
+      Assert.AreEqual(30, summary.Stats.FileBytesTotal);
+
+      // TODO: Move this to a test class related to FileSystem tests.
+      var j1Info = _fileSystemSetup.FileSystem.GetReparsePointInfo(j1.Path);
+      Assert.AreEqual(true, j1Info.IsJunctionPoint);
+      Assert.AreEqual(false, j1Info.IsTargetRelative);
+      Assert.AreEqual(subdir.Path.Path, j1Info.Target);
+
+      var j2Info = _fileSystemSetup.FileSystem.GetReparsePointInfo(j2.Path);
+      Assert.AreEqual(true, j2Info.IsJunctionPoint);
+      Assert.AreEqual(false, j2Info.IsTargetRelative);
+      Assert.AreEqual(subdir.Path.Path, j2Info.Target);
     }
   }
 }

@@ -15,7 +15,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 using mtsuite.shared.Collections;
 using mtsuite.shared.Files;
 using Microsoft.Win32.SafeHandles;
@@ -72,7 +71,7 @@ namespace mtsuite.shared.Win32 {
               AddResult(ref data, result.Item);
             }
             var lastWin32Error = Marshal.GetLastWin32Error();
-            if (lastWin32Error != (int) Win32Errors.ERROR_NO_MORE_FILES) {
+            if (lastWin32Error != (int)Win32Errors.ERROR_NO_MORE_FILES) {
               throw new LastWin32ErrorException(lastWin32Error,
                 string.Format("Error during enumeration of files at \"{0}\"",
                   StripPath(path)));
@@ -137,7 +136,7 @@ namespace mtsuite.shared.Win32 {
     public FILE_ATTRIBUTE GetFileAttributes(IStringSource path) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
         path.CopyTo(sb.Item);
-        var INVALID_FILE_ATTRIBUTES = unchecked((FILE_ATTRIBUTE) (-1));
+        var INVALID_FILE_ATTRIBUTES = unchecked((FILE_ATTRIBUTE)(-1));
         var attributes = NativeMethods.GetFileAttributes(sb.Item.Data);
         if (attributes != INVALID_FILE_ATTRIBUTES)
           return attributes;
@@ -153,7 +152,7 @@ namespace mtsuite.shared.Win32 {
       var lastWin32Error = TryGetFileAttributesEx(path, out data);
       if (lastWin32Error == Win32Errors.ERROR_SUCCESS)
         return data;
-      throw new LastWin32ErrorException((int) lastWin32Error,
+      throw new LastWin32ErrorException((int)lastWin32Error,
         string.Format("Error getting extended file attributes for \"{0}\"", StripPath(path)));
     }
 
@@ -162,7 +161,7 @@ namespace mtsuite.shared.Win32 {
         path.CopyTo(sb.Item);
         if (NativeMethods.GetFileAttributesEx(sb.Item.Data, 0, out data))
           return Win32Errors.ERROR_SUCCESS;
-        return (Win32Errors) Marshal.GetLastWin32Error();
+        return (Win32Errors)Marshal.GetLastWin32Error();
       }
     }
 
@@ -172,7 +171,7 @@ namespace mtsuite.shared.Win32 {
       NativeMethods.CopyProgressRoutine copyProgress =
         (size, transferred, streamSize, bytesTransferred, number, reason, file, destinationFile, data) => {
           CopyFileCallback dataCallback =
-            (CopyFileCallback) Marshal.GetDelegateForFunctionPointer(data, typeof (CopyFileCallback));
+            (CopyFileCallback)Marshal.GetDelegateForFunctionPointer(data, typeof(CopyFileCallback));
           dataCallback(transferred, size);
           return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
         };
@@ -223,14 +222,20 @@ namespace mtsuite.shared.Win32 {
         var fileTimes = new FileTimes {
           LastWriteTimeUtc = info.LastWriteTimeUtc,
         };
-        using (var file = OpenFileAsReparsePoint(destinationPath, false /*readonly*/)) {
+        using (var file = OpenFileAsReparsePoint(destinationPath, /*readWrite*/true)) {
           SetFileTimes(destinationPath, file, fileTimes);
         }
         return;
       }
 
       if (info.IsJunctionPoint) {
-        CreateJunctionPoint(destinationPath, info.Target);
+        CreateJunctionPoint(destinationPath, new FullPath(info.Target));
+        var fileTimes = new FileTimes {
+          LastWriteTimeUtc = info.LastWriteTimeUtc,
+        };
+        using (var file = OpenFileAsReparsePoint(destinationPath, /*readWrite*/true)) {
+          SetFileTimes(destinationPath, file, fileTimes);
+        }
         return;
       }
 
@@ -291,9 +296,9 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
-    public SafeFileHandle OpenFileAsReparsePoint(IStringSource path, bool readOnly) {
+    public SafeFileHandle OpenFileAsReparsePoint(IStringSource path, bool readWrite) {
       var access = NativeMethods.EFileAccess.FILE_GENERIC_READ;
-      if (!readOnly) {
+      if (readWrite) {
         access |= NativeMethods.EFileAccess.FILE_GENERIC_WRITE;
       }
       return OpenFile(path, access,
@@ -313,7 +318,7 @@ namespace mtsuite.shared.Win32 {
     }
 
     public unsafe ReparsePointInfo GetReparsePointInfo(IStringSource path) {
-      using (var fileHandle = OpenFileAsReparsePoint(path, true /*readonly*/)) {
+      using (var fileHandle = OpenFileAsReparsePoint(path, /*readWrite*/false)) {
 
         var creationTime = default(NativeMethods.FILETIME);
         var lastAccessTime = default(NativeMethods.FILETIME);
@@ -324,7 +329,9 @@ namespace mtsuite.shared.Win32 {
             string.Format("Error getting file times of \"{0}\"", StripPath(path)));
         }
 
-        var outBufferSize = Marshal.SizeOf(typeof (NativeMethods.REPARSE_DATA_BUFFER));
+        var outBufferSize = Math.Max(
+          Marshal.SizeOf(typeof(NativeMethods.MountPointReparseBuffer)),
+          Marshal.SizeOf(typeof(NativeMethods.SymbolicLinkReparseData)));
         using (var outBuffer = new SafeHGlobalHandle(Marshal.AllocHGlobal(outBufferSize))) {
           int bytesReturned;
           var success = NativeMethods.DeviceIoControl(
@@ -342,30 +349,43 @@ namespace mtsuite.shared.Win32 {
               string.Format("Error reading target of reparse point \"{0}\"", StripPath(path)));
           }
 
-          var dataBuffer = outBuffer.ToStructure<NativeMethods.REPARSE_DATA_BUFFER>();
-          if (dataBuffer.ReparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_SYMLINK) {
+          var header = outBuffer.ToStructure<NativeMethods.REPARSE_DATA_BUFFER_HEADER>();
+
+          // IO_REPARSE_TAG_SYMLINK is the marker of a symbolic link
+          if (header.ReparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_SYMLINK) {
             // Extract path from buffer
             var reparseDataBuffer = outBuffer.ToStructure<NativeMethods.SymbolicLinkReparseData>();
+            var substituteName = new string(reparseDataBuffer.PathBuffer,
+                reparseDataBuffer.SubstituteNameOffset / sizeof(char),
+                reparseDataBuffer.SubstituteNameLength / sizeof(char));
+            var printName = new string(reparseDataBuffer.PathBuffer,
+                reparseDataBuffer.PrintNameOffset / sizeof(char),
+                reparseDataBuffer.PrintNameLength / sizeof(char));
             return new ReparsePointInfo {
               IsJunctionPoint = false,
               IsSymbolicLink = true,
-              Target = Encoding.Unicode.GetString(
-                reparseDataBuffer.PathBuffer, reparseDataBuffer.PrintNameOffset,
-                reparseDataBuffer.PrintNameLength),
+              Target = string.IsNullOrEmpty(printName) ? substituteName : printName,
               IsTargetRelative = (reparseDataBuffer.Flags & NativeMethods.SymbolicLinkFlags.SYMLINK_FLAG_RELATIVE) != 0,
               CreationTimeUtc = creationTime.ToDateTimeUtc(),
               LastAccessTimeUtc = lastAccessTime.ToDateTimeUtc(),
               LastWriteTimeUtc = lastWriteTime.ToDateTimeUtc(),
             };
           }
-          if (dataBuffer.ReparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT) {
+
+          // IO_REPARSE_TAG_MOUNT_POINT is the marker of a Juntion Point
+          if (header.ReparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT) {
+            var reparseDataBuffer = outBuffer.ToStructure<NativeMethods.MountPointReparseBuffer>();
+            var substituteName = new string(reparseDataBuffer.PathBuffer,
+                reparseDataBuffer.SubstituteNameOffset / sizeof(char),
+                reparseDataBuffer.SubstituteNameLength / sizeof(char));
+            var printName = new string(reparseDataBuffer.PathBuffer,
+                reparseDataBuffer.PrintNameOffset / sizeof(char),
+                reparseDataBuffer.PrintNameLength / sizeof(char));
             // Extract path from buffer
             return new ReparsePointInfo {
               IsJunctionPoint = true,
               IsSymbolicLink = false,
-              Target = Encoding.Unicode.GetString(
-                dataBuffer.PathBuffer, dataBuffer.PrintNameOffset,
-                dataBuffer.PrintNameLength),
+              Target = string.IsNullOrEmpty(printName) ? ExtractPathFromSubstituteName(substituteName) : printName,
               IsTargetRelative = false,
               CreationTimeUtc = creationTime.ToDateTimeUtc(),
               LastAccessTimeUtc = lastAccessTime.ToDateTimeUtc(),
@@ -377,6 +397,27 @@ namespace mtsuite.shared.Win32 {
             string.Format("Unsupported reparse point type at \"{0}\"", StripPath(path)));
         }
       }
+    }
+
+    private static unsafe string ExtractPathFromSubstituteName(string substituteName) {
+      if (string.IsNullOrEmpty(substituteName))
+        return substituteName;
+
+      var length = substituteName.Length;
+      if (length < 6)
+        return substituteName;
+
+      if (substituteName[0] == '\\' &&
+          substituteName[1] == '?' &&
+          substituteName[2] == '?' &&
+          substituteName[3] == '\\') {
+        if (substituteName[length - 1] == '\\')
+          length--;
+        length -= 4;
+        return substituteName.Substring(4, length);
+      }
+
+      return substituteName;
     }
 
     public void CreateDirectorySymbolicLink(IStringSource path, string targetPath) {
@@ -401,7 +442,7 @@ namespace mtsuite.shared.Win32 {
         /*var statusCode = */
         NativeMethods.CreateSymbolicLink(sb.Item.Data, targetPath, linkFlag);
         var lastWin32Error = Marshal.GetLastWin32Error();
-        if (lastWin32Error == (int) Win32Errors.ERROR_SUCCESS)
+        if (lastWin32Error == (int)Win32Errors.ERROR_SUCCESS)
           return;
 
         throw new LastWin32ErrorException(lastWin32Error,
@@ -410,11 +451,75 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
-    public void CreateJunctionPoint(IStringSource path, string targetPath) {
-      var lastWin32Error = Win32Errors.ERROR_NOT_SUPPORTED;
-      throw new LastWin32ErrorException((int) lastWin32Error,
-        string.Format("Error creating junction point \"{0}\" linking to \"{1}\"",
-          StripPath(path), StripPath(targetPath)));
+    public void CreateJunctionPoint(IStringSource path, IStringSource targetPath) {
+      // http://www.flexhex.com/docs/articles/hard-links.phtml
+      // To create a junction point, we need to first create a directory,
+      // then get the directory handle, then send a 
+      // FSCTL_SET_REPARSE_POINT I/O control to the handle.
+
+      // 1. Create directory
+      CreateDirectory(path);
+
+      // 2. Open directory as reparse point handle
+      using (var fileHandle = OpenFileAsReparsePoint(path, /*readWrite*/true))
+      using (var substituteNameBufferPooled = _stringBufferPool.AllocateFrom())
+      using (var printNameBufferPooled = _stringBufferPool.AllocateFrom()) {
+
+        // 3. Set reparse point to target
+        var substituteNameBuffer = substituteNameBufferPooled.Item;
+        substituteNameBuffer.Append(@"\??\");
+        targetPath.CopyTo(substituteNameBuffer);
+        substituteNameBuffer.Append('\\');
+        var len = substituteNameBuffer.Length;
+
+        var printNameBuffer = printNameBufferPooled.Item;
+        targetPath.CopyTo(printNameBuffer);
+        var len2 = printNameBuffer.Length;
+
+        NativeMethods.MountPointReparseBuffer reparseBuffer = new NativeMethods.MountPointReparseBuffer();
+        reparseBuffer.Header.ReparseTag = NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT;
+        // The number of bytes after the ReparseDataLength field
+        reparseBuffer.Header.ReparseDataLength = (ushort)(
+          Marshal.SizeOf(reparseBuffer.SubstituteNameOffset) +
+          Marshal.SizeOf(reparseBuffer.SubstituteNameLength) +
+          Marshal.SizeOf(reparseBuffer.PrintNameOffset) +
+          Marshal.SizeOf(reparseBuffer.PrintNameLength) +
+          (substituteNameBuffer.Length + 1) * sizeof(char) +
+          (printNameBuffer.Length + 1) * sizeof(char));
+
+        // Offset/byte count of substitute name
+        reparseBuffer.SubstituteNameOffset = (ushort)0;
+        reparseBuffer.SubstituteNameLength = (ushort)(substituteNameBuffer.Length * sizeof(char));
+
+        // Offset/byte count of print name
+        reparseBuffer.PrintNameOffset = (ushort)((substituteNameBuffer.Length + 1) * sizeof(char));
+        reparseBuffer.PrintNameLength = (ushort)(printNameBuffer.Length * sizeof(char));
+
+        reparseBuffer.PathBuffer = new char[NativeMethods.MountPointReparseBuffer.MaxUnicodePathLength];
+        Array.Copy(substituteNameBuffer.Data, 0, reparseBuffer.PathBuffer, 0, substituteNameBuffer.Length + 1);
+        Array.Copy(printNameBuffer.Data, 0, reparseBuffer.PathBuffer, substituteNameBuffer.Length + 1, printNameBuffer.Length + 1);
+
+        var sizeOf = Marshal.SizeOf(reparseBuffer);
+        using (var reparseBufferPtr = new SafeHGlobalHandle(Marshal.AllocHGlobal(sizeOf))) {
+          Marshal.StructureToPtr(reparseBuffer, reparseBufferPtr.Pointer, false);
+
+          int bytesReturned;
+          var success = NativeMethods.DeviceIoControl(
+            fileHandle,
+            NativeMethods.EIOControlCode.FsctlSetReparsePoint,
+            reparseBufferPtr.Pointer,
+            (int)reparseBuffer.Header.ReparseDataLength + Marshal.SizeOf(reparseBuffer.Header),
+            IntPtr.Zero,
+            0,
+            out bytesReturned,
+            IntPtr.Zero);
+          if (!success) {
+            var lastWin32Error = Marshal.GetLastWin32Error();
+            throw new LastWin32ErrorException(lastWin32Error,
+              string.Format("Error creating junction point \"{0}\"", StripPath(path)));
+          }
+        }
+      }
     }
   }
 }

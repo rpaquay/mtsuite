@@ -123,6 +123,14 @@ namespace mtsuite.shared.Files {
       _win32.CreateDirectorySymbolicLink(path, target);
     }
 
+    public void CreateJunctionPoint(FullPath path, string target) {
+      // Convert target into an absolute path
+      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent.Combine(target).Path;
+      targetPath = PathHelpers.NormalizePath(targetPath);
+
+      _win32.CreateJunctionPoint(path, new FullPath(targetPath));
+    }
+
     public ReparsePointInfo GetReparsePointInfo(FullPath path) {
       var info = _win32.GetReparsePointInfo(path);
       return new ReparsePointInfo {

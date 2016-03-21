@@ -98,6 +98,16 @@ namespace mtsuite.shared.Files {
       }
     }
 
+    public static string AppendTrailingSeparator(string path) {
+      if (string.IsNullOrEmpty(path))
+        throw new ArgumentNullException("path");
+
+      if (path[path.Length - 1] == Path.DirectorySeparatorChar)
+        return path;
+
+      return path + Path.DirectorySeparatorChar;
+    }
+
     /// <summary>
     /// Combine absolute source path <paramref name="path1"/> with the relative
     /// path <paramref name="path2"/>. This is nothing more than a helper method
@@ -183,6 +193,13 @@ namespace mtsuite.shared.Files {
     /// </summary>
     public static bool IsPathAbsolute(string path) {
       return GetPathRootPrefixInfo(path).RootPrefixKind != RootPrefixKind.None;
+    }
+
+    /// <summary>
+    /// Return <code>true</code> if <paramref name="path"/> is not an absolute path.
+    /// </summary>
+    public static bool IsPathRelative(string path) {
+      return !IsPathAbsolute(path);
     }
 
     /// <summary>
