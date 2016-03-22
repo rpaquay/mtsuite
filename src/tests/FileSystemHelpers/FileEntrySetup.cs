@@ -90,7 +90,12 @@ namespace tests.FileSystemHelpers {
           return new DirectorySetup(parent, entry.Name);
         }
         if (entry.IsDirectory && entry.IsReparsePoint) {
-          return new DirectoryLinkSetup(parent, entry.Name);
+          var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(entry.Path);
+          if (info.IsJunctionPoint) {
+            return new JunctionPointSetup(parent, entry.Name);
+          } else {
+            return new DirectoryLinkSetup(parent, entry.Name);
+          }
         }
       }
 

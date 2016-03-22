@@ -40,15 +40,24 @@ namespace tests {
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtCopyShouldThrowWithNonExistingFolder() {
+      // Prepare
+
+      // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
       mtcopy.DoCopy(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path);
+
+      // Assert
     }
 
     [TestMethod]
     public void MtCopyShouldWorkWithEmptyFolder() {
-      var mtcopy = new MtCopy(_sourcefs.FileSystem);
+      // Prepare
 
+      // Act
+      var mtcopy = new MtCopy(_sourcefs.FileSystem);
       var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -59,13 +68,16 @@ namespace tests {
 
     [TestMethod]
     public void MtCopyShouldWorkWithFiles() {
+      // Prepare
       _sourcefs.Root.CreateFile("a", 10);
       _sourcefs.Root.CreateFile("b", 11);
       _sourcefs.Root.CreateFile("c", 12);
 
+      // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-
       var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -77,6 +89,7 @@ namespace tests {
 
     [TestMethod]
     public void MtCopyShouldWorkWithDirectories() {
+      // Prepare
       var dir1 = _sourcefs.Root.CreateDirectory("a");
       dir1.CreateFile("a", 10);
       dir1.CreateFile("b", 11);
@@ -85,9 +98,11 @@ namespace tests {
       dir2.CreateFile("b", 11);
       dir2.CreateFile("c", 12);
 
+      // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-
       var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -99,11 +114,14 @@ namespace tests {
 
     [TestMethod]
     public void MtCopyShouldWorkWithNestedDirectories() {
+      // Prepare
       _sourcefs.Root.CreateDirectory("a").CreateDirectory("b").CreateDirectory("c").CreateDirectory("d");
 
+      // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-
       var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(4, stats.DirectoryCreatedCount);
@@ -112,6 +130,7 @@ namespace tests {
 
     [TestMethod]
     public void MtCopyShouldDeleteMismatchedFile() {
+      // Prepare
       var dir1 = _sourcefs.Root.CreateDirectory("a");
       dir1.CreateFile("a", 10);
       dir1.CreateFile("b", 11);
@@ -120,11 +139,13 @@ namespace tests {
       dir2.CreateFile("b", 11);
       dir2.CreateFile("c", 12);
 
-      _destfs.Root.CreateFile("a", 10);
+      _destfs.Root.CreateFile("a", 10); // "a" is a dir in sourcefs!
 
+      // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-
       var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -136,6 +157,7 @@ namespace tests {
 
     [TestMethod]
     public void MtCopyShouldNotDeleteExtraEntries() {
+      // Prepare
       var dir1 = _sourcefs.Root.CreateDirectory("a");
       dir1.CreateFile("a", 10);
       dir1.CreateFile("b", 11);
@@ -152,9 +174,11 @@ namespace tests {
       var ddir2 = _destfs.Root.CreateDirectory("c");
       ddir2.CreateFile("a", 10);
 
-      var mtmirror = new MtCopy(_sourcefs.FileSystem);
+      // Act
+      var mtcopy = new MtCopy(_sourcefs.FileSystem);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
 
-      var stats = mtmirror.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual("f", _destfs.Root.GetFile("f").Path.Name);
@@ -172,6 +196,7 @@ namespace tests {
 
     [TestMethod]
     public void MtCopyShouldWorkWithSymbolicLinks() {
+      // Prepare
       if (!_sourcefs.SupportsSymbolicLinkCreation()) {
         Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
       }
@@ -180,9 +205,11 @@ namespace tests {
       dir1.CreateFileLink("b", "a");
       dir1.CreateDirectoryLink("c", "..");
 
+      // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-
       var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual("a", _destfs.Root.GetDirectory("a").Path.Name);
@@ -195,6 +222,33 @@ namespace tests {
       Assert.AreEqual(1, stats.DirectoryCreatedCount);
       Assert.AreEqual(1, stats.FileCopiedCount);
       Assert.AreEqual(2, stats.SymlinkCopiedCount);
+      Assert.AreEqual(0, stats.Errors.Count);
+    }
+
+    [TestMethod]
+    public void MtCopyShouldCopyJunctionPoints() {
+      // Prepare
+      var dir1 = _sourcefs.Root.CreateDirectory("a");
+      dir1.CreateFile("f.txt", 10);
+      dir1.CreateDirectory("subdir");
+      dir1.CreateJunctionPoint("jct", "subdir");
+
+      // Act
+      var mtcopy = new MtCopy(_sourcefs.FileSystem);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
+      Assert.IsTrue(_sourcefs.Root.Exists());
+      Assert.IsTrue(_destfs.Root.Exists());
+      Assert.AreEqual("a", _destfs.Root.GetDirectory("a").Path.Name);
+      Assert.AreEqual("f.txt", _destfs.Root.GetDirectory("a").GetFile("f.txt").Path.Name);
+      // Note: Target points to "_sourcefs" because junction point targets are absolute paths.
+      Assert.AreEqual(_sourcefs.Root.GetDirectory("a").GetDirectory("subdir").Path.Path, _destfs.Root.GetDirectory("a").GetJunctionPoint("jct").Target);
+      Assert.AreEqual(0, stats.DirectoryDeletedCount);
+      Assert.AreEqual(0, stats.FileDeletedCount);
+      Assert.AreEqual(2, stats.DirectoryCreatedCount);
+      Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(1, stats.SymlinkCopiedCount);
       Assert.AreEqual(0, stats.Errors.Count);
     }
   }

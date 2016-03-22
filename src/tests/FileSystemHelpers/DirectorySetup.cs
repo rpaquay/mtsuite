@@ -94,6 +94,10 @@ namespace tests.FileSystemHelpers {
       return GetEntry<DirectoryLinkSetup>(name);
     }
 
+    public JunctionPointSetup GetJunctionPoint(string name) {
+      return GetEntry<JunctionPointSetup>(name);
+    }
+
     public T GetEntry<T>(string name) where T : FileEntrySetup {
       var entry = GetEntry(name);
       var result = entry as T;
