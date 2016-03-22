@@ -251,5 +251,36 @@ namespace tests {
       Assert.AreEqual(1, stats.SymlinkCopiedCount);
       Assert.AreEqual(0, stats.Errors.Count);
     }
+
+    [TestMethod]
+    public void MtCopyShouldUpdateExistingJunctionPoints() {
+      // Prepare
+      var dir1 = _sourcefs.Root.CreateDirectory("a");
+      dir1.CreateFile("f.txt", 10);
+      dir1.CreateDirectory("subdir");
+      dir1.CreateJunctionPoint("jct", "subdir");
+
+      var dir2 = _destfs.Root.CreateDirectory("a");
+      dir2.CreateDirectory("subdir");
+      dir2.CreateJunctionPoint("jct", "subdir");
+
+      // Act
+      var mtcopy = new MtCopy(_sourcefs.FileSystem);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
+      Assert.IsTrue(_sourcefs.Root.Exists());
+      Assert.IsTrue(_destfs.Root.Exists());
+      Assert.AreEqual("a", _destfs.Root.GetDirectory("a").Path.Name);
+      Assert.AreEqual("f.txt", _destfs.Root.GetDirectory("a").GetFile("f.txt").Path.Name);
+      // Note: Target points to "_sourcefs" because junction point targets are absolute paths.
+      Assert.AreEqual(_sourcefs.Root.GetDirectory("a").GetDirectory("subdir").Path.Path, _destfs.Root.GetDirectory("a").GetJunctionPoint("jct").Target);
+      Assert.AreEqual(0, stats.DirectoryDeletedCount);
+      Assert.AreEqual(0, stats.FileDeletedCount);
+      Assert.AreEqual(0, stats.DirectoryCreatedCount);
+      Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(1, stats.SymlinkCopiedCount);
+      Assert.AreEqual(0, stats.Errors.Count);
+    }
   }
 }

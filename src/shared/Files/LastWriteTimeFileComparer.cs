@@ -16,14 +16,39 @@ using System;
 
 namespace mtsuite.shared.Files {
   public class LastWriteTimeFileComparer : IFileComparer {
+    private readonly IFileSystem _fileSystem;
+
+    public LastWriteTimeFileComparer(IFileSystem fileSystem) {
+      _fileSystem = fileSystem;
+    }
+
     public bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2) {
-      return
-        (file1.IsFile == file2.IsFile) &&
-        (file1.IsDirectory == file2.IsDirectory) &&
-        (file1.IsReparsePoint == file2.IsReparsePoint) &&
-        (file1.FileSize == file2.FileSize) &&
-        StringComparer.OrdinalIgnoreCase.Equals(file1.Name, file2.Name) &&
-        DateTime.Equals(file1.LastWriteTimeUtc, file2.LastWriteTimeUtc);
+      bool sameKind =
+          (file1.IsFile == file2.IsFile) &&
+          (file1.IsDirectory == file2.IsDirectory) &&
+          (file1.IsReparsePoint == file2.IsReparsePoint) &&
+          (file1.FileSize == file2.FileSize);
+      if (!sameKind)
+        return false;
+
+      // We only need to compare the names, as we know the parent directory
+      // are equivalent (although not same paths).
+      if (!StringComparer.OrdinalIgnoreCase.Equals(file1.Name, file2.Name)) {
+        return false;
+      }
+
+      if (!DateTime.Equals(file1.LastWriteTimeUtc, file2.LastWriteTimeUtc)) {
+        return false;
+      }
+
+      if (file1.IsReparsePoint) {
+        var info1 = _fileSystem.GetReparsePointInfo(file1.Path);
+        var info2 = _fileSystem.GetReparsePointInfo(file2.Path);
+        if (info1.Target != info2.Target) {
+          return false;
+        }
+      }
+      return true;
     }
   }
 }

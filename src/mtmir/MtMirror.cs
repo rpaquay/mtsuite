@@ -31,7 +31,7 @@ namespace mtmir {
       _fileSystem = fileSystem;
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
       _progressMonitor = new ProgressMonitor();
-      _fileComparer = new LastWriteTimeFileComparer();
+      _fileComparer = new LastWriteTimeFileComparer(fileSystem);
 
       _parallelFileSystem.Error += exception => _progressMonitor.OnError(exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
