@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.IO;
 using mtsuite.shared.Files;
 
 namespace tests.FileSystemHelpers {
@@ -63,7 +64,23 @@ namespace tests.FileSystemHelpers {
     public FullPath Path { get { return _path; } }
 
     public void Delete() {
-      FileSystemSetup.FileSystem.DeleteEntry(FileSystemSetup.FileSystem.GetEntry(Path));
+      FileSystemSetup.FileSystem.DeleteEntry(GetFileSystemEntry());
+    }
+
+    public FileAttributes FileAttributes {
+      get { return GetFileSystemEntry().FileAttributes; }
+    }
+
+    public void SetReadOnlyAttribute() {
+      _fileSystemSetup.SetReadOnlyAttribute(this);
+    }
+
+    public void SetSystemAttribute() {
+      _fileSystemSetup.SetSystemAttribute(this);
+    }
+
+    private FileSystemEntry GetFileSystemEntry() {
+      return FileSystemSetup.FileSystem.GetEntry(Path);
     }
 
     public bool Exists() {

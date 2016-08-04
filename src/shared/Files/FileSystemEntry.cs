@@ -60,6 +60,8 @@ namespace mtsuite.shared.Files {
 
     public bool IsReadOnly { get { return (_attributes & FileAttributes.ReadOnly) != 0; } }
 
+    public bool IsSystem { get { return (_attributes & FileAttributes.System) != 0; } }
+
     public override string ToString() {
       return string.Format("\"{0}\", file:{1}, dir:{2}, link:{3}, attrs:{4}, date: {5}",
         _path.Name,

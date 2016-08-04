@@ -49,7 +49,7 @@ namespace mtsuite.shared.Files {
     }
 
     public void DeleteEntry(FileSystemEntry entry) {
-      RemoveReadOnly(entry);
+      RemoveAccessDeniedAttributes(entry);
       var path = entry.Path;
       if (entry.IsDirectory) {
         _win32.DeleteDirectory(path);
@@ -58,9 +58,9 @@ namespace mtsuite.shared.Files {
       }
     }
 
-    private void RemoveReadOnly(FileSystemEntry entry) {
-      if (entry.IsReadOnly) {
-        var attrs = entry.FileAttributes & ~FileAttributes.ReadOnly;
+    private void RemoveAccessDeniedAttributes(FileSystemEntry entry) {
+      if (entry.IsReadOnly || entry.IsSystem) {
+        var attrs = entry.FileAttributes & ~(FileAttributes.ReadOnly | FileAttributes.System);
         _win32.SetFileAttributes(entry.Path, (FILE_ATTRIBUTE)attrs);
       }
     }
@@ -83,7 +83,7 @@ namespace mtsuite.shared.Files {
         // If destination exists and is read-only, remove the read-only attribute
         try {
           var destinationEntry = GetEntry(destinationPath);
-          RemoveReadOnly(destinationEntry);
+          RemoveAccessDeniedAttributes(destinationEntry);
         } catch {
           // Nothing to do here, as CopyFile will report an exception below.
         }
@@ -92,7 +92,9 @@ namespace mtsuite.shared.Files {
           _win32.CopyFile(sourcePath, destinationPath, callback);
         } catch (LastWin32ErrorException e) {
           // If access denied, deleting the destination sometimes works around it.
-          // TODO: Figure out excatly wh so a test can be written.
+          // Note: This used to happen when the destination file is readonly and/or
+          //   has the system attribute. That issue has been fixed when calling
+          //   RemoveReadOnly above, but maybe there are other cases?
           if (e.NativeErrorCode != (int)Win32Errors.ERROR_ACCESS_DENIED)
             throw;
 

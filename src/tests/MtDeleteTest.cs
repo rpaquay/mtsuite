@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.IO;
 using mtdel;
 using mtsuite.shared.CommandLine;
+using mtsuite.shared.Win32;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
 
@@ -44,7 +46,7 @@ namespace tests {
     public void MtDeleteShouldWorkWithEmptyFolder() {
       var mtdelete = new MtDelete(_fileSystemSetup.FileSystem);
 
-      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options {QuietMode = true});
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(1, stats.DirectoryDeletedCount);
     }
@@ -90,6 +92,34 @@ namespace tests {
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(5, stats.DirectoryDeletedCount);
+    }
+
+    [TestMethod]
+    public void MtDeleteShouldDeleteReadOnlyFiles() {
+      var file = _fileSystemSetup.Root.CreateFile("a", 10);
+      file.SetReadOnlyAttribute();
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem);
+
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+      Assert.IsFalse(_fileSystemSetup.Root.Exists());
+      Assert.AreEqual(0, stats.Errors.Count);
+      Assert.AreEqual(1, stats.DirectoryDeletedCount);
+      Assert.AreEqual(1, stats.FileDeletedCount);
+    }
+
+    [TestMethod]
+    public void MtDeleteShouldDeleteSystemFiles() {
+      var file = _fileSystemSetup.Root.CreateFile("a", 10);
+      file.SetSystemAttribute();
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem);
+
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+      Assert.IsFalse(_fileSystemSetup.Root.Exists());
+      Assert.AreEqual(0, stats.Errors.Count);
+      Assert.AreEqual(1, stats.DirectoryDeletedCount);
+      Assert.AreEqual(1, stats.FileDeletedCount);
     }
   }
 }

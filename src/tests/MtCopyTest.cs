@@ -156,6 +156,46 @@ namespace tests {
     }
 
     [TestMethod]
+    public void MtCopyShouldDeleteReadOnlyFiles() {
+      // Prepare
+      _sourcefs.Root.CreateFile("a", 15);
+      _destfs.Root.CreateFile("a", 10).SetReadOnlyAttribute();
+
+      // Act
+      var mtcopy = new MtCopy(_sourcefs.FileSystem);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
+      Assert.IsTrue(_sourcefs.Root.Exists());
+      Assert.IsTrue(_destfs.Root.Exists());
+      Assert.AreEqual(0, stats.DirectoryDeletedCount);
+      Assert.AreEqual(0, stats.FileDeletedCount);
+      Assert.AreEqual(0, stats.DirectoryCreatedCount);
+      Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(0, stats.Errors.Count);
+    }
+
+    [TestMethod]
+    public void MtCopyShouldDeleteSystemFiles() {
+      // Prepare
+      _destfs.Root.CreateFile("a", 10).SetSystemAttribute();
+      _sourcefs.Root.CreateFile("a", 15);
+
+      // Act
+      var mtcopy = new MtCopy(_sourcefs.FileSystem);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+
+      // Assert
+      Assert.IsTrue(_sourcefs.Root.Exists());
+      Assert.IsTrue(_destfs.Root.Exists());
+      Assert.AreEqual(0, stats.DirectoryDeletedCount);
+      Assert.AreEqual(0, stats.FileDeletedCount);
+      Assert.AreEqual(0, stats.DirectoryCreatedCount);
+      Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(0, stats.Errors.Count);
+    }
+
+    [TestMethod]
     public void MtCopyShouldNotDeleteExtraEntries() {
       // Prepare
       var dir1 = _sourcefs.Root.CreateDirectory("a");

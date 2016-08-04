@@ -46,6 +46,18 @@ namespace tests.FileSystemHelpers {
       }
     }
 
+    public void SetReadOnlyAttribute(FileEntrySetup entry) {
+      SetAttributes(entry, entry.FileAttributes | FileAttributes.ReadOnly);
+    }
+
+    public void SetSystemAttribute(FileEntrySetup entry) {
+      SetAttributes(entry, entry.FileAttributes | FileAttributes.System);
+    }
+
+    public void SetAttributes(FileEntrySetup entry, FileAttributes attributes) {
+      new Win32().SetFileAttributes(entry.Path, (FILE_ATTRIBUTE)attributes);
+    }
+
     private void DeleteDirectoryEntriesRecurse(FullPath directory) {
       using (var entries = _fileSystem.GetDirectoryEntries(directory)) {
         foreach (var entry in entries.Item) {
