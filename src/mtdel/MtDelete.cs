@@ -176,9 +176,7 @@ I  Not content indexed Files  L  Reparse Points
       var fileSizeTotalMb = statistics.FileDeletedTotalSize / 1024 / 1024;
       Console.WriteLine("    Total bytes deleted:    {0:n0} MB", fileSizeTotalMb);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      foreach (var error in ProgramHelpers.FlattenErrors(statistics.Errors)) {
-        Console.Error.WriteLine("ERROR: {0}", error.Message);
-      }
+      ProgramHelpers.DisplayErrors(statistics.Errors);
     }
   }
 }

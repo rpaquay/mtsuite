@@ -213,9 +213,7 @@ namespace mtinfo {
         statistics.EntryCopiedCount / statistics.ElapsedTime.TotalSeconds);
 
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      foreach (var error in ProgramHelpers.FlattenErrors(statistics.Errors)) {
-        Console.Error.WriteLine("ERROR: {0}", error.Message);
-      }
+      ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
     private static void DisplayDirectoryEntries(

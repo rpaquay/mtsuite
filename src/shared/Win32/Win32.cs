@@ -21,6 +21,8 @@ using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.shared.Win32 {
   public class Win32 {
+    private static readonly NativeMethods.CopyProgressRoutine StatiCopyProgressRoutine = CopyProgress;
+
     private readonly IPool<List<DirectoryEntry>> _entryListPool = new ListPool<DirectoryEntry>();
     private readonly IPool<StringBuffer> _stringBufferPool =
       PoolFactory<StringBuffer>.Create(
@@ -167,7 +169,6 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
-    private static NativeMethods.CopyProgressRoutine statiCopyProgressRoutine = CopyProgress;
     public void CopyFile(IStringSource sourcePath, IStringSource destinationPath, CopyFileCallback callback) {
       // Note: object lifetime: CopyFileEx terminates within this function call, so
       // is it ok to have [callback] be a local variable.
@@ -179,7 +180,7 @@ namespace mtsuite.shared.Win32 {
         var callbackPtr = Marshal.GetFunctionPointerForDelegate(callback);
         var bCancel = 0;
         var flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
-        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, statiCopyProgressRoutine, callbackPtr, ref bCancel, flags)) {
+        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, StatiCopyProgressRoutine, callbackPtr, ref bCancel, flags)) {
           return;
         }
         GC.KeepAlive(callback);

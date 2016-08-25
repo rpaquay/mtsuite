@@ -42,6 +42,24 @@ namespace mtsuite.shared.CommandLine {
       return new FullPath(PathHelpers.MakeLongPath(PathHelpers.NormalizeUserInputPath(Environment.CurrentDirectory, args)));
     }
 
+    public static void DisplayErrors(IEnumerable<Exception> errors) {
+      foreach (var error in FlattenErrors(errors)) {
+        if (IsInternalError(error)) {
+          Console.Error.WriteLine("Internal error: {0}", error.Message);
+          foreach (var line in error.StackTrace.Replace("\r\n", "\n").Split('\n')) {
+            Console.Error.WriteLine("    {0}", line);
+          }
+        } else {
+          Console.Error.WriteLine("Error: {0}", error.Message);
+        }
+      }
+    }
+
+    private static bool IsInternalError(Exception error) {
+      return error is ArgumentException ||
+        error is NullReferenceException;
+    }
+
     public static IEnumerable<Exception> FlattenErrors(Exception error) {
       var agg = error as AggregateException;
       if (agg != null) {
@@ -101,9 +119,7 @@ namespace mtsuite.shared.CommandLine {
         statistics.ElapsedTime.TotalSeconds);
 
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      foreach (var error in ProgramHelpers.FlattenErrors(statistics.Errors)) {
-        Console.Error.WriteLine("ERROR: {0}", error.Message);
-      }
+      DisplayErrors(statistics.Errors);
     }
 
     public static void DisplayGcStatistics() {
