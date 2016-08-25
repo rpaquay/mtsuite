@@ -168,14 +168,16 @@ namespace mtsuite.shared.Win32 {
     }
 
     public void CopyFile(IStringSource sourcePath, IStringSource destinationPath, CopyFileCallback callback) {
-      // Note: object lifetime: CopyFileEx terminates within this function call, so
-      // is it ok to have [callback] be a local variable.
       using (var source = _stringBufferPool.AllocateFrom())
       using (var destination = _stringBufferPool.AllocateFrom()) {
         sourcePath.CopyTo(source.Item);
         destinationPath.CopyTo(destination.Item);
 
         Exception error = null;
+        // Note: object lifetime: CopyFileEx terminates within this function
+        // call, so is it ok to have "copyProgress" be a local variable.
+        // However, we need to call "GC.KeepAlive" to ensure it does not get
+        // collected while CopyFileEx is running.
         NativeMethods.CopyProgressRoutine copyProgress = (size, transferred, streamSize, bytesTransferred, number, reason, file, destinationFile, data) => {
           try {
             callback(transferred, size);
@@ -186,7 +188,7 @@ namespace mtsuite.shared.Win32 {
           }
         };
         var bCancel = 0;
-        var flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
+        const NativeMethods.CopyFileFlags flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
         if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, copyProgress, IntPtr.Zero, ref bCancel, flags)) {
           return;
         }
