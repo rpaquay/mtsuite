@@ -167,17 +167,10 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
+    private static NativeMethods.CopyProgressRoutine statiCopyProgressRoutine = CopyProgress;
     public void CopyFile(IStringSource sourcePath, IStringSource destinationPath, CopyFileCallback callback) {
       // Note: object lifetime: CopyFileEx terminates within this function call, so
       // is it ok to have [callback] be a local variable.
-      NativeMethods.CopyProgressRoutine copyProgress =
-        (size, transferred, streamSize, bytesTransferred, number, reason, file, destinationFile, data) => {
-          CopyFileCallback dataCallback =
-            (CopyFileCallback)Marshal.GetDelegateForFunctionPointer(data, typeof(CopyFileCallback));
-          dataCallback(transferred, size);
-          return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
-        };
-
       using (var source = _stringBufferPool.AllocateFrom())
       using (var destination = _stringBufferPool.AllocateFrom()) {
         sourcePath.CopyTo(source.Item);
@@ -186,15 +179,22 @@ namespace mtsuite.shared.Win32 {
         var callbackPtr = Marshal.GetFunctionPointerForDelegate(callback);
         var bCancel = 0;
         var flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
-        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, copyProgress, callbackPtr, ref bCancel, flags)) {
+        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, statiCopyProgressRoutine, callbackPtr, ref bCancel, flags)) {
           return;
         }
 
+        GC.KeepAlive(callback);
         var lastWin32Error = Marshal.GetLastWin32Error();
         throw new LastWin32ErrorException(lastWin32Error,
           string.Format("Error copying file from \"{0}\" to \"{1}\"",
             StripPath(sourcePath), StripPath(destinationPath)));
       }
+    }
+
+    private static NativeMethods.CopyProgressResult CopyProgress(long size, long transferred, long streamSize, long bytesTransferred, uint number, NativeMethods.CopyProgressCallbackReason reason, IntPtr file, IntPtr destinationFile, IntPtr data) {
+      var dataCallback = (CopyFileCallback)Marshal.GetDelegateForFunctionPointer(data, typeof (CopyFileCallback));
+      dataCallback(transferred, size);
+      return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
     }
 
     public void CreateDirectory(IStringSource path) {
