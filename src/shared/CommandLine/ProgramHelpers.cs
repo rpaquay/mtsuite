@@ -57,16 +57,22 @@ namespace mtsuite.shared.CommandLine {
 
     private static bool IsInternalError(Exception error) {
       return error is ArgumentException ||
-        error is NullReferenceException;
+        error is NullReferenceException ||
+        error is InvalidOperationException;
     }
 
     public static IEnumerable<Exception> FlattenErrors(Exception error) {
       var agg = error as AggregateException;
       if (agg != null) {
-        foreach (var inner in FlattenErrors(agg.InnerExceptions))
-          yield return inner;
+        foreach (var inner in FlattenErrors(agg.InnerExceptions)) {
+          foreach (var x in FlattenErrors(inner)) {
+            yield return x;
+          }
+        }
       } else {
-        yield return error;
+        for (Exception inner = error; inner != null; inner = inner.InnerException) {
+          yield return inner;
+        }
       }
     }
 

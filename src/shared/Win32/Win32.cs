@@ -21,8 +21,6 @@ using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.shared.Win32 {
   public class Win32 {
-    private static readonly NativeMethods.CopyProgressRoutine StatiCopyProgressRoutine = CopyProgress;
-
     private readonly IPool<List<DirectoryEntry>> _entryListPool = new ListPool<DirectoryEntry>();
     private readonly IPool<StringBuffer> _stringBufferPool =
       PoolFactory<StringBuffer>.Create(
@@ -177,25 +175,32 @@ namespace mtsuite.shared.Win32 {
         sourcePath.CopyTo(source.Item);
         destinationPath.CopyTo(destination.Item);
 
-        var callbackPtr = Marshal.GetFunctionPointerForDelegate(callback);
+        Exception error = null;
+        NativeMethods.CopyProgressRoutine copyProgress = (size, transferred, streamSize, bytesTransferred, number, reason, file, destinationFile, data) => {
+          try {
+            callback(transferred, size);
+            return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
+          } catch (Exception e) {
+            error = e;
+            return NativeMethods.CopyProgressResult.PROGRESS_CANCEL;
+          }
+        };
         var bCancel = 0;
         var flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
-        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, StatiCopyProgressRoutine, callbackPtr, ref bCancel, flags)) {
+        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, copyProgress, IntPtr.Zero, ref bCancel, flags)) {
           return;
         }
-        GC.KeepAlive(callback);
+        GC.KeepAlive(copyProgress);
 
         var lastWin32Error = Marshal.GetLastWin32Error();
+        if (lastWin32Error == (int)Win32Errors.ERROR_REQUEST_ABORTED && error != null) {
+          throw new InvalidOperationException(string.Format("Error copying file from \"{0}\" to \"{1}\"",
+            StripPath(sourcePath), StripPath(destinationPath)), error);
+        }
         throw new LastWin32ErrorException(lastWin32Error,
           string.Format("Error copying file from \"{0}\" to \"{1}\"",
             StripPath(sourcePath), StripPath(destinationPath)));
       }
-    }
-
-    private static NativeMethods.CopyProgressResult CopyProgress(long size, long transferred, long streamSize, long bytesTransferred, uint number, NativeMethods.CopyProgressCallbackReason reason, IntPtr file, IntPtr destinationFile, IntPtr data) {
-      var dataCallback = (CopyFileCallback)Marshal.GetDelegateForFunctionPointer(data, typeof (CopyFileCallback));
-      dataCallback(transferred, size);
-      return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
     }
 
     public void CreateDirectory(IStringSource path) {
