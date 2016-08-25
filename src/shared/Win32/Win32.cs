@@ -182,8 +182,8 @@ namespace mtsuite.shared.Win32 {
         if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, statiCopyProgressRoutine, callbackPtr, ref bCancel, flags)) {
           return;
         }
-
         GC.KeepAlive(callback);
+
         var lastWin32Error = Marshal.GetLastWin32Error();
         throw new LastWin32ErrorException(lastWin32Error,
           string.Format("Error copying file from \"{0}\" to \"{1}\"",

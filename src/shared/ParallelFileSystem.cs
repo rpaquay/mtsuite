@@ -328,7 +328,11 @@ namespace mtsuite.shared {
             OnFileCopyingProgress(sw, sourceEntry, additionalTransferred);
             lastTransferred = copiedBytes;
           };
-          _fileSystem.CopyFile(sourceEntry, destinationPath, callback);
+          if (destinationExists) {
+            _fileSystem.CopyFile(sourceEntry, destinationEntry, callback);
+          } else {
+            _fileSystem.CopyFile(sourceEntry, destinationPath, callback);
+          }
         } catch (Exception e) {
           OnError(e);
         }

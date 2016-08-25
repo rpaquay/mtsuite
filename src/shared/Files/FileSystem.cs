@@ -65,48 +65,41 @@ namespace mtsuite.shared.Files {
       }
     }
 
-    public void CopyFile(FileSystemEntry entry, FullPath destinationPath, CopyFileCallback callback) {
-      var sourcePath = entry.Path;
+    public void CopyFile(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileCallback callback) {
+      CopyFileWorker(sourceEntry, destinationEntry.Path, destinationEntry, callback);
+    }
 
+    public void CopyFile(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileCallback callback) {
+      FileSystemEntry destinationEntry;
+      if (TryGetEntry(destinationPath, out destinationEntry)) {
+        CopyFileWorker(sourceEntry, destinationPath, destinationEntry, callback);
+      } else {
+        CopyFileWorker(sourceEntry, destinationPath, null, callback);
+      }
+    }
+
+    private void CopyFileWorker(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileCallback callback) {
       // If the source is a reparse point, delete the destination and
       // copy the reparse point.
-      if (entry.IsDirectory && entry.IsReparsePoint) {
-        //TODO: Find better way to deal with this
-        try {
-          var destinationEntry = GetEntry(destinationPath);
-          DeleteEntry(destinationEntry);
-        } catch {
-          // Nothing to do here, as CopyFile will report an exception below.
+      if (sourceEntry.IsDirectory && sourceEntry.IsReparsePoint) {
+        if (destinationEntry.HasValue) {
+          try {
+            DeleteEntry(destinationEntry.Value);
+          } catch {
+            // Nothing to do here, as CopyDirectoryReparsePoint will report an exception below.
+          }
         }
-        _win32.CopyDirectoryReparsePoint(sourcePath, destinationPath);
+        _win32.CopyDirectoryReparsePoint(sourceEntry.Path, destinationPath);
       } else {
         // If destination exists and is read-only, remove the read-only attribute
-        try {
-          var destinationEntry = GetEntry(destinationPath);
-          RemoveAccessDeniedAttributes(destinationEntry);
-        } catch {
-          // Nothing to do here, as CopyFile will report an exception below.
-        }
-
-        try {
-          _win32.CopyFile(sourcePath, destinationPath, callback);
-        } catch (LastWin32ErrorException e) {
-          // If access denied, deleting the destination sometimes works around it.
-          // Note: This used to happen when the destination file is readonly and/or
-          //   has the system attribute. That issue has been fixed when calling
-          //   RemoveReadOnly above, but maybe there are other cases?
-          if (e.NativeErrorCode != (int)Win32Errors.ERROR_ACCESS_DENIED)
-            throw;
-
+        if (destinationEntry.HasValue) {
           try {
-            var destinationEntry = GetEntry(destinationPath);
-            DeleteEntry(destinationEntry);
+            RemoveAccessDeniedAttributes(destinationEntry.Value);
           } catch {
             // Nothing to do here, as CopyFile will report an exception below.
           }
-
-          _win32.CopyFile(sourcePath, destinationPath, callback);
         }
+        _win32.CopyFile(sourceEntry.Path, destinationPath, callback);
       }
     }
 

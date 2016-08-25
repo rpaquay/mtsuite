@@ -51,15 +51,36 @@ namespace mtsuite.shared.Files {
     void DeleteEntry(FileSystemEntry entry);
 
     /// <summary>
-    /// Copy a file (or reparse point or symbolic link) given its corresponding <see
-    /// cref="FileSystemEntry"/> to <paramref name="destinationPath"/>.
-    /// <paramref name="callback"/> is invoked at regular invervals when the copy operation takes more than a few milliseconds.
+    /// Copy a file (or reparse point or symbolic link) given its corresponding
+    /// <see cref="FileSystemEntry"/> to <paramref name="destinationPath"/>.
+    /// <paramref name="callback"/> is invoked at regular invervals when the
+    /// copy operation takes more than a few milliseconds.
     /// 
-    /// Note: Throws an exception <paramref name="entry"/> does not exists, or is not
-    /// accessible for some reason.
-    /// Note: Throws an exception when the destination 
+    /// Note: Throws an exception <paramref name="sourceEntry"/> does not
+    /// exists, or is not accessible for some reason.
+    /// 
+    /// Note: Throws an exception when the destination can't be overwritten
+    /// successfully.
     /// </summary>
-    void CopyFile(FileSystemEntry entry, FullPath destinationPath, CopyFileCallback callback);
+    void CopyFile(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileCallback callback);
+
+    /// <summary>
+    /// Copy a file (or reparse point or symbolic link) given its corresponding
+    /// <see cref="FileSystemEntry"/> to <paramref name="destinationEntry"/>.
+    /// <paramref name="callback"/> is invoked at regular invervals when the
+    /// copy operation takes more than a few milliseconds.
+    /// 
+    /// Note: This is a slightly more efficient version of the other overload
+    /// because this overload knows more about the state of the destination
+    /// path.
+    /// 
+    /// Note: Throws an exception <paramref name="sourceEntry"/> does not
+    /// exists, or is not accessible for some reason.
+    /// 
+    /// Note: Throws an exception when the destination can't be overwritten
+    /// successfully.
+    /// </summary>
+    void CopyFile(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileCallback callback);
 
     /// <summary>
     /// Open an existing file given its <paramref name="path"/>. Throws an
