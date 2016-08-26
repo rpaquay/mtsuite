@@ -167,37 +167,52 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
+    private static readonly NativeMethods.CopyProgressRoutine _copyProgressRoutine = CopyProgressFunction;
+    private static readonly IntPtr _copyProgressRoutinePtr = Marshal.GetFunctionPointerForDelegate(_copyProgressRoutine);
+
+    private static NativeMethods.CopyProgressResult CopyProgressFunction(
+      long totalfilesize, long totalbytestransferred, long streamsize, long streambytestransferred, uint dwstreamnumber,
+      NativeMethods.CopyProgressCallbackReason dwcallbackreason, IntPtr hsourcefile, IntPtr hdestinationfile, IntPtr lpdata) {
+
+      GCHandle handle = GCHandle.FromIntPtr(lpdata);
+      CopyFileCallbackData data = (CopyFileCallbackData)handle.Target;
+      try {
+        data.Callback(totalbytestransferred, totalfilesize);
+        return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
+      } catch (Exception e) {
+        data.Error = e;
+        return NativeMethods.CopyProgressResult.PROGRESS_CANCEL;
+      }
+    }
+
+    private class CopyFileCallbackData  {
+      public CopyFileCallback Callback {get; set; }
+      public Exception Error { get; set; }
+    }
+
     public void CopyFile(IStringSource sourcePath, IStringSource destinationPath, CopyFileCallback callback) {
       using (var source = _stringBufferPool.AllocateFrom())
       using (var destination = _stringBufferPool.AllocateFrom()) {
         sourcePath.CopyTo(source.Item);
         destinationPath.CopyTo(destination.Item);
 
-        Exception error = null;
-        // Note: object lifetime: CopyFileEx terminates within this function
-        // call, so is it ok to have "copyProgress" be a local variable.
-        // However, we need to call "GC.KeepAlive" to ensure it does not get
-        // collected while CopyFileEx is running.
-        NativeMethods.CopyProgressRoutine copyProgress = (size, transferred, streamSize, bytesTransferred, number, reason, file, destinationFile, data) => {
-          try {
-            callback(transferred, size);
-            return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
-          } catch (Exception e) {
-            error = e;
-            return NativeMethods.CopyProgressResult.PROGRESS_CANCEL;
+        var callbackData = new CopyFileCallbackData {Callback = callback};
+        var callbackDataHandle = GCHandle.Alloc(callbackData);
+        try {
+          var bCancel = 0;
+          if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data,
+                                       _copyProgressRoutinePtr, GCHandle.ToIntPtr(callbackDataHandle),
+                                       ref bCancel, NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK)) {
+            return;
           }
-        };
-        var bCancel = 0;
-        const NativeMethods.CopyFileFlags flags = NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK;
-        if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data, copyProgress, IntPtr.Zero, ref bCancel, flags)) {
-          return;
+        } finally {
+          callbackDataHandle.Free();
         }
-        GC.KeepAlive(copyProgress);
 
         var lastWin32Error = Marshal.GetLastWin32Error();
-        if (lastWin32Error == (int)Win32Errors.ERROR_REQUEST_ABORTED && error != null) {
+        if (lastWin32Error == (int)Win32Errors.ERROR_REQUEST_ABORTED && callbackData.Error != null) {
           throw new InvalidOperationException(string.Format("Error copying file from \"{0}\" to \"{1}\"",
-            StripPath(sourcePath), StripPath(destinationPath)), error);
+            StripPath(sourcePath), StripPath(destinationPath)), callbackData.Error);
         }
         throw new LastWin32ErrorException(lastWin32Error,
           string.Format("Error copying file from \"{0}\" to \"{1}\"",

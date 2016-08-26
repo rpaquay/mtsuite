@@ -74,7 +74,7 @@ namespace mtsuite.shared.Win32 {
     public static extern bool CopyFileEx(
       char[] lpExistingFileName,
       char[] lpNewFileName,
-      CopyProgressRoutine lpProgressRoutine,
+      IntPtr/*CopyProgressRoutine*/ lpProgressRoutine,
       IntPtr lpData,
       ref Int32 pbCancel,
       CopyFileFlags dwCopyFlags);
