@@ -42,27 +42,27 @@ namespace mtdel {
             index++;
             break;
           case 'r':
-            ExcludeAttributes(FileAttributes.ReadOnly, exclude, ref includeAttributes, ref excludeAttributes);
+            ExcludeAttributes(FileAttributes.ReadOnly, ref exclude, ref includeAttributes, ref excludeAttributes);
             index++;
             break;
           case 's':
-            ExcludeAttributes(FileAttributes.System, exclude, ref includeAttributes, ref excludeAttributes);
+            ExcludeAttributes(FileAttributes.System, ref exclude, ref includeAttributes, ref excludeAttributes);
             index++;
             break;
           case 'h':
-            ExcludeAttributes(FileAttributes.Hidden, exclude, ref includeAttributes, ref excludeAttributes);
+            ExcludeAttributes(FileAttributes.Hidden, ref exclude, ref includeAttributes, ref excludeAttributes);
             index++;
             break;
           case 'a':
-            ExcludeAttributes(FileAttributes.Archive, exclude, ref includeAttributes, ref excludeAttributes);
+            ExcludeAttributes(FileAttributes.Archive, ref exclude, ref includeAttributes, ref excludeAttributes);
             index++;
             break;
           case 'i':
-            ExcludeAttributes(FileAttributes.NotContentIndexed, exclude, ref includeAttributes, ref excludeAttributes);
+            ExcludeAttributes(FileAttributes.NotContentIndexed, ref exclude, ref includeAttributes, ref excludeAttributes);
             index++;
             break;
           case 'l':
-            ExcludeAttributes(FileAttributes.ReparsePoint, exclude, ref includeAttributes, ref excludeAttributes);
+            ExcludeAttributes(FileAttributes.ReparsePoint, ref exclude, ref includeAttributes, ref excludeAttributes);
             index++;
             break;
           default:
@@ -79,7 +79,7 @@ namespace mtdel {
       };
     }
 
-    private static void ExcludeAttributes(FileAttributes singleAttribute, bool exclude, ref FileAttributes includeAttributes, ref FileAttributes excludeAttributes) {
+    private static void ExcludeAttributes(FileAttributes singleAttribute, ref bool exclude, ref FileAttributes includeAttributes, ref FileAttributes excludeAttributes) {
       if (exclude) {
         includeAttributes &= ~singleAttribute;
         excludeAttributes |= singleAttribute;
@@ -87,6 +87,7 @@ namespace mtdel {
         includeAttributes |= singleAttribute;
         excludeAttributes &= ~singleAttribute;
       }
+      exclude = false;
     }
 
     AttributesFilterParserResult Error(string format, params object[] args) {
