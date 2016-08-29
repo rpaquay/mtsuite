@@ -24,7 +24,7 @@ namespace mtcopy {
   public class MtCopy {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
-    private readonly IProgressMonitor _progressMonitor;
+    private IProgressMonitor _progressMonitor;
     private readonly LastWriteTimeFileComparer _fileComparer;
 
     public MtCopy(IFileSystem fileSystem) {
@@ -81,15 +81,18 @@ namespace mtcopy {
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
 
-      var statistics = DoCopy(sourcePath, destinationPath);
-      DisplayResults(statistics);
-      if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics();
-      }
+      while (true) {
+        DoDelete(destinationPath);
 
-      // 0 = success, 8 = fail (to match robocopy)
-      if (statistics.Errors.Count > 0)
-        throw new CommandLineReturnValueException(8);
+        var statistics = DoCopy(sourcePath, destinationPath);
+        DisplayResults(statistics);
+        if (parser.Contains("gc")) {
+          ProgramHelpers.DisplayGcStatistics();
+        }
+        // 0 = success, 8 = fail (to match robocopy)
+        if (statistics.Errors.Count > 0)
+          throw new CommandLineReturnValueException(8);
+      }
     }
 
     private static void DisplayUsage(IList<ArgDef> argumentDefinitions) {
@@ -99,6 +102,26 @@ namespace mtcopy {
         ArgumentsHelper.BuildUsageSummary(argumentDefinitions));
       Console.WriteLine();
       ArgumentsHelper.PrintArgumentUsageSummary(argumentDefinitions);
+    }
+
+    public void DoDelete(FullPath sourcePath) {
+      FileSystemEntry rootEntry;
+      try {
+        rootEntry = _fileSystem.GetEntry(sourcePath);
+      } catch (Exception e) {
+        return;
+      }
+
+      Console.WriteLine("Deleting files and subdirectories from \"{0}\"",
+        PathHelpers.StripLongPathPrefix(sourcePath.Path));
+
+      _progressMonitor = new ProgressMonitor();
+      _progressMonitor.Start();
+      // HACK: Notify of an extra directory discovered to get counters right.
+      _progressMonitor.OnEntriesToDeleteDiscovered(rootEntry, new List<FileSystemEntry>(new[] { rootEntry }));
+      var task = _parallelFileSystem.DeleteEntryAsync(rootEntry, e => true);
+      _parallelFileSystem.WaitForTask(task);
+      _progressMonitor.Stop();
     }
 
     public Statistics DoCopy(FullPath sourcePath, FullPath destinationPath) {
@@ -115,16 +138,12 @@ namespace mtcopy {
       Console.WriteLine("Copying files and subdirectories from \"{0}\" to \"{1}\"",
         PathHelpers.StripLongPathPrefix(sourcePath.Path),
         PathHelpers.StripLongPathPrefix(destinationPath.Path));
+      _progressMonitor = new ProgressMonitor();
       _progressMonitor.Start();
       //_progressMonitor.OnEntriesDiscovered(new List<FileSystemEntry>(new[] { sourceDirectory }));
 
-      bool destinationIsNew;
-      try {
-        _fileSystem.GetEntry(destinationPath);
-        destinationIsNew = false;
-      } catch {
-        destinationIsNew = true;
-      }
+      FileSystemEntry temp;
+      var destinationIsNew = !_fileSystem.TryGetEntry(destinationPath, out temp);
 
       var task = _parallelFileSystem.CopyDirectoryAsync(
         sourceDirectory,
