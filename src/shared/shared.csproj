@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collections\ConcurrentBagPool.cs" />
+    <Compile Include="Collections\PriorityQueue.cs" />
     <Compile Include="Collections\PoolFactory.cs" />
     <Compile Include="Collections\ListPool.cs" />
     <Compile Include="Collections\PoolExtensions.cs" />

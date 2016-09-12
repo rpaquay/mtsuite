@@ -47,12 +47,30 @@ namespace mtinfo {
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithString("directory-path", "The path of the directory to examine", false, Environment.CurrentDirectory)
-        .WithIntFlag("depth", "Determine the # of levels of sub-directories to display in the final summary (default=2, minimum=1)", "d", "count", 2, value => {
+        .WithIntFlag("depth",
+          "Determine the # of levels of sub-directories to display in the final summary (default=2, minimum=1)",
+          "d",
+          "count",
+          2,
+          value => {
             if (value < 1)
               return "Level count must be greater or equal to 1";
             return null;
-          }, "", "depth")
-        .WithSwitch("longest-path", "Display the longest path encountered during traversal", "lp", "", "longestpath")
+          },
+          "",
+          "depth")
+        .WithIntFlag("longest-path",
+          "Display the longest path encountered during traversal (default=0, minimum=0)",
+          "lp",
+          "count",
+          0,
+          value => {
+            if (value < 0)
+              return "Count must be greater or equal to 0";
+            return null;
+          },
+          "",
+          "longestpath")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -77,7 +95,7 @@ namespace mtinfo {
 
       var options = new CollectOptions {
         LevelCount = levelCount,
-        CollectLongestPath = parser.Contains("longest-path"),
+        LongestPathsToCollect = parser["longest-path"].IntValue,
       };
       var summaryRoot = DoCollect(sourcePath, options);
 
@@ -116,7 +134,7 @@ namespace mtinfo {
 
     public class CollectOptions {
       public int LevelCount { get; set; }
-      public bool CollectLongestPath { get; set; }
+      public int LongestPathsToCollect { get; set; }
     }
 
     public DirectorySummaryRoot DoCollect(FullPath sourcePath, CollectOptions options) {
@@ -176,17 +194,29 @@ namespace mtinfo {
       }
 
       private void SetLongestPath(FileSystemEntry entry) {
-        if (!_options.CollectLongestPath)
+        if (_options.LongestPathsToCollect == 0)
           return;
 
-        if (_root.LongestPath == null) {
-          _root.LongestPath = entry.Path;
-          _root.LongestPathLength = _root.LongestPath.Length;
-        }
+        var entryPathLength = entry.Path.Length;
+        lock (_root.LongestPaths) {
+          if (_root.LongestPaths.Count < _options.LongestPathsToCollect) {
+            _root.LongestPaths.Add(new LongestPathInfo {
+              Path = entry.Path,
+              Length = entryPathLength
+            });
+            return;
+          }
 
-        if (entry.Path.Length > _root.LongestPath.Length) {
-          _root.LongestPath = entry.Path;
-          _root.LongestPathLength = _root.LongestPath.Length;
+          var minPath = _root.LongestPaths.Root;
+          if (minPath.Length > entryPathLength) {
+            return;
+          }
+
+          _root.LongestPaths.Remove();
+          _root.LongestPaths.Add(new LongestPathInfo {
+            Path = entry.Path,
+            Length = entry.Path.Length
+          });
         }
       }
 
@@ -272,10 +302,14 @@ namespace mtinfo {
         new String('─', displayInfo.FileCountWidth),
         new String('─', displayInfo.SymlinkCountWidth));
 
-      if (summaryRoot.LongestPath != null) {
-        var path = PathHelpers.StripLongPathPrefix(summaryRoot.LongestPath.ToString());
-        Console.WriteLine("Longest path: {0}", path);
-        Console.WriteLine("      length: {0:n0}", path.Length);
+      if (summaryRoot.LongestPaths.Count > 0) {
+        Console.WriteLine("Longest paths (by increasing length): {0}", summaryRoot.LongestPaths.Count);
+
+        while (summaryRoot.LongestPaths.Count > 0) {
+          var lp = summaryRoot.LongestPaths.Remove();
+          var path = PathHelpers.StripLongPathPrefix(lp.Path.ToString());
+          Console.WriteLine("{0}: {1:n0}", path, path.Length);
+        }
       }
     }
 

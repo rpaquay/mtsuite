@@ -12,14 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using mtsuite.shared.Files;
+using mtsuite.shared.Collections;
 
 namespace mtinfo {
   public class DirectorySummaryRoot {
+    public DirectorySummaryRoot() {
+      LongestPaths = new PriorityQueue<LongestPathInfo>();
+    }
     public DirectorySummary Summary { get; set; }
-    public FullPath LongestPath { get; set; }
-    public int LongestPathLength { get; set; }
+    public PriorityQueue<LongestPathInfo> LongestPaths { get; set; }
+  }
+
+  public class LongestPathInfo : IComparable<LongestPathInfo> {
+    public FullPath Path { get; set; }
+    public int Length { get; set; }
+
+    public int CompareTo(LongestPathInfo other) {
+      if (other == null) {
+        return 1;
+      }
+      return Path.Length.CompareTo(other.Path.Length);
+    }
   }
 
   public class DirectorySummary {
