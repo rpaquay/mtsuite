@@ -42,7 +42,7 @@ namespace mtsuite.shared.Files {
 
     public string Path {
       get {
-        var sb = new StringBuffer(128);
+        var sb = new StringBuffer(256);
         BuildPath(sb);
         return sb.ToString();
       }
@@ -85,9 +85,7 @@ namespace mtsuite.shared.Files {
     }
 
     public override string ToString() {
-      var sb = new StringBuffer(256);
-      BuildPath(sb);
-      return sb.ToString();
+      return Path;
     }
 
     public int Length {
