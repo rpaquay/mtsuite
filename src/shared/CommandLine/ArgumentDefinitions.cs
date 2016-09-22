@@ -63,7 +63,7 @@ namespace mtsuite.shared.CommandLine {
   }
 
   /// <summary>
-  /// Definition for arguments which have a name and an integer value (e.g. "/a:foo").
+  /// Definition for arguments which have a name and a string value (e.g. "/a:foo").
   /// </summary>
   public class StringFlagArgDef : NameValueArgDef {
     public Func<string, string> Validator { get; set; }

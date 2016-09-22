@@ -134,14 +134,20 @@ namespace mtsuite.shared.CommandLine {
       var valueArgDef = argDef as NameValueArgDef;
       if (valueArgDef != null) {
         if (string.IsNullOrEmpty(argValue)) {
-          _errors.Add(String.Format("Argument \"{0}\" requires a value", argString));
-          return null;
+          // Note: If there is no explicit value, we'll use the default value.
+          if (valueArgDef.DefaultValue == null) {
+            _errors.Add(String.Format("Argument \"{0}\" requires a value", argString));
+            return null;
+          }
         }
 
         var intDef = valueArgDef as IntFlagArgDef;
         if (intDef != null) {
+          // Parse argument value (or use default value)
           int value;
-          if (!int.TryParse(argValue, out value)) {
+          if (string.IsNullOrEmpty(argValue)) {
+            value = (int)intDef.DefaultValue;
+          } else if (!int.TryParse(argValue, out value)) {
             _errors.Add(String.Format("Argument \"{0}\" requires a interger value", argString));
             return null;
           }
@@ -157,6 +163,9 @@ namespace mtsuite.shared.CommandLine {
 
         var stringDef = valueArgDef as StringFlagArgDef;
         if (stringDef != null) {
+          if (string.IsNullOrEmpty(argValue)) {
+            argValue = (string)stringDef.DefaultValue;
+          }
           if (stringDef.Validator != null) {
             var error = stringDef.Validator(argValue);
             if (!string.IsNullOrEmpty(error)) {

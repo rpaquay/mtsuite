@@ -127,6 +127,25 @@ namespace tests {
     }
 
     [TestMethod]
+    public void ArgumentsParserShouldWorkWithDefaultValueForMissingValue() {
+      var argumentDefinitions = new ArgDef[] {
+        new IntFlagArgDef {
+          Id = "depth",
+          ShortName = "d",
+          LongName = "depth",
+          DefaultValue = 2,
+        },
+      };
+
+      var args = new string[] { "/d" };
+      var parser = new ArgumentsParser(argumentDefinitions, args);
+      parser.Parse();
+      Assert.IsTrue(parser.IsValid);
+      Assert.IsTrue(parser.Contains("depth"));
+      Assert.AreEqual(2, parser["depth"].IntValue);
+    }
+
+    [TestMethod]
     public void ArgumentsParserShouldWorkWithDefaultMandatoryArguments() {
       var argumentDefinitions = new ArgDef[] {
         new FreeStringArgDef {
