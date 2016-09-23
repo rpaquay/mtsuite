@@ -18,6 +18,9 @@ using System.Runtime.InteropServices;
 using mtsuite.shared.Collections;
 
 namespace mtsuite.shared.Utils {
+  /// <summary>
+  /// Type safe access over a sequences of bytes from a <see cref="ByteBuffer"/>
+  /// </summary>
   public struct TypedBuffer<TStruct> {
     private readonly ByteBuffer _buffer;
 
@@ -30,59 +33,135 @@ namespace mtsuite.shared.Utils {
     }
 
     public int GetFieldOffset<TField>(Expression<Func<TStruct, TField>> field) {
-      return _buffer.GetFieldOffset(default(TStruct), field);
+      var name = ReflectionUtils.GetFieldName(default(TStruct), field);
+      return Marshal.OffsetOf(typeof(TStruct), name).ToInt32();
     }
 
     public int GetFieldSize<TField>(Expression<Func<TStruct, TField>> field) {
-      return _buffer.GetFieldSize(default(TStruct), field);
+      return Marshal.SizeOf(typeof(TField));
     }
 
     public sbyte Read(Expression<Func<TStruct, sbyte>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return unchecked((sbyte)ReadField(field));
     }
 
     public byte Read(Expression<Func<TStruct, byte>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return unchecked((byte)ReadField(field));
     }
 
     public short Read(Expression<Func<TStruct, short>> field) {
-      return _buffer.Read(default(TStruct), field);
+      var offset = GetFieldOffset(field);
+      var value = _buffer.ReadFromMemory(offset, Marshal.SizeOf(typeof(short)));
+      return unchecked((short)value);
     }
 
     public ushort Read(Expression<Func<TStruct, ushort>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return unchecked((ushort)ReadField(field));
     }
 
     public int Read(Expression<Func<TStruct, int>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return unchecked((int)ReadField(field));
     }
 
     public uint Read(Expression<Func<TStruct, uint>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return unchecked((uint)ReadField(field));
     }
 
     public long Read(Expression<Func<TStruct, long>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return unchecked((long)ReadField(field));
     }
 
     public ulong Read(Expression<Func<TStruct, ulong>> field) {
-      return _buffer.Read(default(TStruct), field);
+      return ReadField(field);
     }
 
     public TField Read<TField>(Expression<Func<TStruct, TField>> field) {
-      return _buffer.Read(default(TStruct), field);
+      var offset = GetFieldOffset(field);
+      var fieldType = typeof(TField);
+      if (fieldType.IsEnum) {
+        fieldType = fieldType.GetEnumUnderlyingType();
+      }
+      var size = Marshal.SizeOf(fieldType);
+      var value = _buffer.ReadFromMemory(offset, size);
+
+      if (fieldType == typeof(byte))
+        return (TField)(object)(byte)value;
+
+      if (fieldType == typeof(sbyte))
+        return (TField)(object)(sbyte)value;
+
+      if (fieldType == typeof(ushort))
+        return (TField)(object)(ushort)value;
+
+      if (fieldType == typeof(short))
+        return (TField)(object)(short)value;
+
+      if (fieldType == typeof(int))
+        return (TField)(object)(int)value;
+
+      if (fieldType == typeof(uint))
+        return (TField)(object)(uint)value;
+
+      if (fieldType == typeof(long))
+        return (TField)(object)value;
+
+      if (fieldType == typeof(ulong))
+        return (TField)(object)(ulong)value;
+
+      throw new InvalidOperationException("Invalid integer type");
     }
 
     public string ReadString(int offset, int length) {
       return _buffer.ReadString(offset, length);
     }
 
-    public void Write<TField>(Expression<Func<TStruct, TField>> field, long value) {
-      _buffer.Write(default(TStruct), field, value);
+    public void WriteString(int offset, StringBuffer stringBuffer) {
+      _buffer.WriteString(offset, stringBuffer);
     }
 
-    public void WriteString(int offset, int size, StringBuffer stringBuffer) {
-      _buffer.WriteString(offset, size, stringBuffer);
+    public void Write<TField>(Expression<Func<TStruct, TField>> field, Int64 value) {
+      Write(field, ByteBuffer.AsUInt64(value));
+    }
+
+    public void Write<TField>(Expression<Func<TStruct, TField>> field, UInt64 value) {
+      var offset = GetFieldOffset(field);
+      var fieldType = typeof(TField);
+      if (fieldType.IsEnum) {
+        fieldType = fieldType.GetEnumUnderlyingType();
+      }
+
+      if (fieldType == typeof(byte)) {
+        _buffer.WriteUInt8(offset, unchecked((byte)value));
+
+      } else if (fieldType == typeof(sbyte)) {
+        _buffer.WriteUInt8(offset, unchecked((byte)value));
+
+      } else if (fieldType == typeof(short)) {
+        _buffer.WriteUInt16(offset, unchecked((ushort)value));
+
+      } else if (fieldType == typeof(ushort)) {
+        _buffer.WriteUInt16(offset, unchecked((ushort)value));
+
+      } else if (fieldType == typeof(int)) {
+        _buffer.WriteUInt32(offset, unchecked((uint)value));
+
+      } else if (fieldType == typeof(uint)) {
+        _buffer.WriteUInt32(offset, unchecked((uint)value));
+
+      } else if (fieldType == typeof(long)) {
+        _buffer.WriteUInt64(offset, unchecked((ulong)value));
+
+      } else if (fieldType == typeof(ulong)) {
+        _buffer.WriteUInt64(offset, unchecked((ulong)value));
+
+      } else {
+        throw new InvalidOperationException("Invalid integer type");
+      }
+    }
+
+    private UInt64 ReadField<TField>(Expression<Func<TStruct, TField>> field) {
+      var offset = GetFieldOffset(field);
+      return _buffer.ReadFromMemory(offset, Marshal.SizeOf(typeof(TField)));
     }
   }
 }

@@ -596,12 +596,10 @@ namespace mtsuite.shared.Win32 {
         // Note: The "+1" is because we need to copy the terminating NULL character.
         var pathOffset = reparseBuffer.GetFieldOffset(x => x.PathBuffer);
         reparseBuffer.WriteString(
-          pathOffset,
-          substituteNameBuffer.Length + 1,
+          pathOffset /* byte offset! */,
           substituteNameBuffer);
         reparseBuffer.WriteString(
-          pathOffset + (substituteNameBuffer.Length + 1) * sizeof(char),
-          printNameBuffer.Length + 1,
+          pathOffset + (substituteNameBuffer.Length + 1) * sizeof(char) /* byte offset! */,
           printNameBuffer);
 
         int bytesReturned;

@@ -13,12 +13,13 @@
 // limitations under the License.
 
 using System;
-using System.Linq.Expressions;
-using System.Runtime.InteropServices;
 using System.Text;
 using mtsuite.shared.Collections;
 
 namespace mtsuite.shared.Utils {
+  /// <summary>
+  /// An abstraction over a sequence of bytes allocated from the Native HEAP.
+  /// </summary>
   public class ByteBuffer : IDisposable {
     private readonly SafeHGlobalHandle _memoryHandle = new SafeHGlobalHandle();
     private int _capacity;
@@ -42,229 +43,173 @@ namespace mtsuite.shared.Utils {
 
     public IntPtr Pointer {
       get {
-        if (_memoryHandle == null) {
-          throw new InvalidOperationException("Buffer is not allocated");
-        }
         return _memoryHandle.Pointer;
       }
     }
 
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public sbyte Read<TStruct>(TStruct source, Expression<Func<TStruct, sbyte>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(sbyte)));
-      return (sbyte)value;
+    public void Dispose() {
+      _memoryHandle.Dispose();
     }
 
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public byte Read<TStruct>(TStruct source, Expression<Func<TStruct, byte>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(byte)));
-      return (byte)value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public short Read<TStruct>(TStruct source, Expression<Func<TStruct, short>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(short)));
-      return (short)value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public ushort Read<TStruct>(TStruct source, Expression<Func<TStruct, ushort>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(ushort)));
-      return (ushort)value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public int Read<TStruct>(TStruct source, Expression<Func<TStruct, int>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(int)));
-      return (int)value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public uint Read<TStruct>(TStruct source, Expression<Func<TStruct, uint>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(uint)));
-      return (uint)value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public long Read<TStruct>(TStruct source, Expression<Func<TStruct, long>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(long)));
-      return value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public ulong Read<TStruct>(TStruct source, Expression<Func<TStruct, ulong>> field) {
-      var offset = GetFieldOffset(source, field);
-      var value = ReadFromMemory(offset, Marshal.SizeOf(typeof(ulong)));
-      return (ulong)value;
-    }
-
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public TField Read<TStruct, TField>(TStruct source, Expression<Func<TStruct, TField>> field) {
-      var offset = GetFieldOffset(source, field);
-      var fieldType = typeof(TField);
-      if (fieldType.IsEnum) {
-        fieldType = fieldType.GetEnumUnderlyingType();
+    public override string ToString() {
+      var sb = new StringBuilder();
+      sb.AppendFormat("Capacity={0}, [", Capacity);
+      for (var i = 0; i < Capacity; i++) {
+        sb.AppendFormat("0x{0:X2}, ", (byte)ReadFromMemory(i, 1));
       }
-      var size = Marshal.SizeOf(fieldType);
-      var value = ReadFromMemory(offset, size);
-
-      if (fieldType == typeof(byte))
-        return (TField)(object)(byte)value;
-
-      if (fieldType == typeof(sbyte))
-        return (TField)(object)(sbyte)value;
-
-      if (fieldType == typeof(ushort))
-        return (TField)(object)(ushort)value;
-
-      if (fieldType == typeof(short))
-        return (TField)(object)(short)value;
-
-      if (fieldType == typeof(int))
-        return (TField)(object)(int)value;
-
-      if (fieldType == typeof(uint))
-        return (TField)(object)(uint)value;
-
-      if (fieldType == typeof(long))
-        return (TField)(object)value;
-
-      if (fieldType == typeof(ulong))
-        return (TField)(object)(ulong)value;
-
-      throw new InvalidOperationException("Invalid integer type");
+      sb.AppendFormat("]");
+      return sb.ToString();
     }
 
-    public unsafe string ReadString(int offset, int length) {
-      CheckRange(offset, length);
+    public string ReadString(int offset, int count) {
+      CheckRange(offset, count);
+      var sb = new StringBuffer();
+      ReadString(offset, count, sb);
+      return sb.Text;
+    }
+
+    public unsafe void ReadString(int offset, int count, StringBuffer stringBuffer) {
+      CheckRange(offset, count);
       var bufferStart = (char*)(Pointer + offset).ToPointer();
-      return new string(bufferStart, 0, length);
+      for (var i = 0; i < count; i++) {
+        stringBuffer.Append(bufferStart[i]);
+      }
     }
 
-    private unsafe Int64 ReadFromMemory(int offset, int size) {
+    public void WriteString(int offset, string value) {
+      WriteString(offset, value, value.Length + 1);
+    }
+
+    public void WriteString(int offset, StringBuffer stringBuffer) {
+      WriteString(offset, stringBuffer, stringBuffer.Length + 1);
+    }
+
+    public unsafe void WriteString(int offset, string value, int count) {
+      count = Math.Min(count, value.Length + 1);
+      fixed (char* valuePtr = value) {
+        WriteCharacters(offset, count, valuePtr);
+      }
+    }
+
+    public unsafe void WriteString(int offset, StringBuffer stringBuffer, int count) {
+      count = Math.Min(count, stringBuffer.Length + 1);
+      fixed (char* valuePtr = stringBuffer.Data) { 
+        WriteCharacters(offset, count, valuePtr);
+      }
+    }
+
+    public unsafe void WriteCharacters(int offset, int count, char* source) {
+      EnsureCapacity(offset, count * sizeof(char));
+      char* bufferStart = (char*)(Pointer + offset).ToPointer();
+      while (count > 0) {
+        *bufferStart = *source;
+        bufferStart++;
+        source++;
+        count--;
+      }
+    }
+
+    public void WriteInt8(int offset, sbyte value) {
+      WriteToMemory(offset, sizeof(sbyte), AsUInt64(value));
+    }
+
+    public void WriteUInt8(int offset, byte value) {
+      WriteToMemory(offset, sizeof(byte), AsUInt64(value));
+    }
+
+    public void WriteInt16(int offset, short value) {
+      WriteToMemory(offset, sizeof(short), AsUInt64(value));
+    }
+
+    public void WriteUInt16(int offset, ushort value) {
+      WriteToMemory(offset, sizeof(ushort), AsUInt64(value));
+    }
+
+    public void WriteInt32(int offset, int value) {
+      WriteToMemory(offset, sizeof(int), AsUInt64(value));
+    }
+
+    public void WriteUInt32(int offset, uint value) {
+      WriteToMemory(offset, sizeof(uint), AsUInt64(value));
+    }
+
+    public void WriteInt64(int offset, long value) {
+      WriteToMemory(offset, sizeof(long), AsUInt64(value));
+    }
+
+    public void WriteUInt64(int offset, ulong value) {
+      WriteToMemory(offset, sizeof(ulong), AsUInt64(value));
+    }
+
+    public unsafe UInt64 ReadFromMemory(int offset, int size) {
       CheckRange(offset, size);
 
-      byte* bufferStart = ((byte*)Pointer) + offset;
+      void* bufferStart = (Pointer + offset).ToPointer();
       switch (size) {
         case 1:
-          return *bufferStart;
+          return *(byte*)bufferStart;;
         case 2:
-          return *(short*)bufferStart;
+          return *(ushort*)bufferStart;
         case 4:
-          return *(int*)bufferStart;
+          return *(uint*)bufferStart;
         case 8:
-          return *(long*)bufferStart;
+          return *(ulong*)bufferStart;
       }
       throw new InvalidOperationException("Invalid field size (must be 1, 2, 4 or 8)");
     }
 
-    /// <summary>
-    /// Read any integer (or enum) value from 1 byte (byte) to 8 bytes (long)
-    /// </summary>
-    public void Write<TStruct, TField>(TStruct source, Expression<Func<TStruct, TField>> field, long value) {
-      var offset = GetFieldOffset(source, field);
-      var fieldType = typeof(TField);
-      if (fieldType.IsEnum) {
-        fieldType = fieldType.GetEnumUnderlyingType();
-      }
+    public unsafe void WriteToMemory(int offset, int size, UInt64 value) {
+      EnsureCapacity(offset, size);
 
-      if (fieldType == typeof(byte)) {
-        WriteUInt8(offset, unchecked((byte)value));
-
-      } else if (fieldType == typeof(sbyte)) {
-        WriteUInt8(offset, unchecked((byte)value));
-
-      } else if (fieldType == typeof(short)) {
-        WriteUInt16(offset, unchecked((ushort)value));
-
-      } else if (fieldType == typeof(ushort)) {
-        WriteUInt16(offset, unchecked((ushort)value));
-
-      } else if (fieldType == typeof(int)) {
-        WriteUInt32(offset, unchecked((uint)value));
-
-      } else if (fieldType == typeof(uint)) {
-        WriteUInt32(offset, unchecked((uint)value));
-
-      } else if (fieldType == typeof(long)) {
-        WriteUInt64(offset, unchecked((ulong)value));
-
-      } else if (fieldType == typeof(ulong)) {
-        WriteUInt64(offset, unchecked((ulong)value));
-
-      } else {
-        throw new InvalidOperationException("Invalid integer type");
+      void* bufferStart = (Pointer + offset).ToPointer();
+      switch (size) {
+        case 1:
+          *(byte*)bufferStart = AsUInt8(value);
+          break;
+        case 2:
+          *(ushort*)bufferStart = AsUInt16(value);
+          break;
+        case 4:
+          *(uint*)bufferStart = AsUInt32(value);
+          break;
+        case 8:
+          *(ulong*)bufferStart = AsUInt64(value);
+          break;
+        default:
+          throw new ArgumentException("Invalid size (must be 1, 2, 4 or 8)", "size");
       }
     }
 
-    private unsafe void WriteUInt8(int offset, byte value) {
-      EnsureCapacity(offset, sizeof(byte));
-
-      byte* bufferStart = (byte*)(Pointer + offset).ToPointer();
-      (*bufferStart) = value;
+    public static byte AsUInt8(ulong value) {
+      return unchecked((byte)value);
     }
 
-    private unsafe void WriteUInt16(int offset, ushort value) {
-      EnsureCapacity(offset, sizeof(ushort));
-
-      ushort* bufferStart = (ushort*)(Pointer + offset).ToPointer();
-      (*bufferStart) = value;
+    public static ushort AsUInt16(ulong value) {
+      return unchecked((ushort)value);
     }
 
-    private unsafe void WriteUInt32(int offset, uint value) {
-      EnsureCapacity(offset, sizeof(uint));
-
-      uint* bufferStart = (uint*)(Pointer + offset).ToPointer();
-      (*bufferStart) = value;
+    public static uint AsUInt32(ulong value) {
+      return unchecked((uint)value);
     }
 
-    private unsafe void WriteUInt64(int offset, ulong value) {
-      EnsureCapacity(offset, sizeof(ulong));
-
-      ulong* bufferStart = (ulong*)(Pointer + offset).ToPointer();
-      (*bufferStart) = value;
+    public static ulong AsUInt64(byte value) {
+      return unchecked((ulong)value);
     }
 
-    public unsafe void WriteString(int offset, int count, StringBuffer stringBuffer) {
-      EnsureCapacity(offset, count * sizeof(char));
-      char* bufferStart = (char*)(Pointer + offset).ToPointer();
-      for (var i = 0; i < count; i++) {
-        bufferStart[i] = stringBuffer.Data[i];
-      }
+    public static ulong AsUInt64(short value) {
+      return unchecked((ulong)value);
     }
 
-    public int GetFieldOffset<TStruct, TField>(TStruct source, Expression<Func<TStruct, TField>> field) {
-      var name = ReflectionUtils.GetFieldName(source, field);
-      return Marshal.OffsetOf(typeof(TStruct), name).ToInt32();
+    public static ulong AsUInt64(int value) {
+      return unchecked((ulong)value);
     }
 
-    public int GetFieldSize<TStruct, TField>(TStruct source, Expression<Func<TStruct, TField>> field) {
-      return Marshal.SizeOf(typeof(TField));
+    public static ulong AsUInt64(long value) {
+      return unchecked((ulong)value);
+    }
+
+    public static ulong AsUInt64(ulong value) {
+      return unchecked((ulong)value);
     }
 
     private void CheckRange(int offset, int size) {
@@ -296,20 +241,6 @@ namespace mtsuite.shared.Utils {
 
     private void ThrowInvalidRange(int offset, int size) {
       throw new InvalidOperationException(string.Format("Trying to read past end of buffer (Offset={0}, Size={1}, Capacity={2}", offset, size, Capacity));
-    }
-
-    public void Dispose() {
-      _memoryHandle.Dispose();
-    }
-
-    public override string ToString() {
-      var sb = new StringBuilder();
-      sb.AppendFormat("Capacity={0}, [", Capacity);
-      for (var i = 0; i < Capacity; i++) {
-        sb.AppendFormat("0x{0:X2}, ", (byte)ReadFromMemory(i, 1));
-      }
-      sb.AppendFormat("]");
-      return sb.ToString();
     }
   }
 }
