@@ -81,7 +81,7 @@ namespace mtsuite.shared.Files {
     private void CopyFileWorker(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileCallback callback) {
       // If the source is a reparse point, delete the destination and
       // copy the reparse point.
-      if (sourceEntry.IsDirectory && sourceEntry.IsReparsePoint) {
+      if (sourceEntry.IsReparsePoint) {
         if (destinationEntry.HasValue) {
           try {
             DeleteEntry(destinationEntry.Value);
@@ -89,7 +89,11 @@ namespace mtsuite.shared.Files {
             // Nothing to do here, as CopyDirectoryReparsePoint will report an exception below.
           }
         }
-        _win32.CopyDirectoryReparsePoint(sourceEntry.Path, destinationPath);
+        if (sourceEntry.IsDirectory) {
+          _win32.CopyDirectoryReparsePoint(sourceEntry.Path, destinationPath);
+        } else {
+          _win32.CopyFileReparsePoint(sourceEntry.Path, destinationPath);
+        }
       } else {
         // If destination exists and is read-only, remove the read-only attribute
         if (destinationEntry.HasValue) {

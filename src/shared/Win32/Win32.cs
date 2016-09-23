@@ -262,7 +262,26 @@ namespace mtsuite.shared.Win32 {
         return;
       }
 
-      throw new InvalidOperationException("Unknown reparse point type");
+      throw new LastWin32ErrorException((int)Win32Errors.ERROR_NOT_SUPPORTED,
+        string.Format("Error copying reparse point \"{0}\" (unsupported reparse point type?)", StripPath(sourcePath)));
+    }
+
+    public void CopyFileReparsePoint(IStringSource sourcePath, IStringSource destinationPath) {
+      var info = GetReparsePointInfo(sourcePath);
+
+      if (info.IsSymbolicLink) {
+        CreateFileSymbolicLink(destinationPath, info.Target);
+        var fileTimes = new FileTimes {
+          LastWriteTimeUtc = info.LastWriteTimeUtc,
+        };
+        using (var file = OpenFileAsReparsePoint(destinationPath, /*readWrite*/true)) {
+          SetFileTimes(destinationPath, file, fileTimes);
+        }
+        return;
+      }
+
+      throw new LastWin32ErrorException((int)Win32Errors.ERROR_NOT_SUPPORTED,
+        string.Format("Error copying reparse point \"{0}\" (unsupported reparse point type?)", StripPath(sourcePath)));
     }
 
     public unsafe void SetFileTimes(IStringSource path, SafeFileHandle file, FileTimes fileTimes) {
