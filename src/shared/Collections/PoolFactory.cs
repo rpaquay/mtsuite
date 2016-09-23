@@ -20,12 +20,22 @@ namespace mtsuite.shared.Collections {
   /// instances.
   /// </summary>
   public static class PoolFactory<T> where T : class {
+#if USE_NOOP_POOL
+    public static IPool<T> Create(Func<T> creator) {
+      return Create(creator, _ => { });
+    }
+
+    public static IPool<T> Create(Func<T> creator, Action<T> recycler) {
+      return new ConcurrentNoOpPool<T>(creator);
+    }
+#else
+    public static IPool<T> Create(Func<T> creator) {
+      return Create(creator, _ => { });
+    }
+
     public static IPool<T> Create(Func<T> creator, Action<T> recycler) {
       return new ConcurrentFixedSizeArrayPool<T>(creator, recycler);
     }
-
-    public static IPool<T> Create(Func<T> creator, Action<T> recycler, int size) {
-      return new ConcurrentFixedSizeArrayPool<T>(creator, recycler, size);
-    }
+#endif
   }
 }
