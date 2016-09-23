@@ -22,10 +22,8 @@ using Microsoft.Win32.SafeHandles;
 namespace mtsuite.shared.Win32 {
   public class Win32 {
     private readonly IPool<List<DirectoryEntry>> _entryListPool = new ListPool<DirectoryEntry>();
-    private readonly IPool<StringBuffer> _stringBufferPool =
-      PoolFactory<StringBuffer>.Create(
-        () => new StringBuffer(64),
-        x => x.Clear());
+    private readonly IPool<StringBuffer> _stringBufferPool = PoolFactory<StringBuffer>.Create(() => new StringBuffer(64), x => x.Clear());
+    private readonly IPool<ByteBuffer> _byteBufferPool = PoolFactory<ByteBuffer>.Create(() => new ByteBuffer(256));
 
     private static string StripPath(string path) {
       if (!PathHelpers.IsPathAbsolute(path))
@@ -167,15 +165,15 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
-    private static readonly NativeMethods.CopyProgressRoutine _copyProgressRoutine = CopyProgressFunction;
-    private static readonly IntPtr _copyProgressRoutinePtr = Marshal.GetFunctionPointerForDelegate(_copyProgressRoutine);
+    private static readonly NativeMethods.CopyProgressRoutine CopyProgressRoutine = CopyProgressFunction;
+    private static readonly IntPtr CopyProgressRoutinePtr = Marshal.GetFunctionPointerForDelegate(CopyProgressRoutine);
 
     private static NativeMethods.CopyProgressResult CopyProgressFunction(
       long totalfilesize, long totalbytestransferred, long streamsize, long streambytestransferred, uint dwstreamnumber,
       NativeMethods.CopyProgressCallbackReason dwcallbackreason, IntPtr hsourcefile, IntPtr hdestinationfile, IntPtr lpdata) {
 
-      GCHandle handle = GCHandle.FromIntPtr(lpdata);
-      CopyFileCallbackData data = (CopyFileCallbackData)handle.Target;
+      var handle = GCHandle.FromIntPtr(lpdata);
+      var data = (CopyFileCallbackData)handle.Target;
       try {
         data.Callback(totalbytestransferred, totalfilesize);
         return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
@@ -185,8 +183,8 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
-    private class CopyFileCallbackData  {
-      public CopyFileCallback Callback {get; set; }
+    private class CopyFileCallbackData {
+      public CopyFileCallback Callback { get; set; }
       public Exception Error { get; set; }
     }
 
@@ -196,12 +194,12 @@ namespace mtsuite.shared.Win32 {
         sourcePath.CopyTo(source.Item);
         destinationPath.CopyTo(destination.Item);
 
-        var callbackData = new CopyFileCallbackData {Callback = callback};
+        var callbackData = new CopyFileCallbackData { Callback = callback };
         var callbackDataHandle = GCHandle.Alloc(callbackData);
         try {
           var bCancel = 0;
           if (NativeMethods.CopyFileEx(source.Item.Data, destination.Item.Data,
-                                       _copyProgressRoutinePtr, GCHandle.ToIntPtr(callbackDataHandle),
+                                       CopyProgressRoutinePtr, GCHandle.ToIntPtr(callbackDataHandle),
                                        ref bCancel, NativeMethods.CopyFileFlags.COPY_FILE_COPY_SYMLINK)) {
             return;
           }
@@ -342,88 +340,6 @@ namespace mtsuite.shared.Win32 {
       public DateTime LastWriteTimeUtc { get; set; }
     }
 
-    public unsafe ReparsePointInfo GetReparsePointInfo(IStringSource path) {
-      using (var fileHandle = OpenFileAsReparsePoint(path, /*readWrite*/false)) {
-
-        var creationTime = default(NativeMethods.FILETIME);
-        var lastAccessTime = default(NativeMethods.FILETIME);
-        var lastWriteTime = default(NativeMethods.FILETIME);
-        if (!NativeMethods.GetFileTime(fileHandle, &creationTime, &lastAccessTime, &lastWriteTime)) {
-          var lastWin32Error = Marshal.GetLastWin32Error();
-          throw new LastWin32ErrorException(lastWin32Error,
-            string.Format("Error getting file times of \"{0}\"", StripPath(path)));
-        }
-
-        var outBufferSize = Math.Max(
-          Marshal.SizeOf(typeof(NativeMethods.MountPointReparseBuffer)),
-          Marshal.SizeOf(typeof(NativeMethods.SymbolicLinkReparseData)));
-        using (var outBuffer = new SafeHGlobalHandle(Marshal.AllocHGlobal(outBufferSize))) {
-          int bytesReturned;
-          var success = NativeMethods.DeviceIoControl(
-            fileHandle,
-            NativeMethods.EIOControlCode.FsctlGetReparsePoint,
-            IntPtr.Zero,
-            0,
-            outBuffer.Pointer,
-            outBufferSize,
-            out bytesReturned,
-            IntPtr.Zero);
-          if (!success) {
-            var lastWin32Error = Marshal.GetLastWin32Error();
-            throw new LastWin32ErrorException(lastWin32Error,
-              string.Format("Error reading target of reparse point \"{0}\"", StripPath(path)));
-          }
-
-          var header = outBuffer.ToStructure<NativeMethods.REPARSE_DATA_BUFFER_HEADER>();
-
-          // IO_REPARSE_TAG_SYMLINK is the marker of a symbolic link
-          if (header.ReparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_SYMLINK) {
-            // Extract path from buffer
-            var reparseDataBuffer = outBuffer.ToStructure<NativeMethods.SymbolicLinkReparseData>();
-            var substituteName = new string(reparseDataBuffer.PathBuffer,
-                reparseDataBuffer.SubstituteNameOffset / sizeof(char),
-                reparseDataBuffer.SubstituteNameLength / sizeof(char));
-            var printName = new string(reparseDataBuffer.PathBuffer,
-                reparseDataBuffer.PrintNameOffset / sizeof(char),
-                reparseDataBuffer.PrintNameLength / sizeof(char));
-            return new ReparsePointInfo {
-              IsJunctionPoint = false,
-              IsSymbolicLink = true,
-              Target = string.IsNullOrEmpty(printName) ? substituteName : printName,
-              IsTargetRelative = (reparseDataBuffer.Flags & NativeMethods.SymbolicLinkFlags.SYMLINK_FLAG_RELATIVE) != 0,
-              CreationTimeUtc = creationTime.ToDateTimeUtc(),
-              LastAccessTimeUtc = lastAccessTime.ToDateTimeUtc(),
-              LastWriteTimeUtc = lastWriteTime.ToDateTimeUtc(),
-            };
-          }
-
-          // IO_REPARSE_TAG_MOUNT_POINT is the marker of a Juntion Point
-          if (header.ReparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT) {
-            var reparseDataBuffer = outBuffer.ToStructure<NativeMethods.MountPointReparseBuffer>();
-            var substituteName = new string(reparseDataBuffer.PathBuffer,
-                reparseDataBuffer.SubstituteNameOffset / sizeof(char),
-                reparseDataBuffer.SubstituteNameLength / sizeof(char));
-            var printName = new string(reparseDataBuffer.PathBuffer,
-                reparseDataBuffer.PrintNameOffset / sizeof(char),
-                reparseDataBuffer.PrintNameLength / sizeof(char));
-            // Extract path from buffer
-            return new ReparsePointInfo {
-              IsJunctionPoint = true,
-              IsSymbolicLink = false,
-              Target = string.IsNullOrEmpty(printName) ? ExtractPathFromSubstituteName(substituteName) : printName,
-              IsTargetRelative = false,
-              CreationTimeUtc = creationTime.ToDateTimeUtc(),
-              LastAccessTimeUtc = lastAccessTime.ToDateTimeUtc(),
-              LastWriteTimeUtc = lastWriteTime.ToDateTimeUtc(),
-            };
-          }
-
-          throw new NotSupportedException(
-            string.Format("Unsupported reparse point type at \"{0}\"", StripPath(path)));
-        }
-      }
-    }
-
     private static string ExtractPathFromSubstituteName(string substituteName) {
       if (string.IsNullOrEmpty(substituteName))
         return substituteName;
@@ -524,48 +440,156 @@ namespace mtsuite.shared.Win32 {
       }
     }
 
-    private static void SetMountPointReparse(SafeFileHandle fileHandle, IStringSource path, StringBuffer substituteNameBuffer, StringBuffer printNameBuffer) {
-      NativeMethods.MountPointReparseBuffer reparseBuffer = new NativeMethods.MountPointReparseBuffer();
-      reparseBuffer.Header.ReparseTag = NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT;
-      // |ReparseDataLength| = the number of bytes after the |reparseBuffer.Header|.
-      reparseBuffer.Header.ReparseDataLength = (ushort)(
-        Marshal.SizeOf(reparseBuffer.SubstituteNameOffset) +
-          Marshal.SizeOf(reparseBuffer.SubstituteNameLength) +
-          Marshal.SizeOf(reparseBuffer.PrintNameOffset) +
-          Marshal.SizeOf(reparseBuffer.PrintNameLength) +
-          (substituteNameBuffer.Length + 1) * sizeof (char) +
-          (printNameBuffer.Length + 1) * sizeof (char));
+    public unsafe ReparsePointInfo GetReparsePointInfo(IStringSource path) {
+      using (var fileHandle = OpenFileAsReparsePoint(path, /*readWrite*/false)) {
 
-      // Offset/Length of substitute name
-      // * both offset and count are counting *bytes*
-      // * length does not include the terminatning NULL character
-      reparseBuffer.SubstituteNameOffset = (ushort)0;
-      reparseBuffer.SubstituteNameLength = (ushort)(substituteNameBuffer.Length * sizeof (char));
+        var creationTime = default(NativeMethods.FILETIME);
+        var lastAccessTime = default(NativeMethods.FILETIME);
+        var lastWriteTime = default(NativeMethods.FILETIME);
+        if (!NativeMethods.GetFileTime(fileHandle, &creationTime, &lastAccessTime, &lastWriteTime)) {
+          var lastWin32Error = Marshal.GetLastWin32Error();
+          throw new LastWin32ErrorException(lastWin32Error,
+            string.Format("Error getting file times of \"{0}\"", StripPath(path)));
+        }
 
-      // Offset/Length of print name
-      // * both offset and count are counting *bytes*
-      // * length does not include the terminatning NULL character
-      reparseBuffer.PrintNameOffset = (ushort)((substituteNameBuffer.Length + 1) * sizeof (char));
-      reparseBuffer.PrintNameLength = (ushort)(printNameBuffer.Length * sizeof (char));
+        using (var pooledBuffer = _byteBufferPool.AllocateFrom()) {
+          var buffer = pooledBuffer.Item;
 
-      // Copy the substitute name and print name sequentially into |PathBuffer|
-      // Note: The "+1" is because we need to copy the terminating NULL character.
-      reparseBuffer.PathBuffer = new char[NativeMethods.MountPointReparseBuffer.MaxUnicodePathLength];
-      Array.Copy(substituteNameBuffer.Data, 0, reparseBuffer.PathBuffer, 0, substituteNameBuffer.Length + 1);
-      Array.Copy(printNameBuffer.Data, 0, reparseBuffer.PathBuffer, substituteNameBuffer.Length + 1, printNameBuffer.Length + 1);
+          // Keep trying until buffer is big enough
+          while (true) {
+            if (TryDeviceIoControl(path, fileHandle, NativeMethods.EIOControlCode.FsctlGetReparsePoint, buffer)) {
+              break;
+            }
+            buffer.Capacity = buffer.Capacity * 2;
+          }
 
-      // Note: This is somewhat inefficient, because the struct. is currently almost 32K long, because
-      // of the way |PathBuffer| is defined.
-      var sizeOf = Marshal.SizeOf(reparseBuffer);
-      using (var reparseBufferPtr = new SafeHGlobalHandle(Marshal.AllocHGlobal(sizeOf))) {
-        Marshal.StructureToPtr(reparseBuffer, reparseBufferPtr.Pointer, false);
+          var header = new TypedBuffer<NativeMethods.REPARSE_DATA_BUFFER_HEADER>(buffer);
+          var reparseTag = header.Read(x => x.ReparseTag);
+
+          // IO_REPARSE_TAG_SYMLINK is the marker of a symbolic link
+          if (reparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_SYMLINK) {
+            var symlinkData = new TypedBuffer<NativeMethods.SymbolicLinkReparseData>(buffer);
+
+            // Extract path from buffer
+            var pathOffset = symlinkData.GetFieldOffset(x => x.PathBuffer);
+            var substituteName = symlinkData.ReadString(
+              pathOffset + symlinkData.Read(x => x.SubstituteNameOffset),
+              symlinkData.Read(x => x.SubstituteNameLength) / sizeof(char));
+            var printName = symlinkData.ReadString(
+              pathOffset + symlinkData.Read(x => x.PrintNameOffset),
+              symlinkData.Read(x => x.PrintNameLength) / sizeof(char));
+            return new ReparsePointInfo {
+              IsJunctionPoint = false,
+              IsSymbolicLink = true,
+              Target = string.IsNullOrEmpty(printName) ? substituteName : printName,
+              IsTargetRelative = (symlinkData.Read(x => x.Flags) & NativeMethods.SymbolicLinkFlags.SYMLINK_FLAG_RELATIVE) != 0,
+              CreationTimeUtc = creationTime.ToDateTimeUtc(),
+              LastAccessTimeUtc = lastAccessTime.ToDateTimeUtc(),
+              LastWriteTimeUtc = lastWriteTime.ToDateTimeUtc(),
+            };
+          }
+
+          // IO_REPARSE_TAG_MOUNT_POINT is the marker of a Juntion Point
+          if (reparseTag == NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT) {
+            var mountPoint = new TypedBuffer<NativeMethods.MountPointReparseBuffer>(buffer);
+
+            var pathOffset = mountPoint.GetFieldOffset(x => x.PathBuffer);
+            var substituteName = mountPoint.ReadString(
+              pathOffset + mountPoint.Read(x => x.SubstituteNameOffset),
+              mountPoint.Read(x => x.SubstituteNameLength) / sizeof(char));
+            var printName = mountPoint.ReadString(
+              pathOffset + mountPoint.Read(x => x.PrintNameOffset),
+              mountPoint.Read(x => x.PrintNameLength) / sizeof(char));
+            return new ReparsePointInfo {
+              IsJunctionPoint = true,
+              IsSymbolicLink = false,
+              Target = string.IsNullOrEmpty(printName) ? ExtractPathFromSubstituteName(substituteName) : printName,
+              IsTargetRelative = false,
+              CreationTimeUtc = creationTime.ToDateTimeUtc(),
+              LastAccessTimeUtc = lastAccessTime.ToDateTimeUtc(),
+              LastWriteTimeUtc = lastWriteTime.ToDateTimeUtc(),
+            };
+          }
+
+          throw new NotSupportedException(
+            string.Format("Unsupported reparse point type at \"{0}\"", StripPath(path)));
+        }
+      }
+    }
+
+    private bool TryDeviceIoControl(IStringSource path, SafeFileHandle fileHandle, NativeMethods.EIOControlCode ioControlCode, ByteBuffer buffer) {
+      int bytesReturned;
+      var success = NativeMethods.DeviceIoControl(
+        fileHandle,
+        ioControlCode,
+        IntPtr.Zero,
+        0,
+        buffer.Pointer,
+        buffer.Capacity,
+        out bytesReturned,
+        IntPtr.Zero);
+      if (success)
+        return true;
+
+      var lastWin32Error = Marshal.GetLastWin32Error();
+      if (lastWin32Error == (int)Win32Errors.ERROR_INSUFFICIENT_BUFFER || lastWin32Error == (int)Win32Errors.ERROR_MORE_DATA) {
+        return false;
+      }
+
+      throw new LastWin32ErrorException(lastWin32Error,
+        string.Format("Error reading target of reparse point \"{0}\"", StripPath(path)));
+    }
+
+    private void SetMountPointReparse(SafeFileHandle fileHandle, IStringSource path, StringBuffer substituteNameBuffer, StringBuffer printNameBuffer) {
+      using (var pooledBuffer = _byteBufferPool.AllocateFrom()) {
+        var buffer = pooledBuffer.Item;
+
+        var header = new TypedBuffer<NativeMethods.REPARSE_DATA_BUFFER_HEADER>(buffer);
+        var reparseBuffer = new TypedBuffer<NativeMethods.MountPointReparseBuffer>(buffer);
+        // |ReparseDataLength| = the number of bytes after the |reparseBuffer.Header|.
+        var reparseDataLength =
+          reparseBuffer.GetFieldSize(x => x.SubstituteNameOffset) +
+          reparseBuffer.GetFieldSize(x => x.SubstituteNameLength) +
+          reparseBuffer.GetFieldSize(x => x.PrintNameOffset) +
+          reparseBuffer.GetFieldSize(x => x.PrintNameLength) +
+          (substituteNameBuffer.Length + 1) * sizeof(char) +
+          (printNameBuffer.Length + 1) * sizeof(char);
+        var bufferLength = header.SizeOf + reparseDataLength;
+
+        header.Write(x => x.ReparseTag, (long)NativeMethods.ReparseTagType.IO_REPARSE_TAG_MOUNT_POINT);
+        header.Write(x => x.ReparseDataLength, reparseDataLength);
+        header.Write(x => x.Reserved, 0);
+
+        // Offset/Length of substitute name
+        // * both offset and count are counting *bytes*
+        // * length does not include the terminatning NULL character
+        reparseBuffer.Write(x => x.SubstituteNameOffset, 0);
+        reparseBuffer.Write(x => x.SubstituteNameLength, substituteNameBuffer.Length * sizeof(char));
+
+        // Offset/Length of print name
+        // * both offset and count are counting *bytes*
+        // * length does not include the terminatning NULL character
+        reparseBuffer.Write(x => x.PrintNameOffset, (substituteNameBuffer.Length + 1) * sizeof(char));
+        reparseBuffer.Write(x => x.PrintNameLength, printNameBuffer.Length * sizeof(char));
+
+        // Copy the substitute name and print name sequentially into |PathBuffer|
+        // Note: The "+1" is because we need to copy the terminating NULL character.
+        var pathOffset = reparseBuffer.GetFieldOffset(x => x.PathBuffer);
+        reparseBuffer.WriteString(
+          pathOffset,
+          substituteNameBuffer.Length + 1,
+          substituteNameBuffer);
+        reparseBuffer.WriteString(
+          pathOffset + (substituteNameBuffer.Length + 1) * sizeof(char),
+          printNameBuffer.Length + 1,
+          printNameBuffer);
 
         int bytesReturned;
         var success = NativeMethods.DeviceIoControl(
           fileHandle,
           NativeMethods.EIOControlCode.FsctlSetReparsePoint,
-          reparseBufferPtr.Pointer,
-          Marshal.SizeOf(reparseBuffer.Header) + reparseBuffer.Header.ReparseDataLength,
+          buffer.Pointer,
+          bufferLength,
           IntPtr.Zero,
           0,
           out bytesReturned,

@@ -60,6 +60,7 @@
     <Compile Include="Collections\IPool.cs" />
     <Compile Include="IParallelFileSystem.cs" />
     <Compile Include="IProgressMonitor.cs" />
+    <Compile Include="ReflectionUtils.cs" />
     <Compile Include="VersionNumber.cs" />
     <Compile Include="Tasks\DefaultTaskCollection`1.cs" />
     <Compile Include="Tasks\DefaultTaskCollection.cs" />
@@ -79,6 +80,7 @@
     <Compile Include="Tasks\ITask.cs" />
     <Compile Include="Tasks\ITaskCollection.cs" />
     <Compile Include="Tasks\ITaskFactory.cs" />
+    <Compile Include="Win32\ByteBuffer.cs" />
     <Compile Include="Win32\IStringSource.cs" />
     <Compile Include="Files\LastWriteTimeFileComparer.cs" />
     <Compile Include="Collections\ConcurrentNoOpPool.cs" />
@@ -102,6 +104,7 @@
     <Compile Include="Win32\NativeMethods.cs" />
     <Compile Include="Win32\SafeFindHandle.cs" />
     <Compile Include="Win32\SafeHGlobalHandle.cs" />
+    <Compile Include="Win32\TypedBuffer.cs" />
     <Compile Include="Win32\Win32.cs" />
     <Compile Include="Win32\Win32Errors.cs" />
     <Compile Include="Win32\WIN32_FILE_ATTRIBUTE_DATA.cs" />

@@ -32,6 +32,23 @@ namespace tests {
     }
 
     [TestMethod]
+    public void CreateFileSymbolicLinkWorks() {
+      // Prepare
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateFile("foo.txt", 100);
+
+      // Act
+      var link = _fileSystemSetup.Root.CreateFileLink("link.txt", "foo.txt");
+
+      // Assert
+      Assert.IsTrue(_fileSystemSetup.FileSystem.GetEntry(link.Path).IsReparsePoint);
+    }
+
+    [TestMethod]
     public void CreateJunctionPointWorks() {
       // Prepare
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
@@ -40,6 +57,8 @@ namespace tests {
       var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", "foo");
 
       // Assert
+      Assert.IsTrue(_fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path).IsReparsePoint);
+      Assert.IsTrue(_fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPoint.Path).IsJunctionPoint);
     }
 
     [TestMethod]

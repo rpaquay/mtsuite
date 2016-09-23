@@ -18,20 +18,35 @@ using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.shared.Win32 {
   public class SafeHGlobalHandle : SafeHandleZeroOrMinusOneIsInvalid {
-    public SafeHGlobalHandle(IntPtr handle)
-      : base(true) {
-      this.handle = handle;
+    public SafeHGlobalHandle()
+      : base(ownsHandle: true) {
     }
 
     public IntPtr Pointer { get { return handle; } }
 
-    protected override bool ReleaseHandle() {
-      Marshal.FreeHGlobal(handle);
-      return true;
+    public void Alloc(int size) {
+      ReleaseHandle();
+      handle = Marshal.AllocHGlobal(size);
     }
 
-    public T ToStructure<T>() {
-      return NativeMethods.PtrToStructure<T>(handle);
+    public void Realloc(int size) {
+      if (handle == IntPtr.Zero) {
+        Alloc(size);
+      } else {
+        handle = Marshal.ReAllocHGlobal(handle, new IntPtr(size));
+      }
+    }
+
+    public void Free() {
+      ReleaseHandle();
+    }
+
+    protected override bool ReleaseHandle() {
+      if (handle != IntPtr.Zero) {
+        Marshal.FreeHGlobal(handle);
+        handle = IntPtr.Zero;
+      }
+      return true;
     }
   }
 }

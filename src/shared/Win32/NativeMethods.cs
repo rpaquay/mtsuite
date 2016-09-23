@@ -628,9 +628,21 @@ namespace mtsuite.shared.Win32 {
 
       public REPARSE_DATA_BUFFER_HEADER Header;
 
+      /// <summary>
+      /// Offset, in bytes, of the substitute name string in the PathBuffer array. Note that this offset must be divided by sizeof(WCHAR) to get the array index.
+      /// </summary>
       public ushort SubstituteNameOffset;
+      /// <summary>
+      /// Length, in bytes, of the substitute name string. If this string is NULL-terminated, SubstituteNameLength does not include space for the UNICODE_NULL character.
+      /// </summary>
       public ushort SubstituteNameLength;
+      /// <summary>
+      /// Offset, in bytes, of the print name string in the PathBuffer array. Note that this offset must be divided by sizeof(WCHAR) to get the array index.
+      /// </summary>
       public ushort PrintNameOffset;
+      /// <summary>
+      /// Length, in bytes, of the print name string. If this string is NULL-terminated, PrintNameLength does not include space for the UNICODE_NULL character.
+      /// </summary>
       public ushort PrintNameLength;
       public SymbolicLinkFlags Flags;
 
@@ -647,9 +659,21 @@ namespace mtsuite.shared.Win32 {
 
       public REPARSE_DATA_BUFFER_HEADER Header;
 
+      /// <summary>
+      /// Offset, in bytes, of the substitute name string in the PathBuffer array. Note that this offset must be divided by sizeof(WCHAR) to get the array index.
+      /// </summary>
       public ushort SubstituteNameOffset;
+      /// <summary>
+      /// Length, in bytes, of the substitute name string. If this string is NULL-terminated, SubstituteNameLength does not include space for the UNICODE_NULL character.
+      /// </summary>
       public ushort SubstituteNameLength;
+      /// <summary>
+      /// Offset, in bytes, of the print name string in the PathBuffer array. Note that this offset must be divided by sizeof(WCHAR) to get the array index.
+      /// </summary>
       public ushort PrintNameOffset;
+      /// <summary>
+      /// Length, in bytes, of the print name string. If this string is NULL-terminated, PrintNameLength does not include space for the UNICODE_NULL character.
+      /// </summary>
       public ushort PrintNameLength;
 
       [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxUnicodePathLength)]
