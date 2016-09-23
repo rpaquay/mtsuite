@@ -14,6 +14,7 @@
 
 using System;
 using mtsuite.shared;
+using mtsuite.shared.Utils;
 
 namespace mtdel {
   public class DeleteProgressMonitor : ProgressMonitor {

@@ -17,7 +17,7 @@ using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 using mtsuite.shared.Collections;
 
-namespace mtsuite.shared.Win32 {
+namespace mtsuite.shared.Utils {
   public struct TypedBuffer<TStruct> {
     private readonly ByteBuffer _buffer;
 

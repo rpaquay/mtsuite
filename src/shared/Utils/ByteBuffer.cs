@@ -18,19 +18,19 @@ using System.Runtime.InteropServices;
 using System.Text;
 using mtsuite.shared.Collections;
 
-namespace mtsuite.shared.Win32 {
+namespace mtsuite.shared.Utils {
   public class ByteBuffer : IDisposable {
     private readonly SafeHGlobalHandle _memoryHandle = new SafeHGlobalHandle();
     private int _capacity;
 
     public ByteBuffer(int capacity) {
-      if (capacity <= 0) {
-        throw new ArgumentException();
-      }
       Allocate(capacity);
     }
 
     private void Allocate(int capacity) {
+      if (capacity <= 0) {
+        throw new ArgumentException("Capacity must be positive", "capacity");
+      }
       _memoryHandle.Realloc(capacity);
       _capacity = capacity;
     }

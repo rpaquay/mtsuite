@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using mtsuite.shared.Collections;
 using mtsuite.shared.Files;
+using mtsuite.shared.Utils;
 using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.shared.Win32 {

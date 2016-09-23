@@ -16,7 +16,7 @@ using System;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace mtsuite.shared {
+namespace mtsuite.shared.Utils {
   public static class ReflectionUtils {
     private static MemberInfo GetMemberInfoImpl(Type type, LambdaExpression lambda) {
       var member = lambda.Body as MemberExpression;

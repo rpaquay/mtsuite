@@ -13,7 +13,7 @@
 // limitations under the License.
 namespace mtsuite.shared {
   public static class VersionNumber {
-    public const string Product = "0.9.3";
+    public const string Product = "0.9.5";
     public const string File = Product + ".0";
   }
 }
