@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
 
@@ -19,6 +20,37 @@ namespace tests {
   [TestClass]
   public class FileSystemTest {
     private FileSystemSetup _fileSystemSetup;
+
+    public static int RunCommand(string[] args) {
+      var imageName = args[0];
+
+      var sb = new StringBuilder();
+      for (var i = 1; i < args.Length; i++) {
+        var arg = args[i];
+
+        if (arg.Contains(" ")) {
+          sb.AppendFormat("\"{0}\"", arg);
+        } else {
+          sb.Append(arg);
+        }
+
+        if (i < args.Length - 1) {
+          sb.Append(" ");
+        }
+      }
+
+      var startInfo = new System.Diagnostics.ProcessStartInfo();
+      startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+      startInfo.FileName = imageName;
+      startInfo.Arguments = sb.ToString();
+
+      var process = new System.Diagnostics.Process();
+      process.StartInfo = startInfo;
+      process.Start();
+      process.WaitForExit();
+
+      return process.ExitCode;
+    }
 
     [TestInitialize]
     public void Setup() {
@@ -33,7 +65,6 @@ namespace tests {
 
     [TestMethod]
     public void CreateFileSymbolicLinkWorks() {
-      // Prepare
       if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
         Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
       }
@@ -49,12 +80,68 @@ namespace tests {
     }
 
     [TestMethod]
+    public void GetJunctionPointInfoWorks() {
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo with spaces");
+
+      // Act
+      var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
+      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/j", junctionPointPath.Text, fooTarget.Path.Text });
+      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
+
+      // Assert
+      Assert.AreEqual(0, rc);
+      Assert.IsTrue(info.IsJunctionPoint);
+      Assert.AreEqual(fooTarget.Path.Text, info.Target);
+    }
+
+    [TestMethod]
+    public void GetDirectorySymbolicLinkInfoWorks() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo with spaces");
+
+      // Act
+      var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
+      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/d", junctionPointPath.Text, fooTarget.Path.Text });
+      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
+
+      // Assert
+      Assert.AreEqual(0, rc);
+      Assert.IsTrue(info.IsSymbolicLink);
+      Assert.AreEqual(fooTarget.Path.Text, info.Target);
+    }
+
+    [TestMethod]
+    public void GetFileSymbolicLinkInfoWorks() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateFile("foo with spaces", 200);
+
+      // Act
+      var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
+      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", junctionPointPath.Text, fooTarget.Path.Text });
+      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
+
+      // Assert
+      Assert.AreEqual(0, rc);
+      Assert.IsTrue(info.IsSymbolicLink);
+      Assert.AreEqual(fooTarget.Path.Text, info.Target);
+    }
+
+    [TestMethod]
     public void CreateJunctionPointWorks() {
       // Prepare
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
 
       // Act
-      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", "foo");
+      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", fooTarget.Path.Text);
 
       // Assert
       Assert.IsTrue(_fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path).IsReparsePoint);
@@ -145,5 +232,6 @@ namespace tests {
       Assert.IsFalse(info.IsTargetRelative);
       Assert.AreEqual(fooTarget.Path.Path, info.Target);
     }
+
   }
 }
