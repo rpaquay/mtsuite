@@ -21,9 +21,9 @@ using System.Text;
 namespace mtsuite.CoreFileSystem {
   public static class PathHelpers {
     public static readonly string DirectorySeparatorString = Path.DirectorySeparatorChar.ToString();
-    public  static readonly string AltDirectorySeparatorString = Path.AltDirectorySeparatorChar.ToString();
-    private static readonly string LongDiskPathPrefix = @"\\?\";
-    private static readonly string LongUncPathPrefix = @"\\?\UNC\";
+    public static readonly string AltDirectorySeparatorString = Path.AltDirectorySeparatorChar.ToString();
+    public static readonly string LongDiskPathPrefix = @"\\?\";
+    public static readonly string LongUncPathPrefix = @"\\?\UNC\";
     private static readonly string UncPathPrefix  = @"\\";
 
     /// <summary>
@@ -291,7 +291,7 @@ namespace mtsuite.CoreFileSystem {
     /// <summary>
     /// Return <code>true</code> if <paramref name="path"/> is an absolute path.
     /// </summary>
-    private static PathRootPrefixInfo GetPathRootPrefixInfo(string path) {
+    public static PathRootPrefixInfo GetPathRootPrefixInfo(string path) {
       if (string.IsNullOrEmpty(path))
         return default(PathRootPrefixInfo);
 
@@ -326,7 +326,7 @@ namespace mtsuite.CoreFileSystem {
       return 0;
     }
 
-    private struct PathRootPrefixInfo {
+    public struct PathRootPrefixInfo {
       private readonly int _length;
       private readonly RootPrefixKind _rootPrefixKind;
 
@@ -344,7 +344,7 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
-    private enum RootPrefixKind {
+    public enum RootPrefixKind {
       None,
       LongDiskPath,
       LongUncPath,

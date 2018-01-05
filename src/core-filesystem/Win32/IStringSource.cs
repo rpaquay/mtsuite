@@ -20,21 +20,21 @@ namespace mtsuite.CoreFileSystem.Win32 {
   /// </summary>
   public interface IStringSourceFormatter {
     int GetLength(IStringSource source);
-    string GetText(IStringSource source);
     void CopyTo(IStringSource source, StringBuffer destination);
   }
 
   public abstract class StringSourceFormatter<T> : IStringSourceFormatter where T: IStringSource {
-    protected abstract int GetLengthImpl(T source);
-    protected abstract string GetTextImpl(T source);
-    protected abstract void CopyToImpl(T source, StringBuffer destination);
+    public abstract int GetLengthImpl(T source);
+    public abstract void CopyToImpl(T source, StringBuffer destination);
+
+    public string GetText(T source) {
+      var sb = new StringBuffer();
+      CopyToImpl(source, sb);
+      return sb.ToString();
+    }
 
     int IStringSourceFormatter.GetLength(IStringSource source) {
       return GetLengthImpl((T) source);
-    }
-
-    string IStringSourceFormatter.GetText(IStringSource source) {
-      return GetTextImpl((T) source);
     }
 
     void IStringSourceFormatter.CopyTo(IStringSource source, StringBuffer destination) {

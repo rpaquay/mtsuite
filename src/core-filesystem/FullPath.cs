@@ -97,11 +97,27 @@ namespace mtsuite.CoreFileSystem {
       get { return _name[_name.Length - 1] == System.IO.Path.DirectorySeparatorChar; }
     }
 
+    public PathHelpers.RootPrefixKind PathKind {
+      get {
+        if (_parent != null) {
+          return _parent.PathKind;
+        }
+
+        return PathHelpers.GetPathRootPrefixInfo(_name).RootPrefixKind;
+      }
+    }
+
+    public enum LongPathPrefixKind {
+      None,
+      LongDiskPath,
+      LongUncPath,
+    }
+
     private void BuildPath(StringBuffer sb) {
       if (_parent != null) {
         _parent.BuildPath(sb);
         if (!_parent.HasTrailingSeparator)
-          sb.Append(System.IO.Path.DirectorySeparatorChar);
+          sb.Append(PathHelpers.DirectorySeparatorString);
       }
       sb.Append(_name);
     }
@@ -112,10 +128,6 @@ namespace mtsuite.CoreFileSystem {
 
     public int Length {
       get { return GetLength(this); }
-    }
-
-    public string Text {
-      get { return ToString(); }
     }
 
     public void CopyTo(StringBuffer sb) {

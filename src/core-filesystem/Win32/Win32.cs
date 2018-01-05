@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Runtime.Remoting.Messaging;
 using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.CoreFileSystem.Utils;
 using Microsoft.Win32.SafeHandles;
@@ -450,7 +451,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
           // The "Substitute name" is the target path using the "\??\<path>\" format.
           var substituteNameBuffer = substituteNameBufferPooled.Item;
 
-          var targetPathFixed = _pathFormatter.GetText(targetPath);
+          var targetPathFixed = GetPathText(targetPath);
           targetPathFixed = PathHelpers.StripLongPathPrefix(targetPathFixed);
 
           substituteNameBuffer.Append(@"\??\");
@@ -468,6 +469,12 @@ namespace mtsuite.CoreFileSystem.Win32 {
           SetMountPointReparse(fileHandle, path, substituteNameBuffer, printNameBuffer);
         }
       }
+    }
+
+    private string GetPathText(IStringSource source) {
+      var sb = new StringBuffer();
+      _pathFormatter.CopyTo(source, sb);
+      return sb.ToString();
     }
 
     public unsafe ReparsePointInfo GetReparsePointInfo(IStringSource path) {
