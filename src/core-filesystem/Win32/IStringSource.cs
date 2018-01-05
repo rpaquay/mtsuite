@@ -15,9 +15,36 @@
 using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem.Win32 {
+  /// <summary>
+  /// Provide efficient/copy-free text representation of <see cref="IStringSource"/> objects.
+  /// </summary>
+  public interface IStringSourceFormatter {
+    int GetLength(IStringSource source);
+    string GetText(IStringSource source);
+    void CopyTo(IStringSource source, StringBuffer destination);
+  }
+
+  public abstract class StringSourceFormatter<T> : IStringSourceFormatter where T: IStringSource {
+    protected abstract int GetLengthImpl(T source);
+    protected abstract string GetTextImpl(T source);
+    protected abstract void CopyToImpl(T source, StringBuffer destination);
+
+    int IStringSourceFormatter.GetLength(IStringSource source) {
+      return GetLengthImpl((T) source);
+    }
+
+    string IStringSourceFormatter.GetText(IStringSource source) {
+      return GetTextImpl((T) source);
+    }
+
+    void IStringSourceFormatter.CopyTo(IStringSource source, StringBuffer destination) {
+      CopyToImpl((T) source, destination);
+    }
+  }
+
+  /// <summary>
+  /// Marker interface for objects that can be formatted with a <see cref="IStringSourceFormatter"/>.
+  /// </summary>
   public interface IStringSource {
-    int Length { get; }
-    string Text { get; }
-    void CopyTo(StringBuffer destination);
   }
 }

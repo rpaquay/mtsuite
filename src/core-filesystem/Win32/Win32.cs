@@ -21,9 +21,14 @@ using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.CoreFileSystem.Win32 {
   public class Win32 {
+    private readonly IStringSourceFormatter _pathFormatter;
     private readonly IPool<List<DirectoryEntry>> _entryListPool = new ListPool<DirectoryEntry>();
     private readonly IPool<StringBuffer> _stringBufferPool = PoolFactory<StringBuffer>.Create(() => new StringBuffer(64), x => x.Clear());
     private readonly IPool<ByteBuffer> _byteBufferPool = PoolFactory<ByteBuffer>.Create(() => new ByteBuffer(256));
+
+    public Win32(IStringSourceFormatter pathFormatter) {
+      _pathFormatter = pathFormatter;
+    }
 
     private static string StripPath(string path) {
       if (!PathHelpers.IsPathAbsolute(path))
@@ -31,9 +36,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
       return PathHelpers.StripLongPathPrefix(path);
     }
 
-    private static string StripPath(IStringSource path) {
-      var sb = new StringBuffer(path.Length + 1);
-      path.CopyTo(sb);
+    private string StripPath(IStringSource path) {
+      var sb = new StringBuffer(_pathFormatter.GetLength(path) + 1);
+      _pathFormatter.CopyTo(path, sb);
       return StripPath(sb.Text);
     }
 
@@ -43,7 +48,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
     public FromPool<List<DirectoryEntry>> GetDirectoryEntries(IStringSource path) {
       // Build search pattern (on the stack) as path + "\\*" + '\0'
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
         sb.Item.Append(@"\*");
 
         // Start enumerating files
@@ -97,7 +102,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     public void DeleteFile(IStringSource path) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
         if (NativeMethods.DeleteFile(sb.Item.Data))
           return;
 
@@ -109,7 +114,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     public void DeleteDirectory(IStringSource path) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
         // Note: RemoveDirectory works for empty directories as well
         // as for junction points, even if their target is not empty.
         if (NativeMethods.RemoveDirectory(sb.Item.Data))
@@ -123,7 +128,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     public void SetFileAttributes(IStringSource path, FILE_ATTRIBUTE fileAttributes) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
         if (NativeMethods.SetFileAttributes(sb.Item.Data, fileAttributes))
           return;
 
@@ -133,9 +138,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
       }
     }
 
-    public FILE_ATTRIBUTE GetFileAttributes(IStringSource path) {
+    public FILE_ATTRIBUTE GetFileAttributes(IStringSourceFormatter pathFormatter, IStringSource path) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
         var INVALID_FILE_ATTRIBUTES = unchecked((FILE_ATTRIBUTE)(-1));
         var attributes = NativeMethods.GetFileAttributes(sb.Item.Data);
         if (attributes != INVALID_FILE_ATTRIBUTES)
@@ -158,7 +163,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     public Win32Errors TryGetFileAttributesEx(IStringSource path, out WIN32_FILE_ATTRIBUTE_DATA data) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
         if (NativeMethods.GetFileAttributesEx(sb.Item.Data, 0, out data))
           return Win32Errors.ERROR_SUCCESS;
         return (Win32Errors)Marshal.GetLastWin32Error();
@@ -191,8 +196,8 @@ namespace mtsuite.CoreFileSystem.Win32 {
     public void CopyFile(IStringSource sourcePath, IStringSource destinationPath, CopyFileOptions options, CopyFileCallback callback) {
       using (var source = _stringBufferPool.AllocateFrom())
       using (var destination = _stringBufferPool.AllocateFrom()) {
-        sourcePath.CopyTo(source.Item);
-        destinationPath.CopyTo(destination.Item);
+        _pathFormatter.CopyTo(sourcePath, source.Item);
+        _pathFormatter.CopyTo(destinationPath, destination.Item);
 
         var callbackData = new CopyFileCallbackData { Callback = callback };
         var callbackDataHandle = GCHandle.Alloc(callbackData);
@@ -226,7 +231,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     public void CreateDirectory(IStringSource path) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
 
         if (NativeMethods.CreateDirectory(sb.Item.Data, IntPtr.Zero))
           return;
@@ -324,7 +329,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
       NativeMethods.ECreationDisposition creationDisposition,
       NativeMethods.EFileAttributes attributes) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
 
         var fileHandle = NativeMethods.CreateFile(
           sb.Item.Data,
@@ -399,7 +404,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
       string targetPath,
       NativeMethods.SYMBOLIC_LINK_FLAG linkFlag) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        path.CopyTo(sb.Item);
+        _pathFormatter.CopyTo(path, sb.Item);
 
         // Note: Win32 documentation for CreateSymbolicLink is incorrect (probably an issue in Windows).
         // On success, the function returns "1".
@@ -445,7 +450,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
           // The "Substitute name" is the target path using the "\??\<path>\" format.
           var substituteNameBuffer = substituteNameBufferPooled.Item;
 
-          var targetPathFixed = targetPath.Text;
+          var targetPathFixed = _pathFormatter.GetText(targetPath);
           targetPathFixed = PathHelpers.StripLongPathPrefix(targetPathFixed);
 
           substituteNameBuffer.Append(@"\??\");
@@ -457,7 +462,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
           // print name by falling back to the "substitute name". However, built-in
           // applications such as "mklink" seem to always set a "print name".
           var printNameBuffer = printNameBufferPooled.Item;
-          targetPath.CopyTo(printNameBuffer);
+          _pathFormatter.CopyTo(targetPath, printNameBuffer);
 
           // Fill up an instance of "MountPointReparseBuffer" that defines the reparse point target.
           SetMountPointReparse(fileHandle, path, substituteNameBuffer, printNameBuffer);
