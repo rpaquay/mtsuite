@@ -18,7 +18,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.Utils;
 
 namespace mtsuite.shared.CommandLine {

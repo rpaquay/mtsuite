@@ -16,7 +16,7 @@ using mtinfo;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace tests {
   [TestClass]

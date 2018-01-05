@@ -18,7 +18,7 @@ using System.Diagnostics;
 using System.Reflection;
 using mtsuite.shared;
 using mtsuite.shared.CommandLine;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace mtcopy {
   public class MtCopy {

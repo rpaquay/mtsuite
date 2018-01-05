@@ -15,8 +15,8 @@
 using System;
 using System.ComponentModel;
 using System.IO;
-using mtsuite.shared.Files;
-using mtsuite.shared.Win32;
+using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.Win32;
 
 namespace tests.FileSystemHelpers {
   public class FileSystemSetup : IDisposable {

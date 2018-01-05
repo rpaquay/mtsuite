@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using mtsuite.CoreFileSystem.Utils;
 using System;
 using System.Collections;
-using mtsuite.shared.Collections;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace tests {
   [TestClass]

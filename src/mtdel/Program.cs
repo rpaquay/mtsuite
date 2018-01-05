@@ -13,7 +13,7 @@
 // limitations under the License.
 
 using mtsuite.shared.CommandLine;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace mtdel {
   internal class Program {

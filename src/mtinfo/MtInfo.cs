@@ -20,7 +20,7 @@ using System.Reflection;
 using System.Text;
 using mtsuite.shared;
 using mtsuite.shared.CommandLine;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.Utils;
 
 namespace mtinfo {

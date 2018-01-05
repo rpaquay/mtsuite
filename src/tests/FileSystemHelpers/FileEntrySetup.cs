@@ -14,7 +14,7 @@
 
 using System;
 using System.IO;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace tests.FileSystemHelpers {
   public abstract class FileEntrySetup {

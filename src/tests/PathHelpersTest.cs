@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace tests {

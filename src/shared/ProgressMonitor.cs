@@ -16,7 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
