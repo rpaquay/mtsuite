@@ -150,7 +150,7 @@ namespace mtsuite.CoreFileSystem {
 
     public void CreateJunctionPoint(FullPath path, string target) {
       // Convert target into an absolute path
-      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent.Combine(target).FullName;
+      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent.Value.Combine(target).FullName;
       targetPath = PathHelpers.NormalizePath(targetPath);
 
       _win32.CreateJunctionPoint(path, new FullPath(targetPath));
@@ -169,16 +169,16 @@ namespace mtsuite.CoreFileSystem {
       };
     }
 
-    public void CreateDirectoryWorker(FullPath path) {
+    public void CreateDirectoryWorker(FullPath? path) {
       if (path == null)
         return;
 
       try {
-        _win32.CreateDirectory(path);
+        _win32.CreateDirectory(path.Value);
       } catch {
-        if (!TryCreateParent(path))
+        if (!TryCreateParent(path.Value))
           throw;
-        _win32.CreateDirectory(path);
+        _win32.CreateDirectory(path.Value);
       }
     }
 

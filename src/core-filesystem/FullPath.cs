@@ -23,7 +23,7 @@ namespace mtsuite.CoreFileSystem {
   /// <summary>
   /// Represents a fully qualified path.
   /// </summary>
-  public class FullPath : IEquatable<FullPath>, IComparable<FullPath>, IStringSource {
+  public struct FullPath : IEquatable<FullPath>, IComparable<FullPath>, IStringSource {
     private class FullPathValue {
       /// <summary>
       /// The parent path, or <code>null</code> <see cref="_name"/> is a root path
@@ -177,7 +177,7 @@ namespace mtsuite.CoreFileSystem {
     /// Throws an exception if the <paramref name="name"/> is not valid.
     /// </summary>
     public FullPath(FullPath parent, string name) {
-      if (parent == null)
+      if (parent._value == null)
         ThrowArgumentNullException("parent");
       if (string.IsNullOrEmpty(name))
         ThrowArgumentNullException("name");
@@ -231,7 +231,7 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
-    public FullPath Parent {
+    public FullPath? Parent {
       get {
         if (_value is string) {
           return null;
@@ -308,14 +308,11 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public bool Equals(FullPath other) {
-      if (ReferenceEquals(null, other)) return false;
-      if (ReferenceEquals(this, other)) return true;
       return FullPathValue.EqualsOperator(_value, other._value);
     }
 
     public override bool Equals(object obj) {
       if (ReferenceEquals(null, obj)) return false;
-      if (ReferenceEquals(this, obj)) return true;
       if (obj.GetType() != GetType()) return false;
       return Equals((FullPath) obj);
     }
@@ -325,8 +322,6 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public int CompareTo(FullPath other) {
-      if (ReferenceEquals(this, other)) return 0;
-      if (ReferenceEquals(null, other)) return 1;
       return FullPathValue.Compare(_value, other._value);
     }
   }
