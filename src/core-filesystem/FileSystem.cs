@@ -20,11 +20,13 @@ using mtsuite.CoreFileSystem.Win32;
 namespace mtsuite.CoreFileSystem {
   public class FileSystem : IFileSystem {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
-    private readonly IStringSourceFormatter _stringSourceFormatter = new FullPathStringSourceFormatter();
     private readonly Win32.Win32 _win32;
 
-    public FileSystem() {
-      _win32 = new Win32.Win32(_stringSourceFormatter);
+    public FileSystem() : this(new FullPathStringSourceFormatter()) {
+    }
+
+    public FileSystem(IStringSourceFormatter stringSourceFormatter) {
+      _win32 = new Win32.Win32(stringSourceFormatter);
     }
 
     public FileSystemEntry GetEntry(FullPath path) {

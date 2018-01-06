@@ -12,23 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Microsoft.Win32.SafeHandles;
+using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.CoreFileSystem.Utils;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Runtime.Remoting.Messaging;
-using mtsuite.CoreFileSystem.ObjectPool;
-using mtsuite.CoreFileSystem.Utils;
-using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.CoreFileSystem.Win32 {
   public class Win32 {
-    private readonly IStringSourceFormatter _pathFormatter;
     private readonly IPool<List<DirectoryEntry>> _entryListPool = new ListPool<DirectoryEntry>();
     private readonly IPool<StringBuffer> _stringBufferPool = PoolFactory<StringBuffer>.Create(() => new StringBuffer(64), x => x.Clear());
     private readonly IPool<ByteBuffer> _byteBufferPool = PoolFactory<ByteBuffer>.Create(() => new ByteBuffer(256));
+    private IStringSourceFormatter _pathFormatter;
 
     public Win32(IStringSourceFormatter pathFormatter) {
       _pathFormatter = pathFormatter;
+    }
+
+    public IStringSourceFormatter PathFormatter {
+      get { return _pathFormatter; }
+      set { _pathFormatter = value; }
     }
 
     private static string StripPath(string path) {
