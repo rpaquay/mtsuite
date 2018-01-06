@@ -63,11 +63,11 @@ namespace mtsuite.CoreFileSystem {
     }
 
     private static FullPath CreatePath(string path) {
-      if (string.IsNullOrEmpty(path)) {
+      if (path == null) {
         return null;
       }
       var parentPath = PathHelpers.GetParent(path);
-      if (string.IsNullOrEmpty(parentPath)) {
+      if (parentPath == null) {
         return new FullPath(path);
       }
 

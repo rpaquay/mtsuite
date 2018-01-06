@@ -116,10 +116,21 @@ namespace tests {
     }
 
     [TestMethod]
-    public void FullPathEqualshouldWork() {
+    public void FullPathEqualShouldWork() {
       var p1 = new FullPath(@"c:\foo\bar");
       var p2 = new FullPath(@"c:\foo").Combine(@"bar");
       Assert.AreEqual(p1, p2);
+      Assert.AreEqual(p1.GetHashCode(), p2.GetHashCode());
+    }
+    [TestMethod]
+    public void LongPathShouldWork() {
+      var p1 = new FullPath(@"\\?\c:\foo\bar");
+      Assert.AreEqual(@"\\?\c:\foo\bar", p1.FullName);
+      Assert.AreEqual(PathHelpers.RootPrefixKind.LongDiskPath, p1.PathKind);
+      Assert.AreEqual("bar", p1.Name);
+      Assert.AreEqual("foo", p1.Parent.Name);
+      Assert.AreEqual(@"\\?\c:\", p1.Parent.Parent.Name);
+      Assert.AreEqual(null, p1.Parent.Parent.Parent);
     }
   }
 }
