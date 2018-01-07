@@ -55,7 +55,11 @@ namespace mtsuite.CoreFileSystem.Win32 {
       using (var sb = _stringBufferPool.AllocateFrom()) {
         // Start enumerating files
         WIN32_FIND_DATA data;
-        using (var findHandle = FindFirstFile(path, pattern, sb, out data)) {
+        var findHandle = FindFirstFile(path, pattern, sb, out data);
+        if (findHandle == null) {
+          return _entryListPool.AllocateFrom();
+        }
+        using (findHandle) {
           var result = _entryListPool.AllocateFrom();
           try {
             AddResult(ref data, result.Item);
@@ -84,7 +88,11 @@ namespace mtsuite.CoreFileSystem.Win32 {
       // Build search pattern (on the stack) as path + "\\*" + '\0'
       using (var sb = _stringBufferPool.AllocateFrom()) {
         WIN32_FIND_DATA data;
-        using (var findHandle = FindFirstFile(path, pattern, sb, out data)) {
+        var findHandle = FindFirstFile(path, pattern, sb, out data);
+        if (findHandle == null) {
+          yield break;
+        }
+        using (findHandle) {
           var entry = new DirectoryEntry(data.cFileName, data);
           if (!SkipSpecialEntry(entry)) yield return entry;
           while (NativeMethods.FindNextFile(findHandle, out data)) {
@@ -116,6 +124,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
         NativeMethods.FINDEX_ADDITIONAL_FLAGS.FindFirstExLargeFetch);
       if (findHandle.IsInvalid) {
         var lastWin32Error = Marshal.GetLastWin32Error();
+        if (lastWin32Error == (int)Win32Errors.ERROR_FILE_NOT_FOUND) {
+          return null;
+        }
         throw new LastWin32ErrorException(lastWin32Error,
           string.Format("Error enumerating files at \"{0}\"", StripPath(path)));
       }
