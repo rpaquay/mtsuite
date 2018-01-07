@@ -14,6 +14,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.CoreFileSystem.Win32;
 
@@ -56,9 +57,13 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public IEnumerable<FileSystemEntry> EnumerateDirectoryEntries(FullPath path, string pattern = null) {
-      foreach (var entry in _win32.EnumerateDirectoryEntries(path, pattern)) {
-        yield return new FileSystemEntry(path.Combine(entry.Name), entry.Data);
-      }
+      return _win32.EnumerateDirectoryEntries(path, pattern)
+        .Select(entry => new FileSystemEntry(path.Combine(entry.Name), entry.Data));
+    }
+
+    public IEnumerable<FileSystemEntryData> EnumerateDirectoryEntriesData(FullPath path, string pattern = null) {
+      return _win32.EnumerateDirectoryEntriesData(path, pattern)
+        .Select(data => new FileSystemEntryData(data));
     }
 
     public void DeleteEntry(FileSystemEntry entry) {
