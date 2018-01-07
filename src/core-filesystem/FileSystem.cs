@@ -25,8 +25,8 @@ namespace mtsuite.CoreFileSystem {
     public FileSystem() : this(new PathSerializers.AsIsSerializer()) {
     }
 
-    public FileSystem(IPathSerializer<FullPath> stringSourceFormatter) {
-      _win32 = new Win32<FullPath>(stringSourceFormatter);
+    public FileSystem(IPathSerializer<FullPath> pathSerializer) {
+      _win32 = new Win32<FullPath>(pathSerializer);
     }
 
     public FileSystemEntry GetEntry(FullPath path) {

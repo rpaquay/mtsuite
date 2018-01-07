@@ -53,11 +53,11 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="StringSourceFormattersAsIsTest.cs" />
+    <Compile Include="PathSerializersAsIsTest.cs" />
     <Compile Include="FullPathTest.cs" />
-    <Compile Include="StringSourceFormattersAlwaysLongPathTest.cs" />
-    <Compile Include="StringSourceFormattersAsNeededLongPathTest.cs" />
-    <Compile Include="StringSourceFormattersNeverLongTest.cs" />
+    <Compile Include="PathSerializersAlwaysLongPathTest.cs" />
+    <Compile Include="PathSerializersLongPathAsNeededTest.cs" />
+    <Compile Include="PathSerializersNeverLongTest.cs" />
     <Compile Include="TaskTest.cs" />
     <Compile Include="FileSystemHelpers\DirectoryLinkSetup.cs" />
     <Compile Include="FileSystemHelpers\DirectorySetup.cs" />
