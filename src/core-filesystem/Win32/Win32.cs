@@ -93,9 +93,12 @@ namespace mtsuite.CoreFileSystem.Win32 {
         yield break;
       }
       using (findHandle) {
+
+        // Process all entries
         while (true) {
+
           // Entry found, return it
-          var entry = new DirectoryEntry(data.cFileName, data);
+          var entry = new DirectoryEntry(data);
           if (!SkipSpecialEntry(ref data)) yield return entry;
 
           // Try to find next
@@ -170,7 +173,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
     }
 
     private static void AddResult(ref WIN32_FIND_DATA data, List<DirectoryEntry> entries) {
-      var entry = new DirectoryEntry(data.cFileName, data);
+      var entry = new DirectoryEntry(data);
       if (SkipSpecialEntry(ref data))
         return;
 
@@ -178,8 +181,18 @@ namespace mtsuite.CoreFileSystem.Win32 {
     }
 
     private static bool SkipSpecialEntry(ref WIN32_FIND_DATA data) {
-      return ((data.dwFileAttributes & (int)FILE_ATTRIBUTE.FILE_ATTRIBUTE_DIRECTORY) != 0) &&
-              (".".Equals(data.cFileName) || "..".Equals(data.cFileName));
+      if ((data.dwFileAttributes & (int)FILE_ATTRIBUTE.FILE_ATTRIBUTE_DIRECTORY) != 0) {
+        unsafe
+        {
+          fixed (char* name = data.cFileName)
+          {
+            return (name[0] == '.' && name[1] == 0) ||
+                   (name[0] == '.' && name[1] == '.' && name[2] == 0);
+          }
+        }
+      }
+
+      return false;
     }
 
     public void DeleteFile(TPath path) {

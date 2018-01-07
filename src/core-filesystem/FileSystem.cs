@@ -50,7 +50,7 @@ namespace mtsuite.CoreFileSystem {
       using (var entries = _win32.GetDirectoryEntries(path, pattern)) {
         var result = _entryListPool.AllocateFrom();
         foreach (var x in entries.Item) {
-          result.Item.Add(new FileSystemEntry(path.Combine(x.Name), x.Data));
+          result.Item.Add(new FileSystemEntry(path.Combine(x.FileName), x.Data));
         }
         return result;
       }
@@ -58,12 +58,12 @@ namespace mtsuite.CoreFileSystem {
 
     public IEnumerable<FileSystemEntry> EnumerateDirectoryEntries(FullPath path, string pattern = null) {
       return _win32.EnumerateDirectoryEntries(path, pattern)
-        .Select(entry => new FileSystemEntry(path.Combine(entry.Name), entry.Data));
+        .Select(entry => new FileSystemEntry(path.Combine(entry.FileName), entry.Data));
     }
 
-    public IEnumerable<FileSystemEntryData> EnumerateDirectoryEntriesData(FullPath path, string pattern = null) {
+    public IEnumerable<FileSystemEntryWithFileName> EnumerateDirectoryEntriesData(FullPath path, string pattern = null) {
       return _win32.EnumerateDirectoryEntriesData(path, pattern)
-        .Select(data => new FileSystemEntryData(data));
+        .Select(data => new FileSystemEntryWithFileName(data));
     }
 
     public void DeleteEntry(FileSystemEntry entry) {
