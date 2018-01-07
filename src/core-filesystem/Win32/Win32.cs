@@ -50,28 +50,12 @@ namespace mtsuite.CoreFileSystem.Win32 {
     /// <summary>
     /// Note: For testability, this function should be called through <see cref="IFileSystem"/>.
     /// </summary>
-    public FromPool<List<DirectoryEntry>> GetDirectoryEntries(TPath path) {
+    public FromPool<List<DirectoryEntry>> GetDirectoryEntries(TPath path, string pattern = null) {
       // Build search pattern (on the stack) as path + "\\*" + '\0'
       using (var sb = _stringBufferPool.AllocateFrom()) {
-        _pathSerializer.CopyTo(path, sb.Item);
-        sb.Item.Append(@"\*");
-
         // Start enumerating files
         WIN32_FIND_DATA data;
-        var findHandle = NativeMethods.FindFirstFileEx(
-          sb.Item.Data,
-          NativeMethods.FINDEX_INFO_LEVELS.FindExInfoBasic,
-          out data,
-          NativeMethods.FINDEX_SEARCH_OPS.FindExSearchNameMatch,
-          IntPtr.Zero,
-          NativeMethods.FINDEX_ADDITIONAL_FLAGS.FindFirstExLargeFetch);
-        if (findHandle.IsInvalid) {
-          var lastWin32Error = Marshal.GetLastWin32Error();
-          throw new LastWin32ErrorException(lastWin32Error,
-            string.Format("Error enumerating files at \"{0}\"", StripPath(path)));
-        }
-
-        using (findHandle) {
+        using (var findHandle = FindFirstFile(path, pattern, sb, out data)) {
           var result = _entryListPool.AllocateFrom();
           try {
             AddResult(ref data, result.Item);
@@ -91,6 +75,52 @@ namespace mtsuite.CoreFileSystem.Win32 {
           return result;
         }
       }
+    }
+
+    /// <summary>
+    /// Note: For testability, this function should be called through <see cref="IFileSystem"/>.
+    /// </summary>
+    public IEnumerable<DirectoryEntry> EnumerateDirectoryEntries(TPath path, string pattern = null) {
+      // Build search pattern (on the stack) as path + "\\*" + '\0'
+      using (var sb = _stringBufferPool.AllocateFrom()) {
+        WIN32_FIND_DATA data;
+        using (var findHandle = FindFirstFile(path, pattern, sb, out data)) {
+          var entry = new DirectoryEntry(data.cFileName, data);
+          if (!SkipSpecialEntry(entry)) yield return entry;
+          while (NativeMethods.FindNextFile(findHandle, out data)) {
+            entry = new DirectoryEntry(data.cFileName, data);
+            if (!SkipSpecialEntry(entry)) yield return entry;
+          }
+          var lastWin32Error = Marshal.GetLastWin32Error();
+          if (lastWin32Error != (int)Win32Errors.ERROR_NO_MORE_FILES) {
+            throw new LastWin32ErrorException(lastWin32Error,
+              string.Format("Error during enumeration of files at \"{0}\"",
+                StripPath(path)));
+          }
+        }
+      }
+    }
+
+    private SafeFindHandle FindFirstFile(TPath path, string pattern, FromPool<StringBuffer> sb, out WIN32_FIND_DATA data) {
+      _pathSerializer.CopyTo(path, sb.Item);
+      sb.Item.Append('\\');
+      sb.Item.Append(pattern ?? @"*");
+
+      // Start enumerating files
+      var findHandle = NativeMethods.FindFirstFileEx(
+        sb.Item.Data,
+        NativeMethods.FINDEX_INFO_LEVELS.FindExInfoBasic,
+        out data,
+        NativeMethods.FINDEX_SEARCH_OPS.FindExSearchNameMatch,
+        IntPtr.Zero,
+        NativeMethods.FINDEX_ADDITIONAL_FLAGS.FindFirstExLargeFetch);
+      if (findHandle.IsInvalid) {
+        var lastWin32Error = Marshal.GetLastWin32Error();
+        throw new LastWin32ErrorException(lastWin32Error,
+          string.Format("Error enumerating files at \"{0}\"", StripPath(path)));
+      }
+
+      return findHandle;
     }
 
     private static void AddResult(ref WIN32_FIND_DATA data, List<DirectoryEntry> entries) {
