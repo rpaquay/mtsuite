@@ -23,11 +23,13 @@ namespace mtsuite.CoreFileSystem {
   /// </summary>
   public struct FullPath : IEquatable<FullPath>, IComparable<FullPath> {
     /// <summary>
-    /// The parent path, or <code>null</code> <see cref="_name"/> is a root path
+    /// If there is a parent path, <see cref="_parent"/> the boxed instance of the parent <see cref="FullPath"/>.
+    /// If there is no parent path, <see cref="_parent"/> is <code>null</code>, and <see cref="_name"/> is a root path.
     /// </summary>
     private readonly object _parent;
+
     /// <summary>
-    /// The "name" part (i.e file name or directory name) of the path, which may be the root path name (e.g. "C:").
+    /// The "name" part (i.e file name or directory name) of the path, which may be the root path name (e.g. "C:\").
     /// </summary>
     private readonly string _name;
 
@@ -201,7 +203,7 @@ namespace mtsuite.CoreFileSystem {
     public override int GetHashCode() {
       unchecked {
         return ((_parent != null ? _parent.GetHashCode() : 0) * 397) ^
-               (_name != null ? _name.GetHashCode() : 0);
+               StringComparer.OrdinalIgnoreCase.GetHashCode(_name);
       }
     }
 

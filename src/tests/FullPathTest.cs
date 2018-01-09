@@ -37,6 +37,7 @@ namespace tests {
       Assert.AreEqual(PathHelpers.RootPrefixKind.DiskPath, path.PathKind);
       Assert.AreEqual(@"c:\", path.FullName);
       Assert.AreEqual(@"c:\", path.Name);
+      Assert.IsTrue(path.GetHashCode() != 0);
     }
 
     [TestMethod]
@@ -177,6 +178,7 @@ namespace tests {
       Assert.IsFalse(path1.Equals(path2));
       Assert.IsFalse(path2.Equals(path1));
       Assert.IsFalse(Object.Equals(path1, path2));
+      Assert.AreNotEqual(path1.GetHashCode(), path2.GetHashCode());
     }
 
     [TestMethod]
@@ -186,6 +188,7 @@ namespace tests {
       Assert.IsTrue(path1.Equals(path2));
       Assert.IsTrue(path2.Equals(path1));
       Assert.IsTrue(Object.Equals(path1, path2));
+      Assert.AreEqual(path1.GetHashCode(), path2.GetHashCode());
     }
 
     [TestMethod]
@@ -202,6 +205,15 @@ namespace tests {
       var path2 = new FullPath(@"c:\test").Combine("test2");
       Assert.IsTrue(path1.CompareTo(path2) == 0);
       Assert.IsTrue(path2.CompareTo(path1) == 0);
+    }
+
+    [TestMethod]
+    public void FullPathShouldBeCaseInsensitiveShouldWork() {
+      var path1 = new FullPath(@"c:\test");
+      var path2 = new FullPath(@"c:\TEST");
+      Assert.IsTrue(path1.Equals(path2));
+      Assert.AreEqual(path1.GetHashCode(), path2.GetHashCode());
+      Assert.AreEqual(0, path1.CompareTo(path2));
     }
   }
 }
