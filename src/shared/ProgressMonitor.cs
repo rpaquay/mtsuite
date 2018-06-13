@@ -15,12 +15,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using mtsuite.shared.Files;
-using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
-  public class ProgressMonitor : IProgressMonitor {
+  public abstract class ProgressMonitor : IProgressMonitor {
+    private readonly ProgressPrinter _printer = new ProgressPrinter();
     private readonly Stopwatch _stopWatch = new Stopwatch();
     private readonly Stopwatch _displayTimer = new Stopwatch();
     private readonly List<Exception> _errors = new List<Exception>();
@@ -34,6 +35,10 @@ namespace mtsuite.shared {
     private long _fileCopiedCount;
     private long _symlinkCopiedCount;
     private long _fileCopiedTotalSize;
+
+    private long _fileProcessedCount;
+    private long _symlinkProcessedCount;
+    private long _fileProcessedTotalSize;
 
     private long _directoryToDeleteCount;
     private long _fileToDeleteCount;
@@ -64,7 +69,7 @@ namespace mtsuite.shared {
       _stopWatch.Stop();
       _displayTimer.Stop();
       DisplayStatus(GetStatistics());
-      Console.WriteLine();
+      _printer.Stop();
     }
 
     public Statistics GetStatistics() {
@@ -79,6 +84,11 @@ namespace mtsuite.shared {
         FileToDeleteCount = _fileToDeleteCount,
 
         DirectoryTraversedCount = _directoryTraversedCount,
+
+        FileProcessedCount = _fileProcessedCount,
+        SymlinkProcessedCount = _symlinkProcessedCount,
+        FileProcessedTotalSize = _fileProcessedTotalSize,
+
         FileCopiedCount = _fileCopiedCount,
         SymlinkCopiedCount = _symlinkCopiedCount,
         FileCopiedTotalSize = _fileCopiedTotalSize,
@@ -130,8 +140,12 @@ namespace mtsuite.shared {
       var count = CountPair(entries,
         x => x.IsReparsePoint, // Any kind of reparse point
         x => x.IsFile && !x.IsReparsePoint); // Real files only
-      Interlocked.Add(ref _symlinkCopiedCount, count.Key);
-      Interlocked.Add(ref _fileCopiedCount, count.Value);
+      Interlocked.Add(ref _symlinkProcessedCount, count.Key);
+      Interlocked.Add(ref _fileProcessedCount, count.Value);
+      var diskSize = entries
+        .Where(x => x.IsFile && !x.IsReparsePoint) // Real files only
+        .Aggregate(0L, (size, entry) => size + entry.FileSize);
+      Interlocked.Add(ref _fileProcessedTotalSize, diskSize);
     }
 
     public void OnDirectoryTraversing(FileSystemEntry directory) {
@@ -207,44 +221,7 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    protected virtual void DisplayStatus(Statistics statistics) {
-      var elapsed = statistics.ElapsedTime;
-      var totalSeconds = elapsed.TotalSeconds;
-      var fileCopiedTotalSizeMb = statistics.FileCopiedTotalSize / 1024 / 1024;
-      var fileSkippedTotalSizeMb = statistics.FileSkippedTotalSize / 1024 / 1024;
-      var totalEntriesCount =
-        statistics.DirectoryTraversedCount + statistics.FileCopiedCount + statistics.SymlinkCopiedCount +
-        statistics.DirectoryDeletedCount + statistics.FileDeletedCount + statistics.SymlinkDeletedCount +
-        statistics.FileSkippedCount;
-
-      var mirrorInfo = string.Format(
-        "{0:n0}/{1:n0} directories, {2:n0}/{3:n0} files, {4:n0} errors",
-        statistics.DirectoryTraversedCount,
-        statistics.DirectoryEnumeratedCount,
-        statistics.FileCopiedCount + statistics.SymlinkCopiedCount + statistics.FileSkippedCount + statistics.SymlinkSkippedCount,
-        statistics.FileEnumeratedCount,
-        statistics.Errors.Count);
-      var copyInfo = string.Format(
-        "Copy: {0:n0} files, {1:n0} MB, {2:n2} MB/sec",
-        statistics.FileCopiedCount + statistics.SymlinkCopiedCount,
-        fileCopiedTotalSizeMb,
-        fileCopiedTotalSizeMb / totalSeconds);
-      var deleteInfo = string.Format(
-        "Delete: {0:n0}/{1:n0} directories, {2:n0}/{3:n0} files",
-        statistics.DirectoryDeletedCount,
-        statistics.DirectoryToDeleteCount,
-        statistics.FileDeletedCount + statistics.SymlinkDeletedCount,
-        statistics.FileToDeleteCount);
-      var skipInfo = string.Format(
-        "Skip: {0:n0} files, {1:n0} MB",
-        statistics.FileSkippedCount,
-        fileSkippedTotalSizeMb);
-      var totalInfo = string.Format(
-        "{0:n0} entries/sec in {1}",
-        totalEntriesCount / totalSeconds,
-        FormatHelpers.FormatElapsedTime(elapsed));
-      Console.Write("\r{0} - {1} - {2} - {3} - {4}", mirrorInfo, copyInfo, skipInfo, deleteInfo, totalInfo);
-    }
+    protected abstract void DisplayStatus(Statistics statistics);
 
     private bool IsTimeToDisplayStatus() {
       var displayStatus = false;
@@ -257,6 +234,10 @@ namespace mtsuite.shared {
         }
       }
       return displayStatus;
+    }
+
+    protected void Print(IEnumerable<KeyValuePair<string, string>> fields) {
+      _printer.Print(fields);
     }
   }
 }

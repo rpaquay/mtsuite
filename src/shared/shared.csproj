@@ -49,10 +49,12 @@
     <Compile Include="CommandLine\ArgumentUsageSummaryBuilder.cs" />
     <Compile Include="CommandLine\CommandLineReturnValueException.cs" />
     <Compile Include="CommandLine\IArgumentDefinitionVisitor.cs" />
+    <Compile Include="CopyProgressMonitor.cs" />
     <Compile Include="Files\FileSystemEntryNameComparer.cs" />
     <Compile Include="Files\CopyEntryCallback.cs" />
     <Compile Include="Files\FileSystem.cs" />
     <Compile Include="Files\FileSystemEntry.cs" />
+    <Compile Include="ProgressPrinter.cs" />
     <Compile Include="Utils\FormatHelpers.cs" />
     <Compile Include="Files\FullPath.cs" />
     <Compile Include="Files\IFileComparer.cs" />

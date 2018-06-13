@@ -12,27 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System;
+using System.Collections.Generic;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtdel {
   public class DeleteProgressMonitor : ProgressMonitor {
     protected override void DisplayStatus(Statistics statistics) {
+      var deleteExtraText = new string(' ', 15);
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = elapsed.TotalSeconds;
 
-      Console.Write(
-        "\rDeleted {0:n0}/{1:n0} directories, {2:n0}/{3:n0} files, " +
-        "{4:n0} MB, {5:n0} errors, {6:n0} entries/seconds in {7}",
-        statistics.DirectoryDeletedCount,
-        statistics.DirectoryToDeleteCount,
+      var directoriesDeletedText = string.Format("{0:n0}",
+        statistics.DirectoryDeletedCount);
+
+      var filesDeletedText = string.Format("{0:n0} ({1:n0} MB)",
         statistics.FileDeletedCount + statistics.SymlinkDeletedCount,
-        statistics.FileToDeleteCount,
-        statistics.FileDeletedTotalSize / 1024 / 1024,
-        statistics.Errors.Count,
-        (statistics.DirectoryDeletedCount + statistics.FileDeletedCount + statistics.SymlinkDeletedCount) / totalSeconds,
-        FormatHelpers.FormatElapsedTime(elapsed));
+        statistics.FileDeletedTotalSize / 1024 / 1024);
+
+      var deletedPerSecondText = string.Format("{0:n0}{1}",
+        (statistics.FileDeletedCount + statistics.SymlinkDeletedCount) / totalSeconds,
+        deleteExtraText);
+
+      var elapsedText = string.Format("{0}{1}",
+        FormatHelpers.FormatElapsedTime(elapsed),
+        deleteExtraText);
+
+      var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
+
+      var fields = new KeyValuePair<string, string>[] {
+        new KeyValuePair<string, string>("Elapsed time", elapsedText),
+        new KeyValuePair<string, string>("# of directories deleted", directoriesDeletedText),
+        new KeyValuePair<string, string>("# of files deleted", filesDeletedText),
+        new KeyValuePair<string, string>("# of files deleted/sec", deletedPerSecondText),
+        new KeyValuePair<string, string>("# of errors", errorsText),
+      };
+      Print(fields);
     }
   }
 }

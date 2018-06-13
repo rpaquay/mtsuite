@@ -12,26 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System;
+using System.Collections.Generic;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtinfo {
   public class InfoProgressMonitor : ProgressMonitor {
     protected override void DisplayStatus(Statistics statistics) {
+      var deleteExtraText = new string(' ', 15);
+      var elapsed = statistics.ElapsedTime;
       var totalSeconds = statistics.ElapsedTime.TotalSeconds;
 
-      Console.Write(
-        "\rCollected {0:n0}/{1:n0} directories, " +
-        "{2:n0}/{3:n0} files, {4:n0} entries/sec, {5:n0} errors, " +
-        "in {6}",
-        statistics.DirectoryTraversedCount,
-        statistics.DirectoryEnumeratedCount,
-        statistics.FileCopiedCount + statistics.SymlinkCopiedCount,
-        statistics.FileEnumeratedCount,
-        statistics.EntryCopiedCount / totalSeconds,
-        statistics.Errors.Count,
-        FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
+      var directoriesText = string.Format("{0:n0}",
+        statistics.DirectoryTraversedCount);
+
+      var filesText = string.Format("{0:n0}",
+        statistics.FileProcessedCount + statistics.SymlinkProcessedCount);
+
+      var diskSizeText = string.Format("{0:n0} MB",
+        statistics.FileProcessedTotalSize / 1024 / 1024);
+
+      var statsText = string.Format("{0:n0}",
+        statistics.EntryProcessedCount / totalSeconds);
+
+      var elapsedText = string.Format("{0}{1}",
+        FormatHelpers.FormatElapsedTime(elapsed), deleteExtraText);
+
+      var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
+
+      var fields = new[] {
+        new KeyValuePair<string, string>("Elapsed time", elapsedText),
+        new KeyValuePair<string, string>("# of directories", directoriesText),
+        new KeyValuePair<string, string>("# of files", filesText),
+        new KeyValuePair<string, string>("# of files/sec", statsText),
+        new KeyValuePair<string, string>("Size of files", diskSizeText),
+        new KeyValuePair<string, string>("Error count", errorsText),
+      };
+      Print(fields);
     }
   }
 }

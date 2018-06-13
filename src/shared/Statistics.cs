@@ -27,6 +27,11 @@ namespace mtsuite.shared {
 
     public long DirectoryTraversedCount { get; set; }
 
+    public long FileProcessedCount { get; set; }
+    public long SymlinkProcessedCount { get; set; }
+    public long EntryProcessedCount { get { return FileProcessedCount + SymlinkProcessedCount; } }
+    public long FileProcessedTotalSize { get; set; }
+
     public long FileCopiedCount { get; set; }
     public long SymlinkCopiedCount { get; set; }
     public long EntryCopiedCount { get { return FileCopiedCount + SymlinkCopiedCount; } }

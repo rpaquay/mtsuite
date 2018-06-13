@@ -238,10 +238,10 @@ namespace mtinfo {
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.ThreadElapsedTime));
       Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
-      Console.WriteLine("  # of files:               {0:n0}", statistics.FileCopiedCount);
-      Console.WriteLine("  # of symlinks:            {0:n0}", statistics.SymlinkCopiedCount);
+      Console.WriteLine("  # of files:               {0:n0}", statistics.FileProcessedCount);
+      Console.WriteLine("  # of symlinks:            {0:n0}", statistics.SymlinkProcessedCount);
       Console.WriteLine("  # entries/sec:            {0:n0}",
-        statistics.EntryCopiedCount / statistics.ElapsedTime.TotalSeconds);
+        statistics.EntryProcessedCount / statistics.ElapsedTime.TotalSeconds);
 
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       ProgramHelpers.DisplayErrors(statistics.Errors);
