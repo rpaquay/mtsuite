@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared {
   public abstract class ProgressMonitor : IProgressMonitor {

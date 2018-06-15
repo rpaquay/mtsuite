@@ -14,7 +14,7 @@
 
 using System;
 using System.Collections.Generic;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.Collections;
 
 namespace mtinfo {

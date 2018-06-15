@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System.Text;
+using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using mtsuite.CoreFileSystem;
+using System.Linq;
+using System.Text;
+using mtsuite.CoreFileSystem.Win32;
 using tests.FileSystemHelpers;
 
 namespace tests {
@@ -70,7 +74,7 @@ namespace tests {
       }
 
       // Prepare
-      var fooTarget = _fileSystemSetup.Root.CreateFile("foo.txt", 100);
+      _fileSystemSetup.Root.CreateFile("foo.txt", 100);
 
       // Act
       var link = _fileSystemSetup.Root.CreateFileLink("link.txt", "foo.txt");
@@ -86,13 +90,13 @@ namespace tests {
 
       // Act
       var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
-      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/j", junctionPointPath.Text, fooTarget.Path.Text });
+      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/j", junctionPointPath.FullName, fooTarget.Path.FullName });
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
 
       // Assert
       Assert.AreEqual(0, rc);
       Assert.IsTrue(info.IsJunctionPoint);
-      Assert.AreEqual(fooTarget.Path.Text, info.Target);
+      Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
 
     [TestMethod]
@@ -106,13 +110,13 @@ namespace tests {
 
       // Act
       var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
-      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/d", junctionPointPath.Text, fooTarget.Path.Text });
+      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/d", junctionPointPath.FullName, fooTarget.Path.FullName });
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
 
       // Assert
       Assert.AreEqual(0, rc);
       Assert.IsTrue(info.IsSymbolicLink);
-      Assert.AreEqual(fooTarget.Path.Text, info.Target);
+      Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
 
     [TestMethod]
@@ -126,13 +130,13 @@ namespace tests {
 
       // Act
       var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
-      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", junctionPointPath.Text, fooTarget.Path.Text });
+      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", junctionPointPath.FullName, fooTarget.Path.FullName });
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
 
       // Assert
       Assert.AreEqual(0, rc);
       Assert.IsTrue(info.IsSymbolicLink);
-      Assert.AreEqual(fooTarget.Path.Text, info.Target);
+      Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
 
     [TestMethod]
@@ -141,7 +145,7 @@ namespace tests {
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
 
       // Act
-      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", fooTarget.Path.Text);
+      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", fooTarget.Path.FullName);
 
       // Assert
       Assert.IsTrue(_fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path).IsReparsePoint);
@@ -152,7 +156,7 @@ namespace tests {
     public void CreatedJunctionPointRedirectionWorks() {
       // Prepare
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
-      var testFile = fooTarget.CreateFile("testfile.txt", 200);
+      fooTarget.CreateFile("testfile.txt", 200);
 
       // Act
       var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", "foo");
@@ -173,13 +177,13 @@ namespace tests {
       fooTarget.CreateFile("testfile.txt", 200);
 
       // Act
-      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", fooTarget.Path.Text);
+      var junctionPoint = _fileSystemSetup.Root.CreateJunctionPoint("jct", fooTarget.Path.FullName);
 
       // Assert
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPoint.Path);
       Assert.IsTrue(info.IsJunctionPoint);
       Assert.IsFalse(info.IsTargetRelative);
-      Assert.AreEqual(fooTarget.Path.Path, info.Target);
+      Assert.AreEqual(fooTarget.Path.FullName, info.Target);
 
       Assert.IsTrue(_fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path.Combine("testfile.txt")).IsFile);
     }
@@ -196,7 +200,7 @@ namespace tests {
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPoint.Path);
       Assert.IsTrue(info.IsJunctionPoint);
       Assert.IsFalse(info.IsTargetRelative);
-      Assert.AreEqual(fooTarget.Path.Path, info.Target);
+      Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
 
     [TestMethod]
@@ -224,13 +228,48 @@ namespace tests {
       // Act
       var jct2Path = fooTarget.Path.Combine("jct-copy");
       var entry = _fileSystemSetup.FileSystem.GetEntry(junctionPoint.Path);
-      _fileSystemSetup.FileSystem.CopyFile(entry, jct2Path, (a, b) => { });
+      _fileSystemSetup.FileSystem.CopyFile(entry, jct2Path, CopyFileOptions.Default, (a, b) => { });
 
       // Assert
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(jct2Path);
       Assert.IsTrue(info.IsJunctionPoint);
       Assert.IsFalse(info.IsTargetRelative);
-      Assert.AreEqual(fooTarget.Path.Path, info.Target);
+      Assert.AreEqual(fooTarget.Path.FullName, info.Target);
+    }
+
+    [TestMethod]
+    public void EnumerateDirectoryEntriesWorks() {
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
+      fooTarget.CreateFile("testfile.txt", 20);
+
+      // Act
+      var entries = _fileSystemSetup.FileSystem.EnumerateDirectoryEntries(fooTarget.Path).ToList();
+
+      // Assert
+      Assert.AreEqual(1, entries.Count);
+      Assert.AreEqual("testfile.txt", entries[0].Name);
+    }
+
+    [TestMethod]
+    public void GetDirectoryEntriesEnumeratorWorks() {
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
+      fooTarget.CreateFile("testfile.txt", 20);
+      fooTarget.CreateDirectory("dir1");
+
+      // Act
+      var entries = new List<DirectoryEntry>();
+      using (var e = _fileSystemSetup.FileSystem.GetDirectoryEntriesEnumerator(fooTarget.Path, null)) {
+        while (e.MoveNext()) {
+          entries.Add(e.Current);
+        }
+      }
+
+      // Assert
+      Assert.AreEqual(2, entries.Count);
+      Assert.IsNotNull(entries.FirstOrDefault(x => x.FileName == "testfile.txt"));
+      Assert.IsNotNull(entries.FirstOrDefault(x => x.FileName == "dir1"));
     }
 
   }

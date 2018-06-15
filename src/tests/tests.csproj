@@ -53,7 +53,11 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="PathSerializersAsIsTest.cs" />
     <Compile Include="FullPathTest.cs" />
+    <Compile Include="PathSerializersAlwaysLongPathTest.cs" />
+    <Compile Include="PathSerializersLongPathAsNeededTest.cs" />
+    <Compile Include="PathSerializersNeverLongTest.cs" />
     <Compile Include="TaskTest.cs" />
     <Compile Include="FileSystemHelpers\DirectoryLinkSetup.cs" />
     <Compile Include="FileSystemHelpers\DirectorySetup.cs" />
@@ -76,6 +80,9 @@
     <Compile Include="StringBufferTest.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\core-filesystem\**\*.cs" Exclude="..\core-filesystem\**\AssemblyInfo.cs;..\core-filesystem\obj\**">
+      <Link>core-filesystem\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
     <Compile Include="..\shared\**\*.cs" Exclude="..\shared\**\AssemblyInfo.cs">
       <Link>shared\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>

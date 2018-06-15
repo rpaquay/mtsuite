@@ -15,7 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace tests.FileSystemHelpers {
   public class DirectorySetup : FileEntrySetup {

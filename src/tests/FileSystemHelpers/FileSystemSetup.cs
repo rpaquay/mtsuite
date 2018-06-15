@@ -15,8 +15,8 @@
 using System;
 using System.ComponentModel;
 using System.IO;
-using mtsuite.shared.Files;
-using mtsuite.shared.Win32;
+using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.Win32;
 
 namespace tests.FileSystemHelpers {
   public class FileSystemSetup : IDisposable {
@@ -39,7 +39,7 @@ namespace tests.FileSystemHelpers {
         var path = _root.Value.Path;
         if (_root.Value.Exists()) {
           Console.WriteLine();
-          Console.WriteLine("CLEANUP: Deleting root folder of test file system: \"{0}\"", path.Path);
+          Console.WriteLine("CLEANUP: Deleting root folder of test file system: \"{0}\"", path.FullName);
           DeleteDirectoryEntriesRecurse(path);
           _fileSystem.DeleteEntry(_fileSystem.GetEntry(path));
         }
@@ -55,7 +55,7 @@ namespace tests.FileSystemHelpers {
     }
 
     public void SetAttributes(FileEntrySetup entry, FileAttributes attributes) {
-      new Win32().SetFileAttributes(entry.Path, (FILE_ATTRIBUTE)attributes);
+      new Win32<FullPath>(new PathSerializers.AlwaysLongPathSerializer()).SetFileAttributes(entry.Path, (FILE_ATTRIBUTE)attributes);
     }
 
     private void DeleteDirectoryEntriesRecurse(FullPath directory) {
@@ -85,7 +85,7 @@ namespace tests.FileSystemHelpers {
 
     private DirectorySetup CreateRootDirectory() {
       var result = new DirectorySetup(this, CreateTemporaryFolder());
-      Console.WriteLine("SETUP: Created temporary root folder for test file system: \"{0}\"", result.Path.Path);
+      Console.WriteLine("SETUP: Created temporary root folder for test file system: \"{0}\"", result.Path.FullName);
       Console.WriteLine();
       return result;
     }

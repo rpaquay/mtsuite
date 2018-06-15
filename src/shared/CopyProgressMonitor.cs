@@ -26,37 +26,25 @@ namespace mtsuite.shared {
         statistics.DirectoryDeletedCount + statistics.FileDeletedCount + statistics.SymlinkDeletedCount +
         statistics.FileSkippedCount;
 
-      var directoriesText = string.Format("{0:n0}",
-        statistics.DirectoryEnumeratedCount);
+      var directoriesText = string.Format("{0:n0}", statistics.DirectoryEnumeratedCount);
 
-      var filesText = string.Format("{0:n0}",
-        statistics.EntryEnumeratedCount);
+      var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
 
-      var diskSizeText = string.Format("({0:n0} MB)",
-        statistics.FileEnumeratedTotalSize / 1024 / 1024);
+      var diskSizeText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
 
-      var entriesPerSecondText = string.Format("{0:n0}",
-        totalEntriesCount / totalSeconds);
+      var entriesPerSecondText = string.Format("{0:n0}", totalEntriesCount / totalSeconds);
 
-      var elapsedTimeText = string.Format("{0}",
-        FormatHelpers.FormatElapsedTime(elapsed));
+      var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(elapsed));
 
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
-      var copyText = string.Format(
-        "{0:n0}",
-        statistics.FileCopiedCount + statistics.SymlinkCopiedCount);
+      var copyText = string.Format("{0:n0}", statistics.FileCopiedCount + statistics.SymlinkCopiedCount);
 
-      var copyExtraText = string.Format(
-        "({0:n0} MB)",
-        fileCopiedTotalSizeMb);
+      var copyExtraText = string.Format("({0:n0} MB)", fileCopiedTotalSizeMb);
 
-      var deleteFilesText = string.Format(
-        "{0:n0}",
-        statistics.FileDeletedCount + statistics.SymlinkDeletedCount);
+      var deleteFilesText = string.Format("{0:n0}", statistics.FileDeletedCount + statistics.SymlinkDeletedCount);
 
-      var deleteExtraText = string.Format(
-        "({0:n0} MB)",
+      var deleteExtraText = string.Format("({0:n0} MB)",
         statistics.FileDeletedTotalSize / 1024 / 1024);
 
       var deleteDirectoriesText = string.Format(

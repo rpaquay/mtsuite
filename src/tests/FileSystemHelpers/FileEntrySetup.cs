@@ -14,7 +14,7 @@
 
 using System;
 using System.IO;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 
 namespace tests.FileSystemHelpers {
   public abstract class FileEntrySetup {
@@ -30,8 +30,6 @@ namespace tests.FileSystemHelpers {
     protected FileEntrySetup(FileSystemSetup fileSystemSetup, FullPath path) {
       if (fileSystemSetup == null)
         throw new ArgumentNullException("fileSystemSetup");
-      if (path == null)
-        throw new ArgumentNullException("path");
       _fileSystemSetup = fileSystemSetup;
       _parent = null;
       _path = path;

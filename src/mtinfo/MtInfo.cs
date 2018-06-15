@@ -20,7 +20,7 @@ using System.Reflection;
 using System.Text;
 using mtsuite.shared;
 using mtsuite.shared.CommandLine;
-using mtsuite.shared.Files;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.Utils;
 
 namespace mtinfo {
@@ -148,7 +148,7 @@ namespace mtinfo {
         throw new CommandLineReturnValueException(8);
       }
 
-      Console.WriteLine("Collecting info from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.Path));
+      Console.WriteLine("Collecting info from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(options);
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector);
@@ -291,7 +291,7 @@ namespace mtinfo {
 
       DisplayDirectoryEntries(displayInfo,
         directorySummary,
-        PathHelpers.StripLongPathPrefix(directorySummary.DirectoryEntry.Path.Path),
+        PathHelpers.StripLongPathPrefix(directorySummary.DirectoryEntry.Path.FullName),
         sortingFunc,
         new List<bool>());
 
@@ -385,7 +385,7 @@ namespace mtinfo {
 
         // Root node is displayed as full path
         if (node.Depth == 0) {
-          return PathHelpers.StripLongPathPrefix(node.DirectorySummary.DirectoryEntry.Path.Path).Length;
+          return PathHelpers.StripLongPathPrefix(node.DirectorySummary.DirectoryEntry.Path.FullName).Length;
         }
 
         // Other nodes are displayed as indent + file name

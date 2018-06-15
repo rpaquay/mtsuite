@@ -47,6 +47,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\core-filesystem\**\*.cs" Exclude="..\core-filesystem\**\AssemblyInfo.cs;..\core-filesystem\obj\**">
+      <Link>core-filesystem\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
     <Compile Include="..\shared\**\*.cs" Exclude="..\shared\**\AssemblyInfo.cs;..\shared\obj\**">
       <Link>shared\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>

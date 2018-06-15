@@ -16,6 +16,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.Collections;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -38,18 +39,6 @@ namespace tests {
     public void FixedSizeArrayPoolShouldNotAllocateTooMuch() {
       var pool = new ConcurrentFixedSizeArrayPool<Entry>(() => new Entry(), _ => { }, Environment.ProcessorCount);
       RunPoolTest(pool, _ => Entry.GlobalId <= Environment.ProcessorCount);
-    }
-
-    [TestMethod]
-    public void ConcurrentBagPoolShouldNotAllocateTooMuch() {
-      var pool = new ConcurrentBagPool<Entry>(() => new Entry(), _ => { }, Environment.ProcessorCount);
-      RunPoolTest(pool, _ => Entry.GlobalId <= Environment.ProcessorCount);
-    }
-
-    [TestMethod]
-    public void NoOpPoolShouldAllocateForEachCall() {
-      var pool = new ConcurrentNoOpPool<Entry>(() => new Entry());
-      RunPoolTest(pool, allocCount => Entry.GlobalId == allocCount);
     }
 
     private void RunPoolTest<T>(IPool<T> pool, Func<long, bool> verify) where T : class {

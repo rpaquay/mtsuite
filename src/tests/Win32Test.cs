@@ -13,7 +13,7 @@
 // limitations under the License.
 
 using System;
-using mtsuite.shared.Win32;
+using mtsuite.CoreFileSystem.Win32;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace tests {
