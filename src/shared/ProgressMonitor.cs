@@ -30,6 +30,7 @@ namespace mtsuite.shared {
 
     private long _directoryEnumeratedCount;
     private long _fileEnumeratedCount;
+    private long _fileEnumeratedTotalSize;
 
     private long _directoryTraversedCount;
     private long _fileCopiedCount;
@@ -79,6 +80,7 @@ namespace mtsuite.shared {
 
         DirectoryEnumeratedCount = _directoryEnumeratedCount,
         FileEnumeratedCount = _fileEnumeratedCount,
+        FileEnumeratedTotalSize = _fileEnumeratedTotalSize,
 
         DirectoryToDeleteCount = _directoryToDeleteCount,
         FileToDeleteCount = _fileToDeleteCount,
@@ -124,6 +126,10 @@ namespace mtsuite.shared {
         x => x.IsDirectory && !x.IsReparsePoint); // Real directories only
       Interlocked.Add(ref _fileEnumeratedCount, count.Key);
       Interlocked.Add(ref _directoryEnumeratedCount, count.Value);
+      var diskSize = entries
+        .Where(x => x.IsFile && !x.IsReparsePoint) // Real files only
+        .Aggregate(0L, (size, entry) => size + entry.FileSize);
+      Interlocked.Add(ref _fileEnumeratedTotalSize, diskSize);
       Pulse();
     }
 
@@ -236,7 +242,7 @@ namespace mtsuite.shared {
       return displayStatus;
     }
 
-    protected void Print(IEnumerable<KeyValuePair<string, string>> fields) {
+    protected void Print(IEnumerable<PrinterEntry> fields) {
       _printer.Print(fields);
     }
   }

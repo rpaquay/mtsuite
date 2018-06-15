@@ -29,7 +29,7 @@ namespace mtsuite.shared {
       Console.WriteLine();
     }
 
-    public void Print(IEnumerable<KeyValuePair<string, string>> fields) {
+    public void Print(IEnumerable<PrinterEntry> fields) {
       EnsureInit();
       lock (_lock) {
         if (!_supportsPositions) {
@@ -38,7 +38,8 @@ namespace mtsuite.shared {
         else {
           try {
             Console.SetCursorPosition(_cursorInitLeft, _cursorInitTop);
-            var maxLength = fields.Max(kvp => kvp.Key.Length) + 2;
+            var nameMaxWidth = fields.Max(kvp => kvp.DisplayName.Length + kvp.Indent);
+            var valuesMaxWidth = fields.Max(kvp => kvp.Value?.Length ?? 0);
             var first = true;
             foreach(var field in fields) {
               if (first) {
@@ -47,7 +48,13 @@ namespace mtsuite.shared {
               else {
                 Console.WriteLine();
               }
-              Console.Write("{0} {1}", (field.Key + ":").PadRight(maxLength), field.Value);
+
+              var value = field.Value ?? "";
+              Console.Write("{0} {1}{2}{3}         ",
+                (new string(' ', field.Indent) + field.DisplayName + ":").PadRight(nameMaxWidth + 2),
+                field.ValueAlign == Align.Left ? value.PadRight(valuesMaxWidth) : value.PadLeft(valuesMaxWidth),
+                field.ValueUnit == null ? "" : (" " + field.ValueUnit),
+                field.ExtraValue == null ? "" : (" " + field.ExtraValue));
             }
           }
           catch (Exception) {
@@ -58,14 +65,22 @@ namespace mtsuite.shared {
       }
     }
 
-    private string FlattenFields(IEnumerable<KeyValuePair<string, string>> fields) {
-      return fields.Aggregate("", (s, kvp) => {
-        var entry = string.Format("{0}: {1}", kvp.Key, kvp.Value);
+    private string FlattenFields(IEnumerable<PrinterEntry> fields) {
+      return fields.Aggregate("", (s, field) => {
+        if (field.Value == null) {
+          return s;
+        }
+
+        var entry = string.Format("{0}: {1}{2}{3}",
+          field.ShortName ?? field.DisplayName,
+          field.Value,
+          field.ValueUnit == null ? "" : (" " + field.ValueUnit),
+          field.ExtraValue == null ? "" : (" " + field.ExtraValue));
         if (s.Length > 0) {
-          return _separator + entry;
+          return s + ", " + entry;
         }
         else {
-          return entry;
+          return s + entry;
         }
       });
     }

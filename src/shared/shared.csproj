@@ -54,6 +54,7 @@
     <Compile Include="Files\CopyEntryCallback.cs" />
     <Compile Include="Files\FileSystem.cs" />
     <Compile Include="Files\FileSystemEntry.cs" />
+    <Compile Include="PrinterEntry.cs" />
     <Compile Include="ProgressPrinter.cs" />
     <Compile Include="Utils\FormatHelpers.cs" />
     <Compile Include="Files\FullPath.cs" />

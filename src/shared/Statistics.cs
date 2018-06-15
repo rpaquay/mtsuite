@@ -22,6 +22,8 @@ namespace mtsuite.shared {
 
     public long DirectoryEnumeratedCount { get; set; }
     public long FileEnumeratedCount { get; set; }
+    public long FileEnumeratedTotalSize { get; set; }
+
     public long DirectoryToDeleteCount { get; set; }
     public long FileToDeleteCount { get; set; }
 

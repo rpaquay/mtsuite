@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System;
-using System.Collections.Generic;
 using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
   public class CopyProgressMonitor : ProgressMonitor {
     protected override void DisplayStatus(Statistics statistics) {
-      var deleteExtraText = new String(' ', 15);
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = elapsed.TotalSeconds;
       var fileCopiedTotalSizeMb = statistics.FileCopiedTotalSize / 1024 / 1024;
@@ -35,22 +32,31 @@ namespace mtsuite.shared {
       var filesText = string.Format("{0:n0}",
         statistics.FileEnumeratedCount);
 
-      var entriesPerSecondText = string.Format("{0:n0}{1}",
-        totalEntriesCount / totalSeconds, deleteExtraText);
+      var diskSizeText = string.Format("({0:n0} MB)",
+        statistics.FileEnumeratedTotalSize / 1024 / 1024);
 
-      var elapsedTimeText = string.Format("{0}{1}",
-        FormatHelpers.FormatElapsedTime(elapsed), deleteExtraText);
+      var entriesPerSecondText = string.Format("{0:n0}",
+        totalEntriesCount / totalSeconds);
+
+      var elapsedTimeText = string.Format("{0}",
+        FormatHelpers.FormatElapsedTime(elapsed));
 
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var copyText = string.Format(
-        "{0:n0} ({1:n0} MB)",
-        statistics.FileCopiedCount + statistics.SymlinkCopiedCount,
+        "{0:n0}",
+        statistics.FileCopiedCount + statistics.SymlinkCopiedCount);
+
+      var copyExtraText = string.Format(
+        "({0:n0} MB)",
         fileCopiedTotalSizeMb);
 
       var deleteFilesText = string.Format(
-        "{0:n0} ({1:n0} MB)",
-        statistics.FileDeletedCount + statistics.SymlinkDeletedCount,
+        "{0:n0}",
+        statistics.FileDeletedCount + statistics.SymlinkDeletedCount);
+
+      var deleteExtraText = string.Format(
+        "({0:n0} MB)",
         statistics.FileDeletedTotalSize / 1024 / 1024);
 
       var deleteDirectoriesText = string.Format(
@@ -58,22 +64,25 @@ namespace mtsuite.shared {
         statistics.DirectoryDeletedCount);
 
       var skippedFilesText = string.Format(
-        "{0:n0} ({1:n0} MB)",
-        statistics.FileSkippedCount + statistics.SymlinkSkippedCount,
+        "{0:n0}",
+        statistics.FileSkippedCount + statistics.SymlinkSkippedCount);
+
+      var skippedExtraText = string.Format(
+        "({0:n0} MB)",
         fileSkippedTotalSizeMb);
 
       var fields = new[] {
-        new KeyValuePair<string, string>("Elapsed time", elapsedTimeText),
-        new KeyValuePair<string, string>("Source", ""),
-        new KeyValuePair<string, string>("  # of directories", directoriesText),
-        new KeyValuePair<string, string>("  # of files", filesText),
-        new KeyValuePair<string, string>("Destination", ""),
-        new KeyValuePair<string, string>("  # of files copied", copyText),
-        new KeyValuePair<string, string>("  # of files skipped", skippedFilesText),
-        new KeyValuePair<string, string>("  # of extra directories deleted", deleteDirectoriesText),
-        new KeyValuePair<string, string>("  # of extra files deleted", deleteFilesText),
-        new KeyValuePair<string, string>("# of entries processed/sec", entriesPerSecondText),
-        new KeyValuePair<string, string>("Error count", errorsText),
+        new PrinterEntry("Elapsed time", elapsedTimeText),
+        new PrinterEntry("Source", null),
+        new PrinterEntry("# of directories", directoriesText, indent: 2, shortName: "directories", valueAlign: Align.Right),
+        new PrinterEntry("# of files", filesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: diskSizeText),
+        new PrinterEntry("Destination", null),
+        new PrinterEntry("# of files copied", copyText, indent: 2, shortName: "copied", valueAlign: Align.Right, extraValue: copyExtraText),
+        new PrinterEntry("# of files skipped", skippedFilesText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: skippedExtraText),
+        new PrinterEntry("# of extra directories deleted", deleteDirectoriesText, indent: 2, shortName: "directories deleted", valueAlign: Align.Right),
+        new PrinterEntry("# of extra files deleted", deleteFilesText, indent: 2, shortName: "files deleted", valueAlign: Align.Right, extraValue: deleteExtraText),
+        new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       Print(fields);
     }

@@ -19,7 +19,6 @@ using mtsuite.shared.Utils;
 namespace mtinfo {
   public class InfoProgressMonitor : ProgressMonitor {
     protected override void DisplayStatus(Statistics statistics) {
-      var deleteExtraText = new string(' ', 15);
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = statistics.ElapsedTime.TotalSeconds;
 
@@ -29,24 +28,23 @@ namespace mtinfo {
       var filesText = string.Format("{0:n0}",
         statistics.FileProcessedCount + statistics.SymlinkProcessedCount);
 
-      var diskSizeText = string.Format("{0:n0} MB",
+      var diskSizeText = string.Format("({0:n0} MB)",
         statistics.FileProcessedTotalSize / 1024 / 1024);
 
       var statsText = string.Format("{0:n0}",
         statistics.EntryProcessedCount / totalSeconds);
 
-      var elapsedText = string.Format("{0}{1}",
-        FormatHelpers.FormatElapsedTime(elapsed), deleteExtraText);
+      var elapsedText = string.Format("{0}",
+        FormatHelpers.FormatElapsedTime(elapsed));
 
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
-        new KeyValuePair<string, string>("Elapsed time", elapsedText),
-        new KeyValuePair<string, string>("# of directories", directoriesText),
-        new KeyValuePair<string, string>("# of files", filesText),
-        new KeyValuePair<string, string>("# of files/sec", statsText),
-        new KeyValuePair<string, string>("Size of files", diskSizeText),
-        new KeyValuePair<string, string>("Error count", errorsText),
+        new PrinterEntry("Elapsed time", elapsedText, valueAlign: Align.Right),
+        new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right),
+        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, extraValue: diskSizeText),
+        new PrinterEntry("# of files/sec", statsText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
       };
       Print(fields);
     }
