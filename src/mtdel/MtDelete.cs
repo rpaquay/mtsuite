@@ -169,7 +169,7 @@ I  Not content indexed Files  L  Reparse Points
       Console.WriteLine();
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
-      Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.ThreadElapsedTime));
+      Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       Console.WriteLine("  # entries deleted/sec:    {0:n0}", statistics.EntryDeletedCount / statistics.ElapsedTime.TotalSeconds);
       Console.WriteLine("  # of directories deleted: {0:n0}", statistics.DirectoryDeletedCount);
       Console.WriteLine("  # of files deleted:       {0:n0}", statistics.FileDeletedCount);

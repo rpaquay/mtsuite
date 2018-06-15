@@ -14,11 +14,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace mtsuite.shared {
   public class Statistics {
     public TimeSpan ElapsedTime { get; set; }
-    public TimeSpan ThreadElapsedTime { get; set; }
+    public TimeSpan TotalProcessorTime { get; set; }
 
     public long DirectoryEnumeratedCount { get; set; }
     public long FileEnumeratedCount { get; set; }

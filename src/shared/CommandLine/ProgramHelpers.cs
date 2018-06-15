@@ -97,7 +97,7 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine();
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
-      Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.ThreadElapsedTime));
+      Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       Console.WriteLine("  # of source directories:    {0:n0}", statistics.DirectoryTraversedCount);
       Console.WriteLine("  # of source files:          {0:n0}", statistics.FileCopiedCount + statistics.FileSkippedCount);
       Console.WriteLine("  # of source symlinks:       {0:n0}", statistics.SymlinkCopiedCount + statistics.SymlinkSkippedCount);

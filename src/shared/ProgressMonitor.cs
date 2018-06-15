@@ -25,8 +25,6 @@ namespace mtsuite.shared {
     private readonly Stopwatch _stopWatch = new Stopwatch();
     private readonly Stopwatch _displayTimer = new Stopwatch();
     private readonly List<Exception> _errors = new List<Exception>();
-    private readonly object _threadElapsedTimeLock = new object();
-    private TimeSpan _threadElapsedTime;
 
     private long _directoryEnumeratedCount;
     private long _fileEnumeratedCount;
@@ -76,7 +74,7 @@ namespace mtsuite.shared {
     public Statistics GetStatistics() {
       return new Statistics {
         ElapsedTime = _stopWatch.Elapsed,
-        ThreadElapsedTime = _threadElapsedTime,
+        TotalProcessorTime = Process.GetCurrentProcess().TotalProcessorTime,
 
         DirectoryEnumeratedCount = _directoryEnumeratedCount,
         FileEnumeratedCount = _fileEnumeratedCount,
@@ -171,9 +169,6 @@ namespace mtsuite.shared {
 
     public void OnEntryDeleted(Stopwatch stopwatch, FileSystemEntry entry) {
       stopwatch.Stop();
-      lock (_threadElapsedTimeLock) {
-        _threadElapsedTime += stopwatch.Elapsed;
-      }
 
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkDeletedCount);
@@ -205,10 +200,6 @@ namespace mtsuite.shared {
 
     public void OnFileCopied(Stopwatch stopwatch, FileSystemEntry entry) {
       stopwatch.Stop();
-
-      lock (_threadElapsedTimeLock) {
-        _threadElapsedTime += stopwatch.Elapsed;
-      }
 
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkCopiedCount);
