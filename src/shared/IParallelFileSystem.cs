@@ -24,7 +24,6 @@ namespace mtsuite.shared {
     event Action Pulse;
     event Action<FileSystemEntry> EntriesDiscovering;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
-    event Action<FileSystemEntry, List<FileSystemEntry>> EntriesProcessed;
     event Action<FileSystemEntry> EntriesToDeleteDiscovering;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;

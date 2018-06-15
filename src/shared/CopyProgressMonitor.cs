@@ -30,7 +30,7 @@ namespace mtsuite.shared {
         statistics.DirectoryEnumeratedCount);
 
       var filesText = string.Format("{0:n0}",
-        statistics.FileEnumeratedCount);
+        statistics.EntryEnumeratedCount);
 
       var diskSizeText = string.Format("({0:n0} MB)",
         statistics.FileEnumeratedTotalSize / 1024 / 1024);

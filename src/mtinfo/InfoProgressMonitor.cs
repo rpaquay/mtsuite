@@ -26,13 +26,13 @@ namespace mtinfo {
         statistics.DirectoryTraversedCount);
 
       var filesText = string.Format("{0:n0}",
-        statistics.FileProcessedCount + statistics.SymlinkProcessedCount);
+        statistics.EntryEnumeratedCount);
 
       var diskSizeText = string.Format("({0:n0} MB)",
-        statistics.FileProcessedTotalSize / 1024 / 1024);
+        statistics.FileEnumeratedTotalSize / 1024 / 1024);
 
       var statsText = string.Format("{0:n0}",
-        statistics.EntryProcessedCount / totalSeconds);
+        statistics.EntryEnumeratedCount / totalSeconds);
 
       var elapsedText = string.Format("{0}",
         FormatHelpers.FormatElapsedTime(elapsed));

@@ -32,8 +32,6 @@ namespace mtsuite.shared {
     void OnEntriesToDeleteDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries);
     void OnEntriesDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries);
 
-    void OnEntriesProcessed(FileSystemEntry directory, List<FileSystemEntry> entries);
-
     void OnDirectoryTraversing(FileSystemEntry directory);
     void OnDirectoryTraversed(FileSystemEntry directory);
 

@@ -39,7 +39,6 @@ namespace mtsuite.shared {
     public event Action Pulse;
     public event Action<FileSystemEntry> EntriesDiscovering;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
-    public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesProcessed;
     public event Action<FileSystemEntry> EntriesToDeleteDiscovering;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;
@@ -117,15 +116,12 @@ namespace mtsuite.shared {
           directoryInfoTasks.Add(directoryTask);
         }
       }
+      entries.Dispose();
 
       return directoryInfoTasks.ContinueWith(tasks => {
-        OnEntriesProcessed(directoryEntry, entries.Item);
-        entries.Dispose();
-
         foreach (var task in tasks) {
           collector.OnDirectoryTraversed(item, task.Result);
         }
-
         return item;
       });
     }
@@ -208,7 +204,6 @@ namespace mtsuite.shared {
           return copySubDirectoriesTasks
             .ContinueWith(_ => {
               CopyFileEntries(sourceEntries.Item, destinationDirectory, fileComparer, destinationSet.Item);
-              OnEntriesProcessed(sourceDirectory, sourceEntries.Item);
               sourceEntries.Dispose();
               destinationEntries.Dispose();
               destinationSet.Dispose();
@@ -468,11 +463,6 @@ namespace mtsuite.shared {
     protected virtual void OnDirectoryCreated(FileSystemEntry obj) {
       var handler = DirectoryCreated;
       if (handler != null) handler(obj);
-    }
-
-    protected virtual void OnEntriesProcessed(FileSystemEntry arg1, List<FileSystemEntry> arg2) {
-      var handler = EntriesProcessed;
-      if (handler != null) handler(arg1, arg2);
     }
 
     protected virtual void OnEntriesToDeleteProcessed(FileSystemEntry arg1, List<FileSystemEntry> arg2) {

@@ -28,16 +28,13 @@ namespace mtsuite.shared {
 
     private long _directoryEnumeratedCount;
     private long _fileEnumeratedCount;
+    private long _symlinkEnumeratedCount;
     private long _fileEnumeratedTotalSize;
 
     private long _directoryTraversedCount;
     private long _fileCopiedCount;
     private long _symlinkCopiedCount;
     private long _fileCopiedTotalSize;
-
-    private long _fileProcessedCount;
-    private long _symlinkProcessedCount;
-    private long _fileProcessedTotalSize;
 
     private long _directoryToDeleteCount;
     private long _fileToDeleteCount;
@@ -78,16 +75,13 @@ namespace mtsuite.shared {
 
         DirectoryEnumeratedCount = _directoryEnumeratedCount,
         FileEnumeratedCount = _fileEnumeratedCount,
+        SymlinkEnumeratedCount = _symlinkEnumeratedCount,
         FileEnumeratedTotalSize = _fileEnumeratedTotalSize,
 
         DirectoryToDeleteCount = _directoryToDeleteCount,
         FileToDeleteCount = _fileToDeleteCount,
 
         DirectoryTraversedCount = _directoryTraversedCount,
-
-        FileProcessedCount = _fileProcessedCount,
-        SymlinkProcessedCount = _symlinkProcessedCount,
-        FileProcessedTotalSize = _fileProcessedTotalSize,
 
         FileCopiedCount = _fileCopiedCount,
         SymlinkCopiedCount = _symlinkCopiedCount,
@@ -119,11 +113,18 @@ namespace mtsuite.shared {
     }
 
     public void OnEntriesDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
-      var count = CountPair(entries,
-        x => x.IsFile || x.IsReparsePoint, // Real files or any kind of reparse point
-        x => x.IsDirectory && !x.IsReparsePoint); // Real directories only
-      Interlocked.Add(ref _fileEnumeratedCount, count.Key);
-      Interlocked.Add(ref _directoryEnumeratedCount, count.Value);
+      var directoryCount = 0;
+      var fileCount = 0;
+      var symlinkCount = 0;
+      foreach(var entry in entries) {
+        // Note: Order is important (symlink first)
+        if (entry.IsReparsePoint) symlinkCount++;
+        else if (entry.IsDirectory) directoryCount++;
+        else if (entry.IsFile) fileCount++;
+      }
+      Interlocked.Add(ref _directoryEnumeratedCount, directoryCount);
+      Interlocked.Add(ref _fileEnumeratedCount, fileCount);
+      Interlocked.Add(ref _symlinkEnumeratedCount, symlinkCount);
       var diskSize = entries
         .Where(x => x.IsFile && !x.IsReparsePoint) // Real files only
         .Aggregate(0L, (size, entry) => size + entry.FileSize);
@@ -138,18 +139,6 @@ namespace mtsuite.shared {
       Interlocked.Add(ref _fileToDeleteCount, count.Key);
       Interlocked.Add(ref _directoryToDeleteCount, count.Value);
       Pulse();
-    }
-
-    public void OnEntriesProcessed(FileSystemEntry directory, List<FileSystemEntry> entries) {
-      var count = CountPair(entries,
-        x => x.IsReparsePoint, // Any kind of reparse point
-        x => x.IsFile && !x.IsReparsePoint); // Real files only
-      Interlocked.Add(ref _symlinkProcessedCount, count.Key);
-      Interlocked.Add(ref _fileProcessedCount, count.Value);
-      var diskSize = entries
-        .Where(x => x.IsFile && !x.IsReparsePoint) // Real files only
-        .Aggregate(0L, (size, entry) => size + entry.FileSize);
-      Interlocked.Add(ref _fileProcessedTotalSize, diskSize);
     }
 
     public void OnDirectoryTraversing(FileSystemEntry directory) {

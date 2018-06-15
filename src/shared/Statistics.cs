@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace mtsuite.shared {
   public class Statistics {
@@ -23,17 +22,14 @@ namespace mtsuite.shared {
 
     public long DirectoryEnumeratedCount { get; set; }
     public long FileEnumeratedCount { get; set; }
+    public long SymlinkEnumeratedCount { get; set; }
+    public long EntryEnumeratedCount { get { return FileEnumeratedCount + SymlinkEnumeratedCount; } }
     public long FileEnumeratedTotalSize { get; set; }
 
     public long DirectoryToDeleteCount { get; set; }
     public long FileToDeleteCount { get; set; }
 
     public long DirectoryTraversedCount { get; set; }
-
-    public long FileProcessedCount { get; set; }
-    public long SymlinkProcessedCount { get; set; }
-    public long EntryProcessedCount { get { return FileProcessedCount + SymlinkProcessedCount; } }
-    public long FileProcessedTotalSize { get; set; }
 
     public long FileCopiedCount { get; set; }
     public long SymlinkCopiedCount { get; set; }

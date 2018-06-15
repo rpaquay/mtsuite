@@ -38,7 +38,6 @@ namespace mtinfo {
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
 
       _parallelFileSystem.EntriesDiscovered += (entry, list) => _progressMonitor.OnEntriesDiscovered(entry, list);
-      _parallelFileSystem.EntriesProcessed += (entry, list) => _progressMonitor.OnEntriesProcessed(entry, list);
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);
       _parallelFileSystem.DirectoryTraversed += (entry) => _progressMonitor.OnDirectoryTraversed(entry);
     }
@@ -238,10 +237,10 @@ namespace mtinfo {
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
-      Console.WriteLine("  # of files:               {0:n0}", statistics.FileProcessedCount);
-      Console.WriteLine("  # of symlinks:            {0:n0}", statistics.SymlinkProcessedCount);
+      Console.WriteLine("  # of files:               {0:n0}", statistics.FileEnumeratedCount);
+      Console.WriteLine("  # of symlinks:            {0:n0}", statistics.SymlinkEnumeratedCount);
       Console.WriteLine("  # entries/sec:            {0:n0}",
-        statistics.EntryProcessedCount / statistics.ElapsedTime.TotalSeconds);
+        statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
 
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       ProgramHelpers.DisplayErrors(statistics.Errors);
