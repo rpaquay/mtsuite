@@ -1,4 +1,4 @@
-#mtsuite
+# mtsuite
 
 **mtsuite** is a collection of disk utilities for Windows, optimized for
 high performance on Solid State Drives (SSD).
