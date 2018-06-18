@@ -12,38 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System.Collections.Generic;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtinfo {
   public class InfoProgressMonitor : ProgressMonitor {
     protected override void DisplayStatus(Statistics statistics) {
-      var elapsed = statistics.ElapsedTime;
-      var totalSeconds = statistics.ElapsedTime.TotalSeconds;
-
-      var directoriesText = string.Format("{0:n0}",
-        statistics.DirectoryTraversedCount);
-
-      var filesText = string.Format("{0:n0}",
-        statistics.EntryEnumeratedCount);
-
-      var diskSizeText = string.Format("({0:n0} MB)",
-        statistics.FileEnumeratedTotalSize / 1024 / 1024);
-
-      var statsText = string.Format("{0:n0}",
-        statistics.EntryEnumeratedCount / totalSeconds);
-
-      var elapsedText = string.Format("{0}",
-        FormatHelpers.FormatElapsedTime(elapsed));
-
+      var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
+      var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
+      var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
+      var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
+      var filesExtraText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
+      var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
-        new PrinterEntry("Elapsed time", elapsedText, valueAlign: Align.Right),
+        new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
+        new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
         new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right),
-        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, extraValue: diskSizeText),
-        new PrinterEntry("# of files/sec", statsText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, extraValue: filesExtraText),
+        new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
       };
       Print(fields);

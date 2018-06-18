@@ -26,49 +26,32 @@ namespace mtsuite.shared {
         statistics.DirectoryDeletedCount + statistics.FileDeletedCount + statistics.SymlinkDeletedCount +
         statistics.FileSkippedCount;
 
-      var directoriesText = string.Format("{0:n0}", statistics.DirectoryEnumeratedCount);
-
-      var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
-
-      var diskSizeText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
-
-      var entriesPerSecondText = string.Format("{0:n0}", totalEntriesCount / totalSeconds);
-
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(elapsed));
-
+      var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
+      var sourceDirectoriesText = string.Format("{0:n0}", statistics.DirectoryEnumeratedCount);
+      var sourceFilesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
+      var sourceFilesExtraText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
+      var filesCopiedText = string.Format("{0:n0}", statistics.FileCopiedCount + statistics.SymlinkCopiedCount);
+      var filesCopiedExtraText = string.Format("({0:n0} MB)", fileCopiedTotalSizeMb);
+      var filesSkippedText = string.Format("{0:n0}", statistics.FileSkippedCount + statistics.SymlinkSkippedCount);
+      var filesSkippedExtraText = string.Format("({0:n0} MB)", fileSkippedTotalSizeMb);
+      var directoriesDeletedText = string.Format("{0:n0}", statistics.DirectoryDeletedCount);
+      var filesDeletedText = string.Format("{0:n0}", statistics.FileDeletedCount + statistics.SymlinkDeletedCount);
+      var filesDeletedExtraText = string.Format("({0:n0} MB)", statistics.FileDeletedTotalSize / 1024 / 1024);
+      var entriesPerSecondText = string.Format("{0:n0}", totalEntriesCount / totalSeconds);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
-
-      var copyText = string.Format("{0:n0}", statistics.FileCopiedCount + statistics.SymlinkCopiedCount);
-
-      var copyExtraText = string.Format("({0:n0} MB)", fileCopiedTotalSizeMb);
-
-      var deleteFilesText = string.Format("{0:n0}", statistics.FileDeletedCount + statistics.SymlinkDeletedCount);
-
-      var deleteExtraText = string.Format("({0:n0} MB)",
-        statistics.FileDeletedTotalSize / 1024 / 1024);
-
-      var deleteDirectoriesText = string.Format(
-        "{0:n0}",
-        statistics.DirectoryDeletedCount);
-
-      var skippedFilesText = string.Format(
-        "{0:n0}",
-        statistics.FileSkippedCount + statistics.SymlinkSkippedCount);
-
-      var skippedExtraText = string.Format(
-        "({0:n0} MB)",
-        fileSkippedTotalSizeMb);
 
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText),
-        new PrinterEntry("Source", null),
-        new PrinterEntry("# of directories", directoriesText, indent: 2, shortName: "directories", valueAlign: Align.Right),
-        new PrinterEntry("# of files", filesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: diskSizeText),
-        new PrinterEntry("Destination", null),
-        new PrinterEntry("# of files copied", copyText, indent: 2, shortName: "copied", valueAlign: Align.Right, extraValue: copyExtraText),
-        new PrinterEntry("# of files skipped", skippedFilesText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: skippedExtraText),
-        new PrinterEntry("# of extra directories deleted", deleteDirectoriesText, indent: 2, shortName: "directories deleted", valueAlign: Align.Right),
-        new PrinterEntry("# of extra files deleted", deleteFilesText, indent: 2, shortName: "files deleted", valueAlign: Align.Right, extraValue: deleteExtraText),
+        new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
+        new PrinterEntry("Source"),
+        new PrinterEntry("# of directories", sourceDirectoriesText, indent: 2, shortName: "directories", valueAlign: Align.Right),
+        new PrinterEntry("# of files", sourceFilesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: sourceFilesExtraText),
+        new PrinterEntry("Destination"),
+        new PrinterEntry("# of files copied", filesCopiedText, indent: 2, shortName: "copied", valueAlign: Align.Right, extraValue: filesCopiedExtraText),
+        new PrinterEntry("# of files skipped", filesSkippedText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: filesSkippedExtraText),
+        new PrinterEntry("# of extra directories deleted", directoriesDeletedText, indent: 2, shortName: "directories deleted", valueAlign: Align.Right),
+        new PrinterEntry("# of extra files deleted", filesDeletedText, indent: 2, shortName: "files deleted", valueAlign: Align.Right, extraValue: filesDeletedExtraText),
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };

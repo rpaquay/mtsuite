@@ -14,7 +14,7 @@
 
 namespace mtsuite.shared {
   public class PrinterEntry {
-    public PrinterEntry(string displayName, string value, Align valueAlign = Align.Left, string valueUnit = null,
+    public PrinterEntry(string displayName, string value = null, Align valueAlign = Align.Left, string valueUnit = null,
       string shortName = null, int indent = 0, string extraValue = null) {
       DisplayName = displayName;
       Value = value;
