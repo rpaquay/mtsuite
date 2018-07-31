@@ -25,13 +25,11 @@ namespace mtcopy {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor _progressMonitor;
-    private readonly LastWriteTimeFileComparer _fileComparer;
 
     public MtCopy(IFileSystem fileSystem) {
       _fileSystem = fileSystem;
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
       _progressMonitor = new CopyProgressMonitor();
-      _fileComparer = new LastWriteTimeFileComparer(fileSystem);
 
       _parallelFileSystem.Error += exception => _progressMonitor.OnError(exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
@@ -59,6 +57,7 @@ namespace mtcopy {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithString("source-path", "The path of the source directory", true)
         .WithString("destination-path", "The path of the destination directory", true)
+        .WithSwitch("ft", "Compare file modification time instead of file contents (faster)", "ft")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -80,8 +79,15 @@ namespace mtcopy {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["source-path"].StringValue);
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
+      IFileComparer fileComparer;
+      if (parser.Contains("ft")) {
+        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
+      }
+      else {
+        fileComparer = new FileContentsFileComparer(_fileSystem);
+      }
 
-      var statistics = DoCopy(sourcePath, destinationPath);
+      var statistics = DoCopy(sourcePath, destinationPath, fileComparer);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
         ProgramHelpers.DisplayGcStatistics();
@@ -101,7 +107,7 @@ namespace mtcopy {
       ArgumentsHelper.PrintArgumentUsageSummary(argumentDefinitions);
     }
 
-    public Statistics DoCopy(FullPath sourcePath, FullPath destinationPath) {
+    public Statistics DoCopy(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer) {
       // Check source exists
       FileSystemEntry sourceDirectory;
       try {
@@ -130,7 +136,7 @@ namespace mtcopy {
         sourceDirectory,
         destinationPath,
         CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles,
-        _fileComparer,
+        fileComparer,
         destinationIsNew);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using mtcopy;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
@@ -22,11 +23,13 @@ namespace tests {
   public class MtCopyTest {
     private FileSystemSetup _sourcefs;
     private FileSystemSetup _destfs;
+    private IFileComparer _fileComparer;
 
     [TestInitialize]
     public void Setup() {
       _sourcefs = new FileSystemSetup();
       _destfs = new FileSystemSetup();
+      _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem);
     }
 
     [TestCleanup]
@@ -44,7 +47,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      mtcopy.DoCopy(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path);
+      mtcopy.DoCopy(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer);
 
       // Assert
     }
@@ -55,7 +58,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -75,7 +78,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -100,7 +103,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -119,7 +122,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -143,7 +146,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -163,7 +166,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -183,7 +186,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -216,7 +219,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -247,7 +250,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -275,7 +278,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -306,7 +309,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -337,7 +340,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -368,7 +371,7 @@ namespace tests {
 
       // Act
       var mtcopy = new MtCopy(_sourcefs.FileSystem);
-      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert
       Assert.IsTrue(_sourcefs.Root.Exists());

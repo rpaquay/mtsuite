@@ -58,7 +58,7 @@ namespace mtmir {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithString("source-path", "The path of the source directory", true)
         .WithString("destination-path", "The path of the destination directory", true)
-        .WithSwitch("fb", "Compare file contents instead of file modification time", "fb")
+        .WithSwitch("ft", "Compare file modification time instead of file contents (faster)", "ft")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -81,11 +81,11 @@ namespace mtmir {
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       IFileComparer fileComparer;
-      if (parser.Contains("fb")) {
-        fileComparer = new FileContentsFileComparer(_fileSystem);
+      if (parser.Contains("ft")) {
+        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       }
       else {
-        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
+        fileComparer = new FileContentsFileComparer(_fileSystem);
       }
 
       var statistics = DoMirror(sourcePath, destinationPath, fileComparer);

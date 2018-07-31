@@ -30,7 +30,7 @@ namespace tests {
     public void Setup() {
       _sourcefs = new FileSystemSetup();
       _destfs = new FileSystemSetup();
-      _fileComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
+      _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem);
     }
 
     [TestCleanup]
