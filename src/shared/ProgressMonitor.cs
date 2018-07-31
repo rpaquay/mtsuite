@@ -222,7 +222,7 @@ namespace mtsuite.shared {
       return displayStatus;
     }
 
-    protected void Print(IEnumerable<PrinterEntry> fields) {
+    protected void Print(ICollection<PrinterEntry> fields) {
       _printer.Print(fields);
     }
   }

@@ -15,10 +15,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace mtsuite.shared {
   public class ProgressPrinter {
-    private readonly string[] _separator = new[] { " - " };
     private readonly object _lock = new object();
     private bool _init;
     private int _cursorInitLeft;
@@ -29,43 +29,50 @@ namespace mtsuite.shared {
       Console.WriteLine();
     }
 
-    public void Print(IEnumerable<PrinterEntry> fields) {
+    public void Print(ICollection<PrinterEntry> fields) {
       EnsureInit();
       lock (_lock) {
         if (!_supportsPositions) {
-          Console.Write("\r{0}", FlattenFields(fields));
+          Console.Write("\r{0}", BuildSingleLineOutput(fields));
         }
         else {
           try {
             Console.SetCursorPosition(_cursorInitLeft, _cursorInitTop);
-            var nameMaxWidth = fields.Max(kvp => kvp.DisplayName.Length + kvp.Indent);
-            var valuesMaxWidth = fields.Max(kvp => kvp.Value?.Length ?? 0);
-            var first = true;
-            foreach(var field in fields) {
-              if (first) {
-                first = false;
-              }
-              else {
-                Console.WriteLine();
-              }
-
-              var value = field.Value ?? "";
-              Console.Write("{0} {1}{2}{3}         ",
-                (new string(' ', field.Indent) + field.DisplayName + ":").PadRight(nameMaxWidth + 2),
-                field.ValueAlign == Align.Left ? value.PadRight(valuesMaxWidth) : value.PadLeft(valuesMaxWidth),
-                field.ValueUnit == null ? "" : (" " + field.ValueUnit),
-                field.ExtraValue == null ? "" : (" " + field.ExtraValue));
-            }
+            Console.Write(BuildMultiLineOutput(fields));
           }
           catch (Exception) {
-            Console.Write("\r{0}", FlattenFields(fields));
+            Console.Write("\r{0}", BuildSingleLineOutput(fields));
             _supportsPositions = false;
           }
         }
       }
     }
 
-    private string FlattenFields(IEnumerable<PrinterEntry> fields) {
+    private static string BuildMultiLineOutput(ICollection<PrinterEntry> fields) {
+      var sb = new StringBuilder();
+      var nameMaxWidth = fields.Max(kvp => kvp.DisplayName.Length + kvp.Indent);
+      var valuesMaxWidth = fields.Max(kvp => kvp.Value?.Length ?? 0);
+      var first = true;
+      foreach (var field in fields) {
+        if (first) {
+          first = false;
+        }
+        else {
+          sb.AppendLine();
+        }
+
+        var value = field.Value ?? "";
+        sb.AppendFormat("{0} {1}{2}{3}         ",
+          (new string(' ', field.Indent) + field.DisplayName + ":").PadRight(nameMaxWidth + 2),
+          field.ValueAlign == Align.Left ? value.PadRight(valuesMaxWidth) : value.PadLeft(valuesMaxWidth),
+          field.ValueUnit == null ? "" : (" " + field.ValueUnit),
+          field.ExtraValue == null ? "" : (" " + field.ExtraValue));
+      }
+
+      return sb.ToString();
+    }
+
+    private static string BuildSingleLineOutput(IEnumerable<PrinterEntry> fields) {
       return fields.Aggregate("", (s, field) => {
         if (field.Value == null) {
           return s;
