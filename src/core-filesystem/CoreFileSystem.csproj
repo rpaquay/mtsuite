@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CopyFileOptions.cs" />
+    <Compile Include="FileContentsFileComparer.cs" />
     <Compile Include="FileSystemEntryData.cs" />
     <Compile Include="IFileSystemEntryAccessor.cs" />
     <Compile Include="ObjectPool\PoolFactory.cs" />

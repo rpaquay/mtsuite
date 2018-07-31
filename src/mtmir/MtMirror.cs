@@ -25,13 +25,11 @@ namespace mtmir {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor _progressMonitor;
-    private readonly IFileComparer _fileComparer;
 
     public MtMirror(IFileSystem fileSystem) {
       _fileSystem = fileSystem;
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
       _progressMonitor = new CopyProgressMonitor();
-      _fileComparer = new LastWriteTimeFileComparer(fileSystem);
 
       _parallelFileSystem.Error += exception => _progressMonitor.OnError(exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
@@ -60,6 +58,7 @@ namespace mtmir {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithString("source-path", "The path of the source directory", true)
         .WithString("destination-path", "The path of the destination directory", true)
+        .WithSwitch("fb", "Compare file contents instead of file modification time", "fb")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -81,8 +80,15 @@ namespace mtmir {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["source-path"].StringValue);
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
+      IFileComparer fileComparer;
+      if (parser.Contains("fb")) {
+        fileComparer = new FileContentsFileComparer(_fileSystem);
+      }
+      else {
+        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
+      }
 
-      var statistics = DoMirror(sourcePath, destinationPath);
+      var statistics = DoMirror(sourcePath, destinationPath, fileComparer);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
         ProgramHelpers.DisplayGcStatistics();
@@ -102,7 +108,7 @@ namespace mtmir {
       ArgumentsHelper.PrintArgumentUsageSummary(argumentDefinitions);
     }
 
-    public Statistics DoMirror(FullPath sourcePath, FullPath destinationPath) {
+    public Statistics DoMirror(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer) {
       // Check source exists
       FileSystemEntry sourceDirectory;
       try {
@@ -129,7 +135,7 @@ namespace mtmir {
         sourceDirectory,
         destinationPath,
         CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles | CopyOptions.DeleteExtraFiles,
-        _fileComparer,
+        fileComparer,
         destinationIsNew);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();

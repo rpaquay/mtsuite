@@ -14,6 +14,7 @@
 
 using System;
 using mtmir;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
@@ -23,11 +24,13 @@ namespace tests {
   public class MtMirrorTest {
     private FileSystemSetup _sourcefs;
     private FileSystemSetup _destfs;
+    private IFileComparer _fileComparer;
 
     [TestInitialize]
     public void Setup() {
       _sourcefs = new FileSystemSetup();
       _destfs = new FileSystemSetup();
+      _fileComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
     }
 
     [TestCleanup]
@@ -42,14 +45,14 @@ namespace tests {
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtMirrorShouldThrowWithNonExistingFolder() {
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
-      mtmirror.DoMirror(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path);
+      mtmirror.DoMirror(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer);
     }
 
     [TestMethod]
     public void MtMirrorShouldWorkWithEmptyFolder() {
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -65,7 +68,7 @@ namespace tests {
 
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -86,7 +89,7 @@ namespace tests {
 
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -101,7 +104,7 @@ namespace tests {
 
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(4, stats.DirectoryCreatedCount);
@@ -121,7 +124,7 @@ namespace tests {
 
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       foreach (var error in stats.Errors) {
         Console.WriteLine(error.Message);
       }
@@ -148,7 +151,7 @@ namespace tests {
 
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
@@ -177,7 +180,7 @@ namespace tests {
 
       var mtmirror = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(2, _destfs.Root.GetEntries().Count);
@@ -202,7 +205,7 @@ namespace tests {
 
       var mtcopy = new MtMirror(_sourcefs.FileSystem);
 
-      var stats = mtcopy.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path);
+      var stats = mtcopy.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual("a", _destfs.Root.GetDirectory("a").Path.Name);
