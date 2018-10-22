@@ -449,11 +449,11 @@ namespace mtsuite.CoreFileSystem.Win32 {
     }
 
     public void CreateDirectorySymbolicLink(TPath path, string targetPath) {
-      CreateSymbolicLinkWorker(path, targetPath, NativeMethods.SYMBOLIC_LINK_FLAG.Directory);
+      CreateSymbolicLinkWorker(path, targetPath, NativeMethods.SYMBOLIC_LINK_FLAG.SYMBOLIC_LINK_FLAG_DIRECTORY);
     }
 
     public void CreateFileSymbolicLink(TPath path, string targetPath) {
-      CreateSymbolicLinkWorker(path, targetPath, NativeMethods.SYMBOLIC_LINK_FLAG.File);
+      CreateSymbolicLinkWorker(path, targetPath, NativeMethods.SYMBOLIC_LINK_FLAG.SYMBOLIC_LINK_FLAG_FILE);
     }
 
     public void CreateSymbolicLinkWorker(
@@ -468,15 +468,30 @@ namespace mtsuite.CoreFileSystem.Win32 {
         // On error, the function returns some random value (e.g. 1280).
         // The best bet seems to use "GetLastError" and check for error/success.
         /*var statusCode = */
-        NativeMethods.CreateSymbolicLink(sb.Item.Data, targetPath, linkFlag);
-        var lastWin32Error = Marshal.GetLastWin32Error();
-        if (lastWin32Error == (int)Win32Errors.ERROR_SUCCESS)
+        var lastWin32Error = CreateSymbolicLinkWorker2(targetPath, linkFlag | NativeMethods.SYMBOLIC_LINK_FLAG.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE, sb);
+
+        // Previous versions of Windows return "ERROR_INVALID_PARAMETER" if using new
+        // SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE flag. Retry without it.
+        if (lastWin32Error == (int)Win32Errors.ERROR_INVALID_PARAMETER) {
+          lastWin32Error = CreateSymbolicLinkWorker2(targetPath, linkFlag, sb);
+        }
+
+        if (lastWin32Error == (int) Win32Errors.ERROR_SUCCESS) {
           return;
+        }
 
         throw new LastWin32ErrorException(lastWin32Error,
           string.Format("Error creating symbolic link \"{0}\" linking to \"{1}\"",
             StripPath(path), StripPath(targetPath)));
       }
+    }
+
+    private static int CreateSymbolicLinkWorker2(
+      string targetPath,
+      NativeMethods.SYMBOLIC_LINK_FLAG linkFlag,
+      FromPool<StringBuffer> sb) {
+      NativeMethods.CreateSymbolicLink(sb.Item.Data, targetPath, linkFlag);
+      return Marshal.GetLastWin32Error();
     }
 
     /// <summary>

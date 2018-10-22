@@ -147,9 +147,16 @@ namespace mtsuite.CoreFileSystem.Win32 {
       FindFirstExLargeFetch = 2,
     }
 
+    [Flags]
     public enum SYMBOLIC_LINK_FLAG {
-      File = 0,
-      Directory = 1
+      SYMBOLIC_LINK_FLAG_FILE = 0x00,
+      SYMBOLIC_LINK_FLAG_DIRECTORY = 0x01,
+      /// <summary>
+      /// Specify this flag to allow creation of symbolic links when the process is
+      /// not elevated. Developer Mode must first be enabled on the machine before
+      /// this option will function (Windows 10 only).
+      /// </summary>
+      SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x02,
     }
 
     [StructLayout(LayoutKind.Sequential)]
