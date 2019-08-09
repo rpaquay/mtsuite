@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtdel", "mtdel\mtdel.csproj", "{AA980504-94D1-49CB-AB36-8DEBC6CF7109}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtfind", "mtfind\mtfind.csproj", "{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtinfo", "mtinfo\mtinfo.csproj", "{774431E9-4F80-438C-8B13-0AC74F9927EE}"
 EndProject
@@ -33,6 +35,10 @@ Global
 		{AA980504-94D1-49CB-AB36-8DEBC6CF7109}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AA980504-94D1-49CB-AB36-8DEBC6CF7109}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA980504-94D1-49CB-AB36-8DEBC6CF7109}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{774431E9-4F80-438C-8B13-0AC74F9927EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{774431E9-4F80-438C-8B13-0AC74F9927EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{774431E9-4F80-438C-8B13-0AC74F9927EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
