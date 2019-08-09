@@ -126,7 +126,8 @@ namespace mtfind {
     }
 
     private static FileNameMatcher CreateFileNameMatcher(string pattern) {
-      return entry => entry.Name.Equals(pattern);
+      var matcher = new SearchPatternParser().ParsePattern(pattern);
+      return entry => matcher.MatchString(entry.Path.Name);
     }
 
     private class DirectorySummaryCollector : IDirectorCollector<DirectorySummary> {
@@ -186,7 +187,7 @@ namespace mtfind {
         .ToList();
 
       Console.WriteLine("Found {0} entries matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
-      foreach(var entry in matchedEntries) {
+      foreach (var entry in matchedEntries) {
         Console.WriteLine(PathHelpers.StripLongPathPrefix(entry.Path.FullName));
       }
     }
