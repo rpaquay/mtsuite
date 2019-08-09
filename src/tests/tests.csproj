@@ -53,6 +53,8 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="SearchPatternParserTest.cs" />
+    <Compile Include="MtFindTest.cs" />
     <Compile Include="PathSerializersAsIsTest.cs" />
     <Compile Include="FullPathTest.cs" />
     <Compile Include="PathSerializersAlwaysLongPathTest.cs" />
@@ -85,6 +87,11 @@
     </Compile>
     <Compile Include="..\shared\**\*.cs" Exclude="..\shared\**\AssemblyInfo.cs">
       <Link>shared\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\mtfind\*.cs" Exclude="..\mtfind\**\AssemblyInfo.cs">
+      <Link>mtfind\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>
