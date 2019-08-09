@@ -16,7 +16,7 @@ using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtfind {
-  public class InfoProgressMonitor : ProgressMonitor {
+  public class FindProgressMonitor : ProgressMonitor {
     protected override void DisplayStatus(Statistics statistics) {
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));

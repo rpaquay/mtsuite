@@ -12,59 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System;
 using System.Collections.Generic;
+
 using mtsuite.CoreFileSystem;
-using mtsuite.shared.Collections;
 
 namespace mtfind {
   public class DirectorySummaryRoot {
-    public DirectorySummaryRoot() {
-      LongestPaths = new PriorityQueue<LongestPathInfo>();
-    }
     public DirectorySummary Summary { get; set; }
-    public PriorityQueue<LongestPathInfo> LongestPaths { get; set; }
-  }
-
-  public class LongestPathInfo : IComparable<LongestPathInfo> {
-    public FullPath Path { get; set; }
-    public int Length { get; set; }
-
-    public int CompareTo(LongestPathInfo other) {
-      if (other == null) {
-        return 1;
-      }
-      return Path.Length.CompareTo(other.Path.Length);
-    }
   }
 
   public class DirectorySummary {
-    private readonly int _depth;
     private readonly FileSystemEntry _directoryEntry;
-    private readonly DirectoryStats _stats;
     private readonly List<DirectorySummary> _children;
+    private readonly List<FileSystemEntry> _matchedFiles;
 
-    public DirectorySummary(FileSystemEntry directoryEntry, int depth) {
+    public DirectorySummary(FileSystemEntry directoryEntry) {
       _directoryEntry = directoryEntry;
-      _depth = depth;
-      _stats = new DirectoryStats();
       _children = new List<DirectorySummary>();
+      _matchedFiles = new List<FileSystemEntry>();
     }
 
     public FileSystemEntry DirectoryEntry {
       get { return _directoryEntry; }
     }
 
-    public int Depth {
-      get { return _depth; }
-    }
-
     public List<DirectorySummary> Children {
       get { return _children; }
     }
 
-    public DirectoryStats Stats {
-      get { return _stats; }
+    public List<FileSystemEntry> MatchedFiles {
+      get {
+        return _matchedFiles;
+      }
     }
   }
 }

@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{4a7b2e63-c2dc-4df6-a6e0-765eb99aad3e}</ProjectGuid>
+    <ProjectGuid>{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>mtfind</RootNamespace>
@@ -42,8 +42,8 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DirectoryStats.cs" />
     <Compile Include="DirectorySummary.cs" />
+    <Compile Include="FileNameMatcher.cs" />
     <Compile Include="InfoProgressMonitor.cs" />
     <Compile Include="MtFind.cs" />
     <Compile Include="Program.cs" />
