@@ -208,21 +208,38 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public int CompareTo(FullPath other) {
-      if (_parent == null) {
-        if (other._parent == null) {
-          return string.Compare(_name, other._name, StringComparison.OrdinalIgnoreCase);
-        } else {
-          return -1;
+      return ComparePaths(this, other);
+    }
+
+    public static int ComparePaths(FullPath x, FullPath y) {
+      //TODO: Find a way to make this more efficient (i.e. no memory allocation)
+      var xNames = GetNames(x);
+      var yNames = GetNames(y);
+      var maxNames = Math.Max(xNames.Count, yNames.Count);
+      for (var i = 0; i < maxNames; i++) {
+        if (i >= xNames.Count) {
+          return -1; // x has fewer names than y
+        } else if (i >= yNames.Count) {
+          return 1; // x has more names than y
         }
-      } else {
-        if (other._parent == null) {
-          return 1;
-        } else {
-          var parentComparison = Comparer<FullPath>.Default.Compare((FullPath)_parent, (FullPath)other._parent);
-          if (parentComparison != 0) return parentComparison;
-          return string.Compare(_name, other._name, StringComparison.OrdinalIgnoreCase);
-        }
+        int result = string.Compare(xNames[i], yNames[i], StringComparison.OrdinalIgnoreCase);
+        if (result != 0)
+          return result;
       }
+      return 0;
+    }
+
+    private static List<string> GetNames(FullPath path) {
+      var result = new List<string>();
+      while(true) {
+        result.Add(path._name);
+        var parent = path.Parent;
+        if (parent == null)
+          break;
+        path = parent.Value;
+      }
+      result.Reverse();
+      return result;
     }
   }
 }

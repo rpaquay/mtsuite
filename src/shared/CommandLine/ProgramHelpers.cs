@@ -39,8 +39,8 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
-    public static FullPath MakeFullPath(string args) {
-      return new FullPath(PathHelpers.MakeLongPath(PathHelpers.NormalizeUserInputPath(Environment.CurrentDirectory, args)));
+    public static FullPath MakeFullPath(string pathValue) {
+      return new FullPath(PathHelpers.MakeLongPath(PathHelpers.NormalizeUserInputPath(Environment.CurrentDirectory, pathValue)));
     }
 
     public static void DisplayErrors(IEnumerable<Exception> errors) {
