@@ -18,8 +18,25 @@ using System.Text;
 
 namespace mtfind {
   public class SearchPatternParser {
-    public SearchPatternMatcher ParsePattern(string pattern) {
-      List<SearchPatternPartMatcher> partMatchers = new List<SearchPatternPartMatcher>();
+    public enum Options {
+      Default,
+      Optimize
+    }
+
+    public SearchPatternMatcher ParsePattern(string pattern, Options options) {
+      var partMatchers = ParsePatternWorker(pattern);
+
+      // Optimize list if required
+      if (options == Options.Optimize) {
+        partMatchers = OptimizeMatcherList(partMatchers);
+      }
+
+      // Return final matcher
+      return new SearchPatternMatcher(partMatchers);
+    }
+
+    private static List<SearchPatternPartMatcher> ParsePatternWorker(string pattern) {
+      var partMatchers = new List<SearchPatternPartMatcher>();
       partMatchers.Add(new MatchStart());
       var sb = new StringBuilder();
       foreach (var ch in pattern) {
@@ -50,8 +67,7 @@ namespace mtfind {
         sb.Clear();
       }
       partMatchers.Add(new MatchEnd());
-      partMatchers = OptimizeMatcherList(partMatchers);
-      return new SearchPatternMatcher(partMatchers);
+      return partMatchers;
     }
 
     private static List<SearchPatternPartMatcher> OptimizeMatcherList(List<SearchPatternPartMatcher> partMatchers) {

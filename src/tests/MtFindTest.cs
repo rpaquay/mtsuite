@@ -40,7 +40,10 @@ namespace tests {
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtFindShouldThrowWithNonExistingFolder() {
       var mtfind = new MtFind(_fileSystemSetup.FileSystem);
-      mtfind.DoFind(_fileSystemSetup.Root.Path.Combine("fake"), "foo");
+      mtfind.Run(new string[] {
+        "-path", "fake",
+        "foo"
+      });
     }
   }
 }
