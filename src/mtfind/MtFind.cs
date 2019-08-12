@@ -46,11 +46,11 @@ namespace mtfind {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithString("pattern", "The pattern to search for", true, "*")
-        .WithStringFlag("path", "The directory tree to search", "p", "path", Environment.CurrentDirectory)
+        .WithHelpSwitch()
         .WithThreadCountSwitch()
         .WithGcSwitch()
-        .WithHelpSwitch()
+        .WithStringFlag("path", "The directory tree to search", "p", "path", Environment.CurrentDirectory)
+        .WithString("pattern", "The pattern to search for", true, "*")
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
@@ -126,7 +126,7 @@ namespace mtfind {
     }
 
     private static FileNameMatcher CreateFileNameMatcher(string pattern) {
-      var matcher = new SearchPatternParser().ParsePattern(pattern);
+      var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
       return entry => matcher.MatchString(entry.Path.Name);
     }
 
