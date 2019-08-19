@@ -130,39 +130,6 @@ namespace mtfind {
       return entry => matcher.MatchString(entry.Path.Name);
     }
 
-    private class DirectorySummaryCollector : IDirectorCollector<DirectorySummary> {
-      private readonly DirectorySummaryRoot _root;
-      private readonly FileNameMatcher _nameMatcher;
-
-      public DirectorySummaryCollector(FileNameMatcher nameMatcher) {
-        _root = new DirectorySummaryRoot();
-        _nameMatcher = nameMatcher;
-      }
-
-      public DirectorySummaryRoot Root {
-        get { return _root; }
-      }
-
-      public DirectorySummary CreateItemForDirectory(FileSystemEntry directory, int depth) {
-        var result = new DirectorySummary(directory);
-        if (_root.Summary == null)
-          _root.Summary = result;
-        return result;
-      }
-
-      public void OnDirectoryEntriesEnumerated(DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries) {
-        foreach (var entry in entries) {
-          if (_nameMatcher(entry)) {
-            summary.MatchedFiles.Add(entry);
-          }
-        }
-      }
-
-      public void OnDirectoryTraversed(DirectorySummary parentSummary, DirectorySummary childSummary) {
-        parentSummary.Children.Add(childSummary);
-      }
-    }
-
     private static void DisplayResults(Statistics statistics) {
       Console.WriteLine();
       Console.WriteLine("Statistics:");

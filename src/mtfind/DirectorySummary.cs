@@ -17,9 +17,6 @@ using System.Collections.Generic;
 using mtsuite.CoreFileSystem;
 
 namespace mtfind {
-  public class DirectorySummaryRoot {
-    public DirectorySummary Summary { get; set; }
-  }
 
   public class DirectorySummary {
     private readonly FileSystemEntry _directoryEntry;

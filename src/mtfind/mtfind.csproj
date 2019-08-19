@@ -43,6 +43,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DirectorySummary.cs" />
+    <Compile Include="DirectorySummaryCollector.cs" />
+    <Compile Include="DirectorySummaryRoot.cs" />
     <Compile Include="FileNameMatcher.cs" />
     <Compile Include="FindProgressMonitor.cs" />
     <Compile Include="MtFind.cs" />
