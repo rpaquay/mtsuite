@@ -44,7 +44,7 @@
   <ItemGroup>
     <Compile Include="DirectorySummary.cs" />
     <Compile Include="FileNameMatcher.cs" />
-    <Compile Include="InfoProgressMonitor.cs" />
+    <Compile Include="FindProgressMonitor.cs" />
     <Compile Include="MtFind.cs" />
     <Compile Include="SearchPatternPartMatcher.cs" />
     <Compile Include="Program.cs" />

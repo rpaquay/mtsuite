@@ -22,7 +22,6 @@ namespace mtfind {
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
-      var filesExtraText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
       var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
@@ -30,7 +29,7 @@ namespace mtfind {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
         new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right),
-        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, extraValue: filesExtraText),
+        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right),
         new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
       };
