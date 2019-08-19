@@ -119,7 +119,7 @@ namespace mtfind {
       Console.WriteLine("Search file names from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(CreateFileNameMatcher(pattern));
-      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector);
+      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, true);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return directorySummaryCollector.Root;
