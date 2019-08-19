@@ -39,23 +39,40 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public void Visit(SwitchArgDef arg) {
-      Append("  /{0,-19} {1}", arg.ShortName, FormatMultiLine(arg.Description, 23));
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        Append("  /{0,-19} {1}", arg.ShortName, FormatMultiLine(arg.Description, 23));
+      } else {
+        Append("  /{0,-19} {1}", arg.LongName, FormatMultiLine(arg.Description, 23, arg.ShortName));
+      }
     }
 
     public void Visit(IntFlagArgDef arg) {
-      var valueSummary = string.Format("/{0}:{1}", arg.ShortName, arg.ValueName);
-      Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        var valueSummary = string.Format("/{0}:{1}", arg.ShortName, arg.ValueName);
+        Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
+      } else {
+        var valueSummary = string.Format("/{0}:{1}", arg.LongName, arg.ValueName);
+        Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
+      }
     }
 
     public void Visit(StringFlagArgDef arg) {
-      var valueSummary = string.Format("/{0}:{1}", arg.ShortName, arg.ValueName);
-      Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        var valueSummary = string.Format("/{0}:{1}", arg.ShortName, arg.ValueName);
+        Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
+      } else {
+        var valueSummary = string.Format("/{0}:{1}", arg.LongName, arg.ValueName);
+        Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
+      }
     }
 
-    private static string FormatMultiLine(string arg, int indent) {
+    private static string FormatMultiLine(string description, int indent, string shortArgName) {
+      return FormatMultiLine(string.Format("{0} (short: /{1})", description, shortArgName), indent);
+    }
+    private static string FormatMultiLine(string description, int indent) {
       var sb = new StringBuilder();
       int index = 0;
-      foreach (var line in SplitLines(arg)) {
+      foreach (var line in SplitLines(description)) {
         if (index > 0) {
           sb.AppendLine();
           sb.Append(new string(' ', indent));

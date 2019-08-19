@@ -52,12 +52,20 @@ namespace mtsuite.shared.CommandLine {
 
     public void Visit(IntFlagArgDef arg) {
       var valueSummary = string.Format(":{0}", arg.ValueName);
-      Append(arg.IsMandatory, "/{0}{1}", arg.ShortName, valueSummary);
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        Append(arg.IsMandatory, "/{0}{1}", arg.ShortName, valueSummary);
+      } else {
+        Append(arg.IsMandatory, "/{0}{1}", arg.LongName, valueSummary);
+      }
     }
 
     public void Visit(StringFlagArgDef arg) {
       var valueSummary = string.Format(":{0}", arg.ValueName);
-      Append(arg.IsMandatory, "/{0}{1}", arg.ShortName, valueSummary);
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        Append(arg.IsMandatory, "/{0}{1}", arg.ShortName, valueSummary);
+      } else {
+        Append(arg.IsMandatory, "/{0}{1}", arg.LongName, valueSummary);
+      }
     }
   }
 }
