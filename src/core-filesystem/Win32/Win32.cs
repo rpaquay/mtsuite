@@ -99,8 +99,8 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     internal SafeFindHandle FindFirstFile(TPath path, string pattern, out WIN32_FIND_DATA data) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
+        // Build search path as path + "\\" + "*" or pattern
         _pathSerializer.CopyTo(path, sb.Item);
-        // Build search pattern (on the stack) as path + "\\*" + '\0'
         sb.Item.Append('\\');
         sb.Item.Append(pattern ?? @"*");
 
