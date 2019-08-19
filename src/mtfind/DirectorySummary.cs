@@ -18,6 +18,12 @@ using mtsuite.CoreFileSystem;
 
 namespace mtfind {
 
+  /// <summary>
+  /// Data object used to collect summary information for a single directory.
+  /// There is a disctinct object per directory to ensure that parallel processing
+  /// can occur without locking, as a given directory is processed by at most one
+  /// thread at any single point in time.
+  /// </summary>
   public class DirectorySummary {
     private readonly FileSystemEntry _directoryEntry;
     private readonly List<DirectorySummary> _children;
@@ -29,18 +35,25 @@ namespace mtfind {
       _matchedFiles = new List<FileSystemEntry>();
     }
 
+    /// <summary>
+    /// The directory entry this instance correspond to.
+    /// </summary>
     public FileSystemEntry DirectoryEntry {
       get { return _directoryEntry; }
     }
 
+    /// <summary>
+    /// The list of summaries of the child directories.
+    /// </summary>
     public List<DirectorySummary> Children {
       get { return _children; }
     }
 
+    /// <summary>
+    /// The list of file system entries that match the search pattern(s).
+    /// </summary>
     public List<FileSystemEntry> MatchedFiles {
-      get {
-        return _matchedFiles;
-      }
+      get { return _matchedFiles; }
     }
   }
 }
