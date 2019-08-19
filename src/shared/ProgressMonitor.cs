@@ -112,7 +112,7 @@ namespace mtsuite.shared {
       return new KeyValuePair<int, int>(count1, count2);
     }
 
-    public void OnEntriesDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
+    public virtual void OnEntriesDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
       var directoryCount = 0;
       var fileCount = 0;
       var symlinkCount = 0;
@@ -132,7 +132,7 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    public void OnEntriesToDeleteDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
+    public virtual void OnEntriesToDeleteDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
       var count = CountPair(entries,
         x => x.IsFile || x.IsReparsePoint, // Real files or any kind of reparse point
         x => x.IsDirectory && !x.IsReparsePoint); // Real directories only
@@ -141,22 +141,22 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    public void OnDirectoryTraversing(FileSystemEntry directory) {
+    public virtual void OnDirectoryTraversing(FileSystemEntry directory) {
     }
 
-    public void OnDirectoryTraversed(FileSystemEntry directory) {
+    public virtual void OnDirectoryTraversed(FileSystemEntry directory) {
       Interlocked.Increment(ref _directoryTraversedCount);
     }
 
-    public void OnDirectoryCreated(FileSystemEntry directory) {
+    public virtual void OnDirectoryCreated(FileSystemEntry directory) {
       Interlocked.Increment(ref _directoryCreatedCount);
     }
 
-    public void OnEntryDeleting(Stopwatch stopwatch, FileSystemEntry entry) {
+    public virtual void OnEntryDeleting(Stopwatch stopwatch, FileSystemEntry entry) {
       stopwatch.Restart();
     }
 
-    public void OnEntryDeleted(Stopwatch stopwatch, FileSystemEntry entry) {
+    public virtual void OnEntryDeleted(Stopwatch stopwatch, FileSystemEntry entry) {
       stopwatch.Stop();
 
       if (entry.IsReparsePoint) {
@@ -169,7 +169,7 @@ namespace mtsuite.shared {
       }
     }
 
-    public void OnFileSkipped(FileSystemEntry entry, long size) {
+    public virtual void OnFileSkipped(FileSystemEntry entry, long size) {
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkSkippedCount);
       } else if (entry.IsFile) {
@@ -178,16 +178,16 @@ namespace mtsuite.shared {
       }
     }
 
-    public void OnFileCopying(Stopwatch stopwatch, FileSystemEntry entry) {
+    public virtual void OnFileCopying(Stopwatch stopwatch, FileSystemEntry entry) {
       stopwatch.Restart();
     }
 
-    public void OnFileCopyingProgress(Stopwatch stopwatch, FileSystemEntry entry, long size) {
+    public virtual void OnFileCopyingProgress(Stopwatch stopwatch, FileSystemEntry entry, long size) {
       Interlocked.Add(ref _fileCopiedTotalSize, size);
       Pulse();
     }
 
-    public void OnFileCopied(Stopwatch stopwatch, FileSystemEntry entry) {
+    public virtual void OnFileCopied(Stopwatch stopwatch, FileSystemEntry entry) {
       stopwatch.Stop();
 
       if (entry.IsReparsePoint) {
@@ -199,7 +199,7 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    public void OnError(Exception e) {
+    public virtual void OnError(Exception e) {
       lock (_errors) {
         _errors.Add(e);
       }
@@ -208,6 +208,10 @@ namespace mtsuite.shared {
     }
 
     protected abstract void DisplayStatus(Statistics statistics);
+
+    protected virtual void Print(ICollection<PrinterEntry> fields) {
+      _printer.Print(fields);
+    }
 
     private bool IsTimeToDisplayStatus() {
       var displayStatus = false;
@@ -220,10 +224,6 @@ namespace mtsuite.shared {
         }
       }
       return displayStatus;
-    }
-
-    protected void Print(ICollection<PrinterEntry> fields) {
-      _printer.Print(fields);
     }
   }
 }
