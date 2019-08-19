@@ -54,14 +54,13 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry> DirectoryCreated;
 
     private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
-      FromPool<List<FileSystemEntry>> entries;
       try {
-        entries = _fileSystem.GetDirectoryEntries(directoryPath);
+        return _fileSystem.GetDirectoryEntries(directoryPath);
       } catch (Exception e) {
         OnError(e);
-        entries = _entryListPool.AllocateFrom();
+        // Assume no entries available on error, so we can continue processing
+        return _entryListPool.AllocateFrom();
       }
-      return entries;
     }
 
     public void WaitForTask(ITask task) {
@@ -73,13 +72,14 @@ namespace mtsuite.shared {
       }
     }
 
-    public ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector) {
-      return TraverseDirectoryAsync<T>(directoryEntry, collector, 0, true);
+    public ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false) {
+      return TraverseDirectoryAsync<T>(directoryEntry, collector, followLinks, 0, true);
     }
 
     private ITask<T> TraverseDirectoryAsync<T>(
       FileSystemEntry directoryEntry,
       IDirectorCollector<T> collector,
+      bool followLinks,
       int depth,
       bool skipNotification) {
 
@@ -90,6 +90,7 @@ namespace mtsuite.shared {
         return TraverseDirectoryEntriesAsync(
           directoryEntry,
           collector,
+          followLinks,
           item,
           depth);
       }).Then(t => {
@@ -102,6 +103,7 @@ namespace mtsuite.shared {
     private ITask<T> TraverseDirectoryEntriesAsync<T>(
       FileSystemEntry directoryEntry,
       IDirectorCollector<T> collector,
+      bool followLinks,
       T item,
       int depth) {
 
@@ -112,9 +114,13 @@ namespace mtsuite.shared {
       collector.OnDirectoryEntriesEnumerated(item, directoryEntry, entries.Item);
       var directoryInfoTasks = _taskFactory.CreateCollection<T>();
       foreach (var entry in entries.Item) {
-        if (entry.IsDirectory && !entry.IsReparsePoint) {
-          var directoryTask = TraverseDirectoryAsync(entry, collector, depth + 1, false);
-          directoryInfoTasks.Add(directoryTask);
+        if (entry.IsDirectory) {
+          bool isRealDirectory = !entry.IsReparsePoint;
+          bool followDirectoryLink = entry.IsReparsePoint && followLinks;
+          if (isRealDirectory || followDirectoryLink) {
+            var directoryTask = TraverseDirectoryAsync(entry, collector, followLinks, depth + 1, false);
+            directoryInfoTasks.Add(directoryTask);
+          }
         }
       }
       entries.Dispose();

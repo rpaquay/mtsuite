@@ -38,7 +38,7 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> DirectoryCreated;
     void WaitForTask(ITask task);
 
-    ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector);
+    ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false);
 
     ITask CopyDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options, IFileComparer fileComparer, bool destinationDirectoryIsNew);
 
