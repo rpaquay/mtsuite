@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
+using System.ComponentModel;
+using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
@@ -34,6 +37,32 @@ namespace mtfind {
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
       };
       Print(fields);
+    }
+
+    /// <summary>
+    /// Ignore errors that are harmless, such as inability to enumerate files in
+    /// a directory.
+    /// </summary>
+    public override void OnError(Exception e) {
+      if (IsIgnorableError(e)) {
+        return;
+      }
+
+      base.OnError(e);
+    }
+
+    private bool IsIgnorableError(Exception e) {
+      var win32Error = e as Win32Exception;
+      if (win32Error == null) {
+        return false;
+      }
+
+      switch (win32Error.NativeErrorCode) {
+        case (int)Win32Errors.ERROR_PATH_NOT_FOUND:
+          return true;
+        default:
+          return false;
+      }
     }
   }
 }
