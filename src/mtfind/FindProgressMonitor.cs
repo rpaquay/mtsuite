@@ -20,7 +20,13 @@ using mtsuite.shared.Utils;
 
 namespace mtfind {
   public class FindProgressMonitor : ProgressMonitor {
+    public bool QuietMode { get; set; }
+
     protected override void DisplayStatus(Statistics statistics) {
+      if (QuietMode) {
+        return;
+      }
+
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);

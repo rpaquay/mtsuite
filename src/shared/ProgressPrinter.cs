@@ -26,7 +26,9 @@ namespace mtsuite.shared {
     private bool _supportsPositions;
 
     public void Stop() {
-      Console.WriteLine();
+      if (_init) {
+        Console.WriteLine();
+      }
     }
 
     public void Print(ICollection<PrinterEntry> fields) {
@@ -34,13 +36,11 @@ namespace mtsuite.shared {
       lock (_lock) {
         if (!_supportsPositions) {
           Console.Write("\r{0}", BuildSingleLineOutput(fields));
-        }
-        else {
+        } else {
           try {
             Console.SetCursorPosition(_cursorInitLeft, _cursorInitTop);
             Console.Write(BuildMultiLineOutput(fields));
-          }
-          catch (Exception) {
+          } catch (Exception) {
             Console.Write("\r{0}", BuildSingleLineOutput(fields));
             _supportsPositions = false;
           }
@@ -56,8 +56,7 @@ namespace mtsuite.shared {
       foreach (var field in fields) {
         if (first) {
           first = false;
-        }
-        else {
+        } else {
           sb.AppendLine();
         }
 
@@ -85,8 +84,7 @@ namespace mtsuite.shared {
           field.ExtraValue == null ? "" : (" " + field.ExtraValue));
         if (s.Length > 0) {
           return s + ", " + entry;
-        }
-        else {
+        } else {
           return s + entry;
         }
       });
@@ -103,8 +101,7 @@ namespace mtsuite.shared {
             _cursorInitLeft = Console.CursorLeft;
             _cursorInitTop = Console.CursorTop;
             _supportsPositions = true;
-          }
-          catch (Exception) {
+          } catch (Exception) {
             _supportsPositions = false;
           }
 
