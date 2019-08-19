@@ -45,10 +45,10 @@ namespace mtfind {
     public void Run(string[] args) {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithHelpSwitch()
+        .WithStringFlag("directory", "The directory tree to search", "d", "path", Environment.CurrentDirectory, null, "", "directory")
+        .WithSwitch("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "plain", "", "plain-output")
         .WithThreadCountSwitch()
         .WithGcSwitch()
-        .WithStringFlag("path", "The directory tree to search", "p", "path", Environment.CurrentDirectory, null, "", "path")
-        .WithSwitch("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "plain")
         .WithString("pattern", "The pattern to search for", true, "*")
         .Build();
 
@@ -66,7 +66,7 @@ namespace mtfind {
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
 
-      var sourcePath = ProgramHelpers.MakeFullPath(parser["path"].StringValue);
+      var sourcePath = ProgramHelpers.MakeFullPath(parser["directory"].StringValue);
       var pattern = parser["pattern"].StringValue;
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       bool isPlainOutput = parser.Contains("plain-output");

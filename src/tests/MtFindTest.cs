@@ -41,7 +41,7 @@ namespace tests {
     public void MtFindShouldThrowWithNonExistingFolder() {
       var mtfind = new MtFind(_fileSystemSetup.FileSystem);
       mtfind.Run(new string[] {
-        "-path", "fake",
+        "-d", "fake",
         "foo"
       });
     }
