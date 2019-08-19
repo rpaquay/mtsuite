@@ -192,15 +192,31 @@ namespace tests {
     }
 
     [TestMethod]
-    public void FullPathCompareToShouldWork1() {
-      var path1 = new FullPath(@"c:\test\test2");
-      var path2 = new FullPath(@"c:\testaaaa");
+    public void FullPathCompareToShouldWork() {
+      var path1 = new FullPath(@"c:\test\foo\bar\blah");
+      var path2 = new FullPath(@"c:\test\b");
       Assert.IsTrue(path1.CompareTo(path2) > 0);
       Assert.IsTrue(path2.CompareTo(path1) < 0);
     }
 
     [TestMethod]
     public void FullPathCompareToShouldWork2() {
+      var path1 = new FullPath(@"c:\test\b");
+      var path2 = new FullPath(@"c:\test\foo\bar\blah");
+      Assert.IsTrue(path1.CompareTo(path2) < 0);
+      Assert.IsTrue(path2.CompareTo(path1) > 0);
+    }
+
+    [TestMethod]
+    public void FullPathCompareToShouldWork3() {
+      var path1 = new FullPath(@"c:\test\test2");
+      var path2 = new FullPath(@"c:\testaaaa");
+      Assert.IsTrue(path1.CompareTo(path2) < 0);
+      Assert.IsTrue(path2.CompareTo(path1) > 0);
+    }
+
+    [TestMethod]
+    public void FullPathCompareToShouldWork4() {
       var path1 = new FullPath(@"c:\test\test2");
       var path2 = new FullPath(@"c:\test").Combine("test2");
       Assert.IsTrue(path1.CompareTo(path2) == 0);
