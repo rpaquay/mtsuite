@@ -47,7 +47,11 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public void Visit(SwitchArgDef arg) {
-      Append(arg.IsMandatory, "/{0}", arg.ShortName);
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        Append(arg.IsMandatory, "/{0}", arg.ShortName);
+      } else {
+        Append(arg.IsMandatory, "/{0}", arg.LongName);
+      }
     }
 
     public void Visit(IntFlagArgDef arg) {
