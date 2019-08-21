@@ -43,48 +43,36 @@ namespace mtfind {
     }
 
     public void Run(string[] args) {
-      var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithHelpSwitch()
-        .WithStringFlag("directory", "The directory tree to search", "d", "path", Environment.CurrentDirectory, null, "", "directory")
-        .WithSwitch("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "plain", "", "plain-output")
-        .WithThreadCountSwitch()
-        .WithGcSwitch()
-        .WithString("pattern", "The pattern to search for", true, "*")
-        .Build();
-
-      var parser = new ArgumentsParser(argumentDefinitions, args);
-      parser.Parse();
-      if (!parser.IsValid || parser.Contains("help")) {
+      var arguments = new MtFindArguments(args);
+      if (!arguments.IsValid || arguments.Values.Help) {
         DisplayBanner();
-        if (!parser.Contains("help")) {
-          foreach (var error in parser.Errors) {
-            Console.WriteLine("ERROR: {0}", error);
-          }
-          Console.WriteLine();
+        if (!arguments.Values.Help) {
+          arguments.DisplayArgumentErrors();
         }
-        DisplayUsage(argumentDefinitions);
+        arguments.DisplayUsage();
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
 
-      var sourcePath = ProgramHelpers.MakeFullPath(parser["directory"].StringValue);
-      var pattern = parser["pattern"].StringValue;
-      ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
-      bool isPlainOutput = parser.Contains("plain-output");
+      var sourcePath = ProgramHelpers.MakeFullPath(arguments.Values.Directory);
+      var pattern = arguments.Values.Pattern;
+      ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
+      bool followLinks = !arguments.Values.NoFollowLinks;
+      bool isPlainOutput = arguments.Values.PlainOutput;
       if (!isPlainOutput) {
         DisplayBanner();
       }
 
-      var summaryRoot = DoFind(sourcePath, pattern, isPlainOutput);
-
-      var statistics = _progressMonitor.GetStatistics();
-      if (!isPlainOutput) {
-        DisplayResults(statistics);
-        Console.WriteLine();
-      }
+      var summaryRoot = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
       DisplayMatchesFiles(summaryRoot, pattern, isPlainOutput);
 
-      if (parser.Contains("gc")) {
+      var statistics = _progressMonitor.GetStatistics();
+      if (!isPlainOutput) {
+        DisplayStatistics(statistics);
+        Console.WriteLine();
+      }
+
+      if (arguments.Values.GarbageCollect) {
         ProgramHelpers.DisplayGcStatistics();
       }
 
@@ -103,17 +91,8 @@ namespace mtfind {
       Console.WriteLine();
     }
 
-    private static void DisplayUsage(IList<ArgDef> argumentDefinitions) {
-      Console.WriteLine("Search for file names inside a directory.");
-      Console.WriteLine();
-      Console.WriteLine("Usage: {0} {1}", Process.GetCurrentProcess().ProcessName,
-        ArgumentsHelper.BuildUsageSummary(argumentDefinitions));
-      Console.WriteLine();
-      ArgumentsHelper.PrintArgumentUsageSummary(argumentDefinitions);
-    }
-
-    public DirectorySummaryRoot DoFind(FullPath sourcePath, string pattern, bool isPlainOutput) {
-      _progressMonitor.QuietMode = isPlainOutput;
+    public DirectorySummaryRoot DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+      _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
       FileSystemEntry sourceDirectory;
@@ -130,7 +109,7 @@ namespace mtfind {
       }
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(CreateFileNameMatcher(pattern));
-      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, true);
+      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return directorySummaryCollector.Root;
@@ -141,7 +120,7 @@ namespace mtfind {
       return entry => matcher.MatchString(entry.Path.Name);
     }
 
-    private static void DisplayResults(Statistics statistics) {
+    private static void DisplayStatistics(Statistics statistics) {
       Console.WriteLine();
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));

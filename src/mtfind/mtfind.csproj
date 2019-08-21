@@ -48,6 +48,7 @@
     <Compile Include="FileNameMatcher.cs" />
     <Compile Include="FindProgressMonitor.cs" />
     <Compile Include="MtFind.cs" />
+    <Compile Include="MtFindArguments.cs" />
     <Compile Include="SearchPatternPartMatcher.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
