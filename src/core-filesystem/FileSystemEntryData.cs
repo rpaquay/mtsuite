@@ -18,11 +18,19 @@ namespace mtsuite.CoreFileSystem {
         data.ftLastWriteTimeHigh, data.ftLastWriteTimeLow) {
     }
 
+    public FileSystemEntryData(FileIdFullInformation data)
+      : this(data.FileAttributes, data.FileSize, data.ftLastWritTime) {
+    }
+
     public FileSystemEntryData(uint attributes, uint fileSizeHigh, uint fileSizeLow,
-      uint ftLastWriteTimeHigh, uint ftLastWriteTimeLow) {
-      _attributes = (FileAttributes)attributes;
-      _fileSize = HighLowToLong(fileSizeHigh, fileSizeLow);
-      _lastWriteTimeUtc = HighLowToLong(ftLastWriteTimeHigh, ftLastWriteTimeLow);
+      uint ftLastWriteTimeHigh, uint ftLastWriteTimeLow)
+      : this((FileAttributes)attributes, HighLowToLong(fileSizeHigh, fileSizeLow), HighLowToLong(ftLastWriteTimeHigh, ftLastWriteTimeLow)) {
+    }
+
+    public FileSystemEntryData(FileAttributes attributes, long fileSize, long lastWriteTimeUtc) {
+      _attributes = attributes;
+      _fileSize = fileSize;
+      _lastWriteTimeUtc = lastWriteTimeUtc;
     }
 
     public long FileSize => _fileSize;

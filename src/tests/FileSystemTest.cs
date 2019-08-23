@@ -342,7 +342,7 @@ namespace tests {
 
       // Act
       var link = _fileSystemSetup.Root.CreateFileLink("link.txt", "foo.txt");
-      var entries = new List<DirectoryEntry>();
+      var entries = new List<FileIdFullInformation>();
       using (var e = _fileSystemSetup.FileSystem.GetDirectoryFilesEnumerator(_fileSystemSetup.Root.Path, null)) {
         while (e.MoveNext()) {
           entries.Add(e.Current);
@@ -351,13 +351,13 @@ namespace tests {
 
       // Assert
       Assert.IsTrue(entries.Count == 2);
-      Assert.IsTrue(new FileSystemEntryData(entries[0].Data).IsFile);
-      Assert.IsFalse(new FileSystemEntryData(entries[0].Data).IsReparsePoint);
-      Assert.IsTrue(IsTodaysDate(new FileSystemEntryData(entries[1].Data).LastWriteTimeUtc));
+      Assert.IsTrue(new FileSystemEntryData(entries[0]).IsFile);
+      Assert.IsFalse(new FileSystemEntryData(entries[0]).IsReparsePoint);
+      Assert.IsTrue(IsTodaysDate(new FileSystemEntryData(entries[1]).LastWriteTimeUtc));
 
-      Assert.IsTrue(new FileSystemEntryData(entries[1].Data).IsFile);
-      Assert.IsTrue(new FileSystemEntryData(entries[1].Data).IsReparsePoint);
-      Assert.IsTrue(IsTodaysDate(new FileSystemEntryData(entries[1].Data).LastWriteTimeUtc));
+      Assert.IsTrue(new FileSystemEntryData(entries[1]).IsFile);
+      Assert.IsTrue(new FileSystemEntryData(entries[1]).IsReparsePoint);
+      Assert.IsTrue(IsTodaysDate(new FileSystemEntryData(entries[1]).LastWriteTimeUtc));
     }
 
     private bool IsTodaysDate(DateTime dateTimeUtc) {

@@ -18,12 +18,14 @@ using mtsuite.CoreFileSystem.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.InteropServices;
 using static mtsuite.CoreFileSystem.Win32.NativeMethods;
 
 namespace mtsuite.CoreFileSystem.Win32 {
   public class Win32<TPath> {
     private readonly IPool<List<DirectoryEntry>> _entryListPool = new ListPool<DirectoryEntry>();
+    private readonly IPool<List<FileIdFullInformation>> _entryListFilesPool = new ListPool<FileIdFullInformation>();
     private readonly IPool<StringBuffer> _stringBufferPool = PoolFactory<StringBuffer>.Create(() => new StringBuffer(64), x => x.Clear());
     private readonly IPool<ByteBuffer> _byteBufferPool = PoolFactory<ByteBuffer>.Create(() => new ByteBuffer(256));
     private readonly IPathSerializer<TPath> _pathSerializer;
@@ -112,7 +114,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
       return new DirectoryFilesEnumerator<TPath>(this, path, pattern);
     }
 
-    public IEnumerable<DirectoryEntry> EnumerateDirectoryFiles(TPath path, string pattern = null) {
+    public IEnumerable<FileIdFullInformation> EnumerateDirectoryFiles(TPath path, string pattern = null) {
       using (var e = GetDirectoryFilesEnumerator(path, pattern)) {
         while (e.MoveNext()) {
           yield return e.CurrentEntry;
@@ -120,9 +122,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
       }
     }
 
-    public FromPool<List<DirectoryEntry>> GetDirectoryFiles(TPath path, string pattern = null) {
+    public FromPool<List<FileIdFullInformation>> GetDirectoryFiles(TPath path, string pattern = null) {
       using (var e = GetDirectoryFilesEnumerator(path, pattern)) {
-        var result = _entryListPool.AllocateFrom();
+        var result = _entryListFilesPool.AllocateFrom();
         while (e.MoveNext()) {
           result.Item.Add(e.Current);
         }
@@ -183,6 +185,14 @@ namespace mtsuite.CoreFileSystem.Win32 {
                    (name[0] == '.' && name[1] == '.' && name[2] == 0);
           }
         }
+      }
+
+      return false;
+    }
+
+    public static bool SkipSpecialEntry(ref FileIdFullInformation data) {
+      if ((data.FileAttributes & FileAttributes.Directory) != 0) {
+        return ".".Equals(data.FileName) || "..".Equals(data.FileName);
       }
 
       return false;
@@ -262,18 +272,18 @@ namespace mtsuite.CoreFileSystem.Win32 {
     private const int OFFSETOF_FILENAME = 80;
 
     private static unsafe int GetBufferInt32(void* buffer, int offset) {
-      return *(int*)( ((byte*)buffer) + offset);
+      return *(int*)(((byte*)buffer) + offset);
     }
 
     private static unsafe long GetBufferInt64(void* buffer, int offset) {
       return *(long*)(((byte*)buffer) + offset);
     }
 
-    private static unsafe void *GetBufferPtr(void* buffer, int offset) {
+    private static unsafe void* GetBufferPtr(void* buffer, int offset) {
       return (void*)(((byte*)buffer) + offset);
     }
 
-    public unsafe int ExtractQueryDirectoryFileEntry(SafeHGlobalHandle bufferHandle, int bufferOffset, out WIN32_FIND_DATA data) {
+    public unsafe int ExtractQueryDirectoryFileEntry(SafeHGlobalHandle bufferHandle, int bufferOffset, out FileIdFullInformation data) {
       // typedef struct _FILE_ID_FULL_DIR_INFORMATION {
       //  ULONG         NextEntryOffset;  // offset = 0
       //  ULONG         FileIndex;        // offset = 4
@@ -292,54 +302,22 @@ namespace mtsuite.CoreFileSystem.Win32 {
       void* entryPointer = ((byte*)bufferHandle.DangerousGetHandle().ToPointer()) + bufferOffset;
       int nextEntryOffset = GetBufferInt32(entryPointer, OFFSETOF_NEXT_ENTRY_OFFSET);
 
-      long fileSize = GetBufferInt64(entryPointer, OFFSETOF_END_OF_FILE);
-      long creationTime = GetBufferInt64(entryPointer, OFFSETOF_CREATION_TIME);
-      long lastAccessTime = GetBufferInt64(entryPointer, OFFSETOF_LAST_ACCESS_TIME);
-      long lastModified = GetBufferInt64(entryPointer, OFFSETOF_LAST_WRITE_TIME);
+      data.FileSize = GetBufferInt64(entryPointer, OFFSETOF_END_OF_FILE);
+      data.ftCreationTime = GetBufferInt64(entryPointer, OFFSETOF_CREATION_TIME);
+      data.ftLastAccessTime = GetBufferInt64(entryPointer, OFFSETOF_LAST_ACCESS_TIME);
+      data.ftLastWritTime = GetBufferInt64(entryPointer, OFFSETOF_LAST_WRITE_TIME);
 
       //
       // See https://docs.microsoft.com/en-us/windows/desktop/fileio/reparse-point-tags
       //  IO_REPARSE_TAG_SYMLINK (0xA000000C)
       //
-      uint fileAttributes = (uint)GetBufferInt32(entryPointer, OFFSETOF_FILE_ATTRIBUTES);
-      int reparseTagData = GetBufferInt32(entryPointer, OFFSETOF_EA_SIZE);
-      long fileId = GetBufferInt64(entryPointer, OFFSETOF_FILE_ID);
+      //int reparseTagData = GetBufferInt32(entryPointer, OFFSETOF_EA_SIZE);
+      data.FileAttributes = (FileAttributes)GetBufferInt32(entryPointer, OFFSETOF_FILE_ATTRIBUTES);
+      data.FileID = GetBufferInt64(entryPointer, OFFSETOF_FILE_ID);
 
       int FileNameByteCount = GetBufferInt32(entryPointer, OFFSETOF_FILENAME_LENGTH);
-      char* fileNamePtr = (char *)GetBufferPtr(entryPointer, OFFSETOF_FILENAME);
-
-      // Skip "." and ".." entries
-      //if (!".".equals(fileName) && !"..".equals(fileName)) {
-      //  if (type == FileInfo.Type.Symlink && followLink) {
-      //    WindowsFileInfo targetInfo = stat(new File(dir, fileName), true);
-      //    dirList.addFile(fileName, targetInfo);
-      //  } else {
-      //    dirList.addFile(fileName, type, fileSize, WindowsFileTime.toJavaTime(lastModified), volumeId, fileId);
-      //  }
-      //}
-
-      data.dwFileAttributes = fileAttributes;
-      data.ftCreationTime_dwLowDateTime = (uint)(creationTime & 0xffffffff);
-      data.ftCreationTime_dwHighDateTime = (uint)(creationTime >> 32);
-      data.ftLastAccessTime_dwLowDateTime = (uint)(lastAccessTime & 0xffffffff); ;
-      data.ftLastAccessTime_dwHighDateTime = (uint)(lastAccessTime >> 32);
-      data.ftLastWriteTime_dwLowDateTime = (uint)(lastModified & 0xffffffff); ;
-      data.ftLastWriteTime_dwHighDateTime = (uint)(lastModified >> 32);
-      data.nFileSizeLow = (uint)(fileSize & 0xffffffff);
-      data.nFileSizeHigh = (uint)(fileSize >> 32);
-      data.dwReserved0 = (uint)reparseTagData;
-      data.dwReserved1 = 0;
-      data.cFileName[0] = '\0';
-      data.cAlternateFileName[0] = '\0';
-      fixed (char* cFileNamePtr = data.cFileName) {
-        char* destPtr = cFileNamePtr;
-        for (int i = 0; i < FileNameByteCount / SIZEOF_WCHAR; i++) {
-          *destPtr = *fileNamePtr;
-          destPtr++;
-          fileNamePtr++;
-        }
-        *destPtr = '\0';
-      }
+      char* fileNamePtr = (char*)GetBufferPtr(entryPointer, OFFSETOF_FILENAME);
+      data.FileName = new string(fileNamePtr, 0, FileNameByteCount / SIZEOF_WCHAR);
 
       return nextEntryOffset == 0 ? -1 : bufferOffset + nextEntryOffset;
     }
@@ -665,7 +643,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
           lastWin32Error = CreateSymbolicLinkWorker2(targetPath, linkFlag, sb);
         }
 
-        if (lastWin32Error == (int) Win32Errors.ERROR_SUCCESS) {
+        if (lastWin32Error == (int)Win32Errors.ERROR_SUCCESS) {
           return;
         }
 

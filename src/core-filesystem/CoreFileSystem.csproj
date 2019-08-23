@@ -67,6 +67,7 @@
     <Compile Include="ObjectPool\FromPool.cs" />
     <Compile Include="Win32\DirectoryEntriesEnumerator.cs" />
     <Compile Include="Win32\EnumerateDirectoryEntriesCallback.cs" />
+    <Compile Include="Win32\FileIdFullInformation.cs" />
     <Compile Include="Win32\FILE_ATTRIBUTE.cs" />
     <Compile Include="Win32\IPathSerializer.cs" />
     <Compile Include="Win32\LastWin32ErrorException.cs" />

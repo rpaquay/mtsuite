@@ -15,6 +15,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.CoreFileSystem.Win32 {
@@ -30,7 +31,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
   /// loops.
   /// </para>
   /// </summary>
-  public struct DirectoryFilesEnumerator<TPath> : IEnumerator<DirectoryEntry> {
+  public struct DirectoryFilesEnumerator<TPath> : IEnumerator<FileIdFullInformation> {
     private readonly Win32<TPath> _win32;
     private readonly TPath _directoryPath;
     private readonly SafeFileHandle _fileHandle;
@@ -39,7 +40,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
     private bool _reachedEOF;
 
     public DirectoryFilesEnumerator(Win32<TPath> win32, TPath directoryPath, string pattern) {
-      CurrentEntry = default(DirectoryEntry);
+      CurrentEntry = default(FileIdFullInformation);
       _win32 = win32;
       _directoryPath = directoryPath;
       _bufferOffset = 0;
@@ -59,9 +60,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
     /// <summary>
     /// The current entry, exposed without any copying
     /// </summary>
-    public DirectoryEntry CurrentEntry;
+    public FileIdFullInformation CurrentEntry;
 
-    public DirectoryEntry Current {
+    public FileIdFullInformation Current {
       get {
         return CurrentEntry;
       }
@@ -89,10 +90,10 @@ namespace mtsuite.CoreFileSystem.Win32 {
         }
 
         // Extract entry at "_bufferOffset"
-        _bufferOffset = _win32.ExtractQueryDirectoryFileEntry(_bufferHandle, _bufferOffset, out CurrentEntry.Data);
+        _bufferOffset = _win32.ExtractQueryDirectoryFileEntry(_bufferHandle, _bufferOffset, out CurrentEntry);
 
         // Skip "." and ".."
-        if (!Win32<TPath>.SkipSpecialEntry(ref CurrentEntry.Data)) {
+        if (!Win32<TPath>.SkipSpecialEntry(ref CurrentEntry)) {
           return true;
         }
       }

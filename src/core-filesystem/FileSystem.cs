@@ -74,7 +74,7 @@ namespace mtsuite.CoreFileSystem {
       using (var entries = _win32.GetDirectoryFiles(path, pattern)) {
         var result = _entryListPool.AllocateFrom();
         foreach (var x in entries.Item) {
-          result.Item.Add(new FileSystemEntry(path.Combine(x.FileName), new FileSystemEntryData(x.Data)));
+          result.Item.Add(new FileSystemEntry(path.Combine(x.FileName), new FileSystemEntryData(x)));
         }
         return result;
       }
@@ -82,7 +82,7 @@ namespace mtsuite.CoreFileSystem {
 
     public IEnumerable<FileSystemEntry> EnumerateDirectoryFiles(FullPath path, string pattern = null) {
       return _win32.EnumerateDirectoryFiles(path, pattern)
-        .Select(entry => new FileSystemEntry(path.Combine(entry.FileName), new FileSystemEntryData(entry.Data)));
+        .Select(entry => new FileSystemEntry(path.Combine(entry.FileName), new FileSystemEntryData(entry)));
     }
 
     public void DeleteEntry(FileSystemEntry entry) {
