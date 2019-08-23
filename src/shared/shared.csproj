@@ -46,6 +46,7 @@
     <Compile Include="CommandLine\CommandLineReturnValueException.cs" />
     <Compile Include="CommandLine\IArgumentDefinitionVisitor.cs" />
     <Compile Include="CopyProgressMonitor.cs" />
+    <Compile Include="FieldsPrinter.cs" />
     <Compile Include="PrinterEntry.cs" />
     <Compile Include="ProgressPrinter.cs" />
     <Compile Include="Utils\FormatHelpers.cs" />

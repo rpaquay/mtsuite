@@ -27,7 +27,8 @@ namespace mtsuite.shared {
 
     public void Stop() {
       if (_init) {
-        Console.WriteLine();
+        Console.WriteLine(); // end previously displayed line
+        Console.WriteLine(); // empty line
       }
     }
 
@@ -35,59 +36,17 @@ namespace mtsuite.shared {
       EnsureInit();
       lock (_lock) {
         if (!_supportsPositions) {
-          Console.Write("\r{0}", BuildSingleLineOutput(fields));
+          Console.Write("\r{0}", FieldsPrinter.BuildSingleLineOutput(fields));
         } else {
           try {
             Console.SetCursorPosition(_cursorInitLeft, _cursorInitTop);
-            Console.Write(BuildMultiLineOutput(fields));
+            Console.Write(FieldsPrinter.BuildMultiLineOutput(fields));
           } catch (Exception) {
-            Console.Write("\r{0}", BuildSingleLineOutput(fields));
+            Console.Write("\r{0}", FieldsPrinter.BuildSingleLineOutput(fields));
             _supportsPositions = false;
           }
         }
       }
-    }
-
-    private static string BuildMultiLineOutput(ICollection<PrinterEntry> fields) {
-      var sb = new StringBuilder();
-      var nameMaxWidth = fields.Max(kvp => kvp.DisplayName.Length + kvp.Indent);
-      var valuesMaxWidth = fields.Max(kvp => kvp.Value?.Length ?? 0);
-      var first = true;
-      foreach (var field in fields) {
-        if (first) {
-          first = false;
-        } else {
-          sb.AppendLine();
-        }
-
-        var value = field.Value ?? "";
-        sb.AppendFormat("{0} {1}{2}{3}         ",
-          (new string(' ', field.Indent) + field.DisplayName + ":").PadRight(nameMaxWidth + 2),
-          field.ValueAlign == Align.Left ? value.PadRight(valuesMaxWidth) : value.PadLeft(valuesMaxWidth),
-          field.ValueUnit == null ? "" : (" " + field.ValueUnit),
-          field.ExtraValue == null ? "" : (" " + field.ExtraValue));
-      }
-
-      return sb.ToString();
-    }
-
-    private static string BuildSingleLineOutput(IEnumerable<PrinterEntry> fields) {
-      return fields.Aggregate("", (s, field) => {
-        if (field.Value == null) {
-          return s;
-        }
-
-        var entry = string.Format("{0}: {1}{2}{3}",
-          field.ShortName ?? field.DisplayName,
-          field.Value,
-          field.ValueUnit == null ? "" : (" " + field.ValueUnit),
-          field.ExtraValue == null ? "" : (" " + field.ExtraValue));
-        if (s.Length > 0) {
-          return s + ", " + entry;
-        } else {
-          return s + entry;
-        }
-      });
     }
 
     private void EnsureInit() {

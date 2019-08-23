@@ -106,6 +106,7 @@ namespace mtfind {
 
       if (!isPlainOutput) {
         Console.WriteLine("Search file names from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine();
       }
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(CreateFileNameMatcher(pattern));
@@ -121,17 +122,26 @@ namespace mtfind {
     }
 
     private static void DisplayStatistics(Statistics statistics) {
+      var elapsedTimeText = FormatHelpers.FormatElapsedTime(statistics.ElapsedTime);
+      var cpuTimeText = FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime);
+      var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
+      var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
+      var symlinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
+      var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
+      var fields = new[] {
+        new PrinterEntry("Statistics"),
+        new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right, indent: 2),
+        new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of symlinks", symlinksText, shortName: "symlinks", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName:"entries/sec", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right, indent: 2),
+      };
       Console.WriteLine();
-      Console.WriteLine("Statistics:");
-      Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
-      Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
-      Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
-      Console.WriteLine("  # of files:               {0:n0}", statistics.FileEnumeratedCount);
-      Console.WriteLine("  # of symlinks:            {0:n0}", statistics.SymlinkEnumeratedCount);
-      Console.WriteLine("  # entries/sec:            {0:n0}",
-        statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      FieldsPrinter.WriteLine(fields);
 
-      Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
@@ -143,11 +153,11 @@ namespace mtfind {
         .OrderBy(entry => entry.Path)
         .ToList();
 
-      if (!isPlainOutput) {
-        Console.WriteLine("Found {0} entries matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
-      }
       foreach (var entry in matchedEntries) {
         Console.WriteLine(PathHelpers.StripLongPathPrefix(entry.Path.FullName));
+      }
+      if (!isPlainOutput) {
+        Console.WriteLine("Found {0} entries matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
       }
     }
 
