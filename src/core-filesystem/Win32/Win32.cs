@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using static mtsuite.CoreFileSystem.Win32.NativeMethods;
 
 namespace mtsuite.CoreFileSystem.Win32 {
   public class Win32<TPath> {
@@ -97,6 +98,38 @@ namespace mtsuite.CoreFileSystem.Win32 {
       }
     }
 
+    /// <summary>
+    /// Return the list of entries of a directory as a <see cref="DirectoryEntriesEnumerator{TPath}"/>.
+    /// The returned <see cref="DirectoryEntriesEnumerator{TPath}"/> is a value type so there is no heap allocation
+    /// involved. There is also no heap allocation involved when enumerating entries with
+    /// <see cref="DirectoryEntriesEnumerator{TPath}.MoveNext"/> and <see cref="DirectoryEntriesEnumerator{TPath}.CurrentEntry"/>,
+    /// other than when calling <see cref="DirectoryEntry.FileName"/>.
+    /// <para>
+    /// This is the most efficient way of enumerating the list of entries of a directory.
+    /// </para>
+    /// </summary>
+    public DirectoryFilesEnumerator<TPath> GetDirectoryFilesEnumerator(TPath path, string pattern = null) {
+      return new DirectoryFilesEnumerator<TPath>(this, path, pattern);
+    }
+
+    public IEnumerable<DirectoryEntry> EnumerateDirectoryFiles(TPath path, string pattern = null) {
+      using (var e = GetDirectoryFilesEnumerator(path, pattern)) {
+        while (e.MoveNext()) {
+          yield return e.CurrentEntry;
+        }
+      }
+    }
+
+    public FromPool<List<DirectoryEntry>> GetDirectoryFiles(TPath path, string pattern = null) {
+      using (var e = GetDirectoryFilesEnumerator(path, pattern)) {
+        var result = _entryListPool.AllocateFrom();
+        while (e.MoveNext()) {
+          result.Item.Add(e.Current);
+        }
+        return result;
+      }
+    }
+
     internal SafeFindHandle FindFirstFile(TPath path, string pattern, out WIN32_FIND_DATA data) {
       using (var sb = _stringBufferPool.AllocateFrom()) {
         // Build search path as path + "\\" + "*" or pattern
@@ -142,7 +175,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
           StripPath(path)));
     }
 
-    internal static bool SkipSpecialEntry(ref WIN32_FIND_DATA data) {
+    public static bool SkipSpecialEntry(ref WIN32_FIND_DATA data) {
       if ((data.dwFileAttributes & (int)FILE_ATTRIBUTE.FILE_ATTRIBUTE_DIRECTORY) != 0) {
         unsafe {
           fixed (char* name = data.cFileName) {
@@ -153,6 +186,162 @@ namespace mtsuite.CoreFileSystem.Win32 {
       }
 
       return false;
+    }
+
+    public unsafe bool InvokeNtQueryDirectoryFile(TPath path, SafeFileHandle fileHandle, SafeHGlobalHandle bufferHandle, bool isFirstCall, string pattern) {
+      IO_STATUS_BLOCK statusBlock = new IO_STATUS_BLOCK();
+      UNICODE_STRING patternString = new UNICODE_STRING();
+      UNICODE_STRING* patternStringPtr = null;
+      int ntstatus;
+      try {
+        if (isFirstCall) {
+          if (!string.IsNullOrEmpty(pattern)) {
+            patternStringPtr = &patternString;
+            UNICODE_STRING.SetString(ref patternString, pattern);
+          }
+        }
+        ntstatus = NativeMethods.NtQueryDirectoryFile(fileHandle,
+          IntPtr.Zero,
+          null,
+          null,
+          &statusBlock,
+          bufferHandle,
+          (uint)bufferHandle.Size,
+          FILE_INFORMATION_CLASS.FileIdFullDirectoryInformation,
+          false,
+          patternStringPtr,
+          false);
+      } finally {
+        UNICODE_STRING.FreeString(ref patternString);
+      }
+
+
+      if (ntstatus < 0) {
+        if (isFirstCall) {
+          /*
+           * NtQueryDirectoryFile returns STATUS_INVALID_PARAMETER when
+           * asked to enumerate an invalid directory (ie it is a file
+           * instead of a directory).  Verify that is the actual cause
+           * of the error.
+           */
+          if (ntstatus == (int)NtStatusErrors.STATUS_INVALID_PARAMETER) {
+            FILE_ATTRIBUTE attributes = GetFileAttributes(path);
+            if ((attributes & FILE_ATTRIBUTE.FILE_ATTRIBUTE_DIRECTORY) == 0) {
+              ntstatus = (int)NtStatusErrors.STATUS_NOT_A_DIRECTORY;
+            }
+          }
+        }
+      }
+
+      if (ntstatus < 0) {
+        if (ntstatus == (int)NtStatusErrors.STATUS_NO_MORE_FILES) {
+          return false;
+        }
+
+        throw new LastWin32ErrorException((int)RtlNtStatusToDosError(ntstatus),
+           string.Format("Error during enumeration of files at \"{0}\"", StripPath(path)));
+      }
+
+      return true;
+    }
+
+    private const int FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400;
+    private const int FILE_ATTRIBUTE_DIRECTORY = 0x00000010;
+    private const int IO_REPARSE_TAG_SYMLINK = unchecked((int)0xA000000C);
+
+    private const int SIZEOF_WCHAR = 2;
+    private const int OFFSETOF_NEXT_ENTRY_OFFSET = 0;
+    private const int OFFSETOF_CREATION_TIME = 8;
+    private const int OFFSETOF_LAST_ACCESS_TIME = 16;
+    private const int OFFSETOF_LAST_WRITE_TIME = 24;
+    private const int OFFSETOF_END_OF_FILE = 40;
+    private const int OFFSETOF_FILE_ATTRIBUTES = 56;
+    private const int OFFSETOF_FILENAME_LENGTH = 60;
+    private const int OFFSETOF_EA_SIZE = 64;
+    private const int OFFSETOF_FILE_ID = 72;
+    private const int OFFSETOF_FILENAME = 80;
+
+    private static unsafe int GetBufferInt32(void* buffer, int offset) {
+      return *(int*)( ((byte*)buffer) + offset);
+    }
+
+    private static unsafe long GetBufferInt64(void* buffer, int offset) {
+      return *(long*)(((byte*)buffer) + offset);
+    }
+
+    private static unsafe void *GetBufferPtr(void* buffer, int offset) {
+      return (void*)(((byte*)buffer) + offset);
+    }
+
+    public unsafe int ExtractQueryDirectoryFileEntry(SafeHGlobalHandle bufferHandle, int bufferOffset, out WIN32_FIND_DATA data) {
+      // typedef struct _FILE_ID_FULL_DIR_INFORMATION {
+      //  ULONG         NextEntryOffset;  // offset = 0
+      //  ULONG         FileIndex;        // offset = 4
+      //  LARGE_INTEGER CreationTime;     // offset = 8
+      //  LARGE_INTEGER LastAccessTime;   // offset = 16
+      //  LARGE_INTEGER LastWriteTime;    // offset = 24
+      //  LARGE_INTEGER ChangeTime;       // offset = 32
+      //  LARGE_INTEGER EndOfFile;        // offset = 40
+      //  LARGE_INTEGER AllocationSize;   // offset = 48
+      //  ULONG         FileAttributes;   // offset = 56
+      //  ULONG         FileNameLength;   // offset = 60
+      //  ULONG         EaSize;           // offset = 64
+      //  LARGE_INTEGER FileId;           // offset = 72
+      //  WCHAR         FileName[1];      // offset = 80
+      //} FILE_ID_FULL_DIR_INFORMATION, *PFILE_ID_FULL_DIR_INFORMATION;
+      void* entryPointer = ((byte*)bufferHandle.DangerousGetHandle().ToPointer()) + bufferOffset;
+      int nextEntryOffset = GetBufferInt32(entryPointer, OFFSETOF_NEXT_ENTRY_OFFSET);
+
+      long fileSize = GetBufferInt64(entryPointer, OFFSETOF_END_OF_FILE);
+      long creationTime = GetBufferInt64(entryPointer, OFFSETOF_CREATION_TIME);
+      long lastAccessTime = GetBufferInt64(entryPointer, OFFSETOF_LAST_ACCESS_TIME);
+      long lastModified = GetBufferInt64(entryPointer, OFFSETOF_LAST_WRITE_TIME);
+
+      //
+      // See https://docs.microsoft.com/en-us/windows/desktop/fileio/reparse-point-tags
+      //  IO_REPARSE_TAG_SYMLINK (0xA000000C)
+      //
+      uint fileAttributes = (uint)GetBufferInt32(entryPointer, OFFSETOF_FILE_ATTRIBUTES);
+      int reparseTagData = GetBufferInt32(entryPointer, OFFSETOF_EA_SIZE);
+      long fileId = GetBufferInt64(entryPointer, OFFSETOF_FILE_ID);
+
+      int FileNameByteCount = GetBufferInt32(entryPointer, OFFSETOF_FILENAME_LENGTH);
+      char* fileNamePtr = (char *)GetBufferPtr(entryPointer, OFFSETOF_FILENAME);
+
+      // Skip "." and ".." entries
+      //if (!".".equals(fileName) && !"..".equals(fileName)) {
+      //  if (type == FileInfo.Type.Symlink && followLink) {
+      //    WindowsFileInfo targetInfo = stat(new File(dir, fileName), true);
+      //    dirList.addFile(fileName, targetInfo);
+      //  } else {
+      //    dirList.addFile(fileName, type, fileSize, WindowsFileTime.toJavaTime(lastModified), volumeId, fileId);
+      //  }
+      //}
+
+      data.dwFileAttributes = fileAttributes;
+      data.ftCreationTime_dwLowDateTime = (uint)(creationTime & 0xffffffff);
+      data.ftCreationTime_dwHighDateTime = (uint)(creationTime >> 32);
+      data.ftLastAccessTime_dwLowDateTime = (uint)(lastAccessTime & 0xffffffff); ;
+      data.ftLastAccessTime_dwHighDateTime = (uint)(lastAccessTime >> 32);
+      data.ftLastWriteTime_dwLowDateTime = (uint)(lastModified & 0xffffffff); ;
+      data.ftLastWriteTime_dwHighDateTime = (uint)(lastModified >> 32);
+      data.nFileSizeLow = (uint)(fileSize & 0xffffffff);
+      data.nFileSizeHigh = (uint)(fileSize >> 32);
+      data.dwReserved0 = (uint)reparseTagData;
+      data.dwReserved1 = 0;
+      data.cFileName[0] = '\0';
+      data.cAlternateFileName[0] = '\0';
+      fixed (char* cFileNamePtr = data.cFileName) {
+        char* destPtr = cFileNamePtr;
+        for (int i = 0; i < FileNameByteCount / SIZEOF_WCHAR; i++) {
+          *destPtr = *fileNamePtr;
+          destPtr++;
+          fileNamePtr++;
+        }
+        *destPtr = '\0';
+      }
+
+      return nextEntryOffset == 0 ? -1 : bufferOffset + nextEntryOffset;
     }
 
     public void DeleteFile(TPath path) {

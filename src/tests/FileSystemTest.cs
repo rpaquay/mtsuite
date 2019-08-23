@@ -19,6 +19,8 @@ using System.Linq;
 using System.Text;
 using mtsuite.CoreFileSystem.Win32;
 using tests.FileSystemHelpers;
+using System;
+using System.IO;
 
 namespace tests {
   [TestClass]
@@ -272,5 +274,95 @@ namespace tests {
       Assert.IsNotNull(entries.FirstOrDefault(x => x.FileName == "dir1"));
     }
 
+    [TestMethod]
+    public void GetDirectoryFilesEnumeratorWorks() {
+      // Prepare
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
+      fooTarget.CreateFile("testfile.txt", 20);
+      fooTarget.CreateDirectory("dir1");
+
+      // Act
+      var entries = new List<DirectoryEntry>();
+      using (var e = _fileSystemSetup.FileSystem.GetDirectoryEntriesEnumerator(fooTarget.Path, null)) {
+        while (e.MoveNext()) {
+          entries.Add(e.Current);
+        }
+      }
+
+      // Assert
+      Assert.AreEqual(2, entries.Count);
+
+      var fileData = entries.First(x => x.FileName == "testfile.txt");
+      var fileEntry = new FileSystemEntryData(fileData.Data);
+      Assert.IsTrue(fileEntry.IsFile);
+
+      var dirData = entries.First(x => x.FileName == "dir1");
+      var dirEntry = new FileSystemEntryData(dirData.Data);
+      Assert.IsTrue(dirEntry.IsDirectory);
+    }
+
+    [TestMethod]
+    public void GetDirectoryFilesEnumeratorWorksWithLotsOfFiles() {
+      // Prepare
+      const int fileCount = 1024; // This should be enough to ensure multiple calls to NtQueryDirectoryFile
+      var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
+      for (var i = 0; i < fileCount; i++) {
+        fooTarget.CreateFile(String.Format("testfile{0:00000}.txt", i), 20 + i);
+      }
+
+      // Act
+      var entries = new List<DirectoryEntry>();
+      using (var e = _fileSystemSetup.FileSystem.GetDirectoryEntriesEnumerator(fooTarget.Path, null)) {
+        while (e.MoveNext()) {
+          entries.Add(e.Current);
+        }
+      }
+
+      // Assert
+      Assert.AreEqual(fileCount, entries.Count);
+
+      for (var i = 0; i < fileCount; i++) {
+        Assert.AreEqual(String.Format("testfile{0:00000}.txt", i), entries[i].FileName);
+        Assert.AreEqual(20L + i, entries[i].Length);
+        Assert.IsTrue(IsTodaysDate(entries[i].CreationTimeUtc));
+        Assert.IsTrue(IsTodaysDate(entries[i].LastAccessTimeUtc));
+        Assert.IsTrue(IsTodaysDate(entries[i].LastWriteTimeUtc));
+        Assert.AreEqual(FileAttributes.Archive, entries[i].Attributes);
+      }
+    }
+
+    [TestMethod]
+    public void GetDirectoryFilesEnumeratorWorksWithSymbolicLinks() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      // Prepare
+      _fileSystemSetup.Root.CreateFile("foo.txt", 100);
+
+      // Act
+      var link = _fileSystemSetup.Root.CreateFileLink("link.txt", "foo.txt");
+      var entries = new List<DirectoryEntry>();
+      using (var e = _fileSystemSetup.FileSystem.GetDirectoryFilesEnumerator(_fileSystemSetup.Root.Path, null)) {
+        while (e.MoveNext()) {
+          entries.Add(e.Current);
+        }
+      }
+
+      // Assert
+      Assert.IsTrue(entries.Count == 2);
+      Assert.IsTrue(new FileSystemEntryData(entries[0].Data).IsFile);
+      Assert.IsFalse(new FileSystemEntryData(entries[0].Data).IsReparsePoint);
+      Assert.IsTrue(IsTodaysDate(new FileSystemEntryData(entries[1].Data).LastWriteTimeUtc));
+
+      Assert.IsTrue(new FileSystemEntryData(entries[1].Data).IsFile);
+      Assert.IsTrue(new FileSystemEntryData(entries[1].Data).IsReparsePoint);
+      Assert.IsTrue(IsTodaysDate(new FileSystemEntryData(entries[1].Data).LastWriteTimeUtc));
+    }
+
+    private bool IsTodaysDate(DateTime dateTimeUtc) {
+      var utcNow = DateTime.UtcNow;
+      return utcNow.DayOfYear == dateTimeUtc.DayOfYear;
+    }
   }
 }

@@ -21,6 +21,8 @@ using System.Security;
 using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.CoreFileSystem.Win32 {
+  using NTSTATUS = System.Int32;
+
   [SuppressMessage("ReSharper", "InconsistentNaming")]
   public static class NativeMethods {
 
@@ -40,6 +42,38 @@ namespace mtsuite.CoreFileSystem.Win32 {
     [SuppressUnmanagedCodeSecurity]
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     internal static extern bool FindClose(IntPtr handle);
+
+    /// <summary>
+    /// __kernel_entry NTSYSCALLAPI NTSTATUS NtQueryDirectoryFile(
+    ///     HANDLE                  FileHandle,
+    ///     HANDLE                  Event,
+    ///     PIO_APC_ROUTINE         ApcRoutine,
+    ///     PVOID                   ApcContext,
+    ///     PIO_STATUS_BLOCK        IoStatusBlock,
+    ///     PVOID                   FileInformation,
+    ///     ULONG                   Length,
+    ///     FILE_INFORMATION_CLASS  FileInformationClass,
+    ///     BOOLEAN                 ReturnSingleEntry,
+    ///     PUNICODE_STRING         FileName,
+    ///     BOOLEAN                 RestartScan
+    /// );
+    /// </summary>
+    [DllImport("ntdll.dll", SetLastError = false)]
+    public static unsafe extern NTSTATUS NtQueryDirectoryFile(
+      SafeFileHandle fileHandle,
+      IntPtr eventHandle,  // can be null
+      void * apcRoutine, // can be null
+      void * appContext, // can be null
+      IO_STATUS_BLOCK * ioStatusBlock,
+      SafeHandle fileInformationBuffer,
+      UInt32 fileInformationBufferSize,
+      FILE_INFORMATION_CLASS fileInformationClass,
+      bool returnSingleEntry,
+      UNICODE_STRING * fileName, // can be null
+      bool restartScan);
+
+    [DllImport("ntdll.dll")]
+    public static extern uint RtlNtStatusToDosError(int Status);
 
     [SuppressUnmanagedCodeSecurity]
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
@@ -718,6 +752,74 @@ namespace mtsuite.CoreFileSystem.Win32 {
     public enum GET_FILEEX_INFO_LEVELS {
       GetFileExInfoStandard,
       GetFileExMaxInfoLevel
+    }
+
+    public struct IO_STATUS_BLOCK {
+      public uint status;
+      public ulong information;
+    }
+
+    public enum FILE_INFORMATION_CLASS {
+      FileDirectoryInformation = 1,     // 1
+      FileFullDirectoryInformation,     // 2
+      FileBothDirectoryInformation,     // 3
+      FileBasicInformation,         // 4
+      FileStandardInformation,      // 5
+      FileInternalInformation,      // 6
+      FileEaInformation,        // 7
+      FileAccessInformation,        // 8
+      FileNameInformation,          // 9
+      FileRenameInformation,        // 10
+      FileLinkInformation,          // 11
+      FileNamesInformation,         // 12
+      FileDispositionInformation,       // 13
+      FilePositionInformation,      // 14
+      FileFullEaInformation,        // 15
+      FileModeInformation = 16,     // 16
+      FileAlignmentInformation,     // 17
+      FileAllInformation,           // 18
+      FileAllocationInformation,    // 19
+      FileEndOfFileInformation,     // 20
+      FileAlternateNameInformation,     // 21
+      FileStreamInformation,        // 22
+      FilePipeInformation,          // 23
+      FilePipeLocalInformation,     // 24
+      FilePipeRemoteInformation,    // 25
+      FileMailslotQueryInformation,     // 26
+      FileMailslotSetInformation,       // 27
+      FileCompressionInformation,       // 28
+      FileObjectIdInformation,      // 29
+      FileCompletionInformation,    // 30
+      FileMoveClusterInformation,       // 31
+      FileQuotaInformation,         // 32
+      FileReparsePointInformation,      // 33
+      FileNetworkOpenInformation,       // 34
+      FileAttributeTagInformation,      // 35
+      FileTrackingInformation,      // 36
+      FileIdBothDirectoryInformation,   // 37
+      FileIdFullDirectoryInformation,   // 38
+      FileValidDataLengthInformation,   // 39
+      FileShortNameInformation,     // 40
+      FileHardLinkInformation = 46    // 46    
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct UNICODE_STRING {
+      public ushort Length;
+      public ushort MaximumLength;
+      public IntPtr Buffer;
+
+      internal static void SetString(ref UNICODE_STRING patternString, string value) {
+        patternString.Length = (ushort)(value.Length * 2);
+        patternString.MaximumLength = (ushort)(patternString.Length + 2);
+        patternString.Buffer = Marshal.StringToHGlobalUni(value);
+      }
+
+      public static void FreeString(ref UNICODE_STRING patternString) {
+        if (patternString.Buffer != IntPtr.Zero) {
+          Marshal.FreeHGlobal(patternString.Buffer);
+        }
+      }
     }
 
     public static T PtrToStructure<T>(IntPtr ptr) {

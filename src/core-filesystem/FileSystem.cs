@@ -66,6 +66,25 @@ namespace mtsuite.CoreFileSystem {
         .Select(entry => new FileSystemEntry(path.Combine(entry.FileName), new FileSystemEntryData(entry.Data)));
     }
 
+    public DirectoryFilesEnumerator<FullPath> GetDirectoryFilesEnumerator(FullPath path, string pattern = null) {
+      return _win32.GetDirectoryFilesEnumerator(path, pattern);
+    }
+
+    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, string pattern = null) {
+      using (var entries = _win32.GetDirectoryFiles(path, pattern)) {
+        var result = _entryListPool.AllocateFrom();
+        foreach (var x in entries.Item) {
+          result.Item.Add(new FileSystemEntry(path.Combine(x.FileName), new FileSystemEntryData(x.Data)));
+        }
+        return result;
+      }
+    }
+
+    public IEnumerable<FileSystemEntry> EnumerateDirectoryFiles(FullPath path, string pattern = null) {
+      return _win32.EnumerateDirectoryFiles(path, pattern)
+        .Select(entry => new FileSystemEntry(path.Combine(entry.FileName), new FileSystemEntryData(entry.Data)));
+    }
+
     public void DeleteEntry(FileSystemEntry entry) {
       RemoveAccessDeniedAttributes(entry);
       var path = entry.Path;

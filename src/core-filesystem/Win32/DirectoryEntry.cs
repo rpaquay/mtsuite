@@ -13,6 +13,9 @@
 // limitations under the License.
 
 
+using System;
+using System.IO;
+
 namespace mtsuite.CoreFileSystem.Win32 {
   /// <summary>
   /// File or directory entry information returned by <see
@@ -28,6 +31,24 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     public string FileName {
       get { return Data.GetFileName(); }
+    }
+
+    public Int64 Length => HighLowToLong(Data.nFileSizeHigh, Data.nFileSizeLow);
+
+    public DateTime CreationTimeUtc => HighLowToDateTimeUtc(Data.ftCreationTime_dwHighDateTime, Data.ftCreationTime_dwLowDateTime);
+
+    public DateTime LastWriteTimeUtc => HighLowToDateTimeUtc(Data.ftLastWriteTime_dwHighDateTime, Data.ftLastWriteTime_dwLowDateTime);
+
+    public DateTime LastAccessTimeUtc => HighLowToDateTimeUtc(Data.ftLastAccessTime_dwHighDateTime, Data.ftLastAccessTime_dwLowDateTime);
+
+    public FileAttributes Attributes => (FileAttributes)Data.dwFileAttributes;
+
+    private DateTime HighLowToDateTimeUtc(uint high, uint low) {
+      return DateTime.FromFileTimeUtc(HighLowToLong(high, low));
+    }
+
+    private static long HighLowToLong(uint high, uint low) {
+      return low + ((long)high << 32);
     }
   }
 }

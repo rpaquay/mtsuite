@@ -55,7 +55,7 @@ namespace mtsuite.shared {
 
     private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
       try {
-        return _fileSystem.GetDirectoryEntries(directoryPath);
+        return _fileSystem.GetDirectoryFiles(directoryPath);
       } catch (Exception e) {
         OnError(e);
         // Assume no entries available on error, so we can continue processing

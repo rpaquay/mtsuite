@@ -56,6 +56,12 @@ namespace mtsuite.CoreFileSystem {
     /// </summary>
     IEnumerable<FileSystemEntry> EnumerateDirectoryEntries(FullPath path, string pattern = null);
 
+    FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, string pattern = null);
+
+    DirectoryFilesEnumerator<FullPath> GetDirectoryFilesEnumerator(FullPath path, string pattern = null);
+
+    IEnumerable<FileSystemEntry> EnumerateDirectoryFiles(FullPath path, string pattern = null);
+
     /// <summary>
     /// Delete a file or directory, given the <see cref="FileSystemEntry"/> of
     /// the file/directory. Note that if <paramref name="entry"/> is a

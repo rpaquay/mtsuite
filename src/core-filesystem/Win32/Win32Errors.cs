@@ -34,4 +34,10 @@ namespace mtsuite.CoreFileSystem.Win32 {
     ERROR_REQUEST_ABORTED = 1235,
     ERROR_PRIVILEGE_NOT_HELD = 1314,
   }
+
+  public enum NtStatusErrors {
+    STATUS_NO_MORE_FILES = unchecked((int)0x80000006),
+    STATUS_INVALID_PARAMETER = unchecked((int)0xC000000D),
+    STATUS_NOT_A_DIRECTORY = unchecked((int)0xC0000103),
+  }
 }
