@@ -26,7 +26,7 @@ namespace mtsuite.CoreFileSystem {
     /// If there is a parent path, <see cref="_parent"/> the boxed instance of the parent <see cref="FullPath"/>.
     /// If there is no parent path, <see cref="_parent"/> is <code>null</code>, and <see cref="_name"/> is a root path.
     /// </summary>
-    private readonly object _parent;
+    private readonly FullPathReference _parent;
 
     /// <summary>
     /// The "name" part (i.e file name or directory name) of the path, which may be the root path name (e.g. "C:\").
@@ -59,21 +59,21 @@ namespace mtsuite.CoreFileSystem {
         ThrowArgumentNullException("name");
       if (PathHelpers.HasAltDirectorySeparators(name) || PathHelpers.HasDirectorySeparators(name))
         ThrowArgumentException("Name should not contain directory separators", "name");
-      _parent = parent;
+      _parent = new FullPathReference(parent);
       _name = name;
     }
 
-    private static FullPath? CreatePath(string path) {
+    private static FullPathReference CreatePath(string path) {
       if (path == null) {
         return null;
       }
       var parentPath = PathHelpers.GetParent(path);
       if (parentPath == null) {
-        return new FullPath(path);
+        return new FullPathReference(new FullPath(path));
       }
 
       var name = PathHelpers.GetName(path);
-      return new FullPath(parentPath).Combine(name);
+      return new FullPathReference(new FullPath(parentPath).Combine(name));
     }
 
     private static void ThrowArgumentNullException(string paramName) {
@@ -102,7 +102,7 @@ namespace mtsuite.CoreFileSystem {
       get {
         if (_parent == null)
           return null;
-        return (FullPath)_parent;
+        return _parent.FullPath;
       }
     }
 
@@ -142,7 +142,7 @@ namespace mtsuite.CoreFileSystem {
     public PathHelpers.RootPrefixKind PathKind {
       get {
         if (_parent != null) {
-          return ((FullPath)_parent).PathKind;
+          return _parent.FullPath.PathKind;
         }
 
         return PathHelpers.GetPathRootPrefixInfo(_name).RootPrefixKind;
@@ -157,8 +157,8 @@ namespace mtsuite.CoreFileSystem {
 
     private void BuildPath(StringBuffer sb) {
       if (_parent != null) {
-        ((FullPath)_parent).BuildPath(sb);
-        if (!((FullPath)_parent).HasTrailingSeparator)
+        _parent.FullPath.BuildPath(sb);
+        if (!_parent.FullPath.HasTrailingSeparator)
           sb.Append(PathHelpers.DirectorySeparatorString);
       }
       sb.Append(_name);
@@ -179,7 +179,7 @@ namespace mtsuite.CoreFileSystem {
     private static int GetLength(FullPath path) {
       var result = path._name.Length;
       while (path._parent != null) {
-        path = (FullPath)path._parent;
+        path = path._parent.FullPath;
         result += path._name.Length;
         if (!path.HasTrailingSeparator)
           result++;
@@ -194,7 +194,7 @@ namespace mtsuite.CoreFileSystem {
 
     public override bool Equals(object obj) {
       if (obj is FullPath) {
-        return Equals((FullPath) obj);
+        return Equals((FullPath)obj);
       }
 
       return false;
@@ -202,7 +202,7 @@ namespace mtsuite.CoreFileSystem {
 
     public override int GetHashCode() {
       unchecked {
-        return ((_parent != null ? _parent.GetHashCode() : 0) * 397) ^
+        return ((_parent?.GetHashCode() ?? 0) * 397) ^
                StringComparer.OrdinalIgnoreCase.GetHashCode(_name);
       }
     }
@@ -231,7 +231,7 @@ namespace mtsuite.CoreFileSystem {
 
     private static List<string> GetNames(FullPath path) {
       var result = new List<string>();
-      while(true) {
+      while (true) {
         result.Add(path._name);
         var parent = path.Parent;
         if (parent == null)
@@ -240,6 +240,29 @@ namespace mtsuite.CoreFileSystem {
       }
       result.Reverse();
       return result;
+    }
+
+    class FullPathReference : IEquatable<FullPathReference> {
+      public readonly FullPath FullPath;
+
+      public FullPathReference(FullPath fullPath) {
+        FullPath = fullPath;
+      }
+
+      public override bool Equals(object obj) {
+        return Equals(obj as FullPathReference);
+      }
+
+      public bool Equals(FullPathReference other) {
+        if (other == null) {
+          return false;
+        }
+        return Equals(this.FullPath, other.FullPath);
+      }
+
+      public override int GetHashCode() {
+        return FullPath.GetHashCode();
+      }
     }
   }
 }
