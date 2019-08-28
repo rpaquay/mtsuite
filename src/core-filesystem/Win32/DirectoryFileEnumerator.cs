@@ -15,8 +15,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
+
 using Microsoft.Win32.SafeHandles;
+
 using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem.Win32 {
@@ -26,6 +27,8 @@ namespace mtsuite.CoreFileSystem.Win32 {
   /// </summary>
   public class DirectoryFilesEnumerator<TPath> : IEnumerator<FileIdFullInformation> {
     private const int NtQueryDirectoryFileBufferSize = 8_192;
+    [ThreadStatic]
+    private static SafeHGlobalHandle _threadLocalBuffer;
 
     private readonly Win32<TPath> _win32;
     private readonly TPath _directoryPath;
@@ -40,7 +43,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
         _win32 = win32;
         _directoryPath = directoryPath;
 
-        _bufferHandle = new SafeHGlobalHandle(NtQueryDirectoryFileBufferSize);
+        _bufferHandle = AcquireByteBuffer();
 
         // FILE_LIST_DIRECTORY to notify we will read the entries of the direction (file)
         // BackupSemantics is required to allow reading entries of the directory
@@ -53,7 +56,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
         _reachedEOF = !_win32.InvokeNtQueryDirectoryFile(directoryPath, _fileHandle, _bufferHandle, true, pattern);
       } catch {
         // Need to release resources in case of failure, to ensure deterministic behavior
-        _bufferHandle?.Dispose();
+        if (_bufferHandle != null) {
+          ReleaseByteBuffer(_bufferHandle);
+        }
         _fileHandle?.Dispose();
         throw;
       }
@@ -66,7 +71,9 @@ namespace mtsuite.CoreFileSystem.Win32 {
     }
 
     public void Dispose() {
-      _bufferHandle?.Dispose();
+      if (_bufferHandle != null) {
+        ReleaseByteBuffer(_bufferHandle);
+      }
       _fileHandle?.Dispose();
     }
 
@@ -101,6 +108,24 @@ namespace mtsuite.CoreFileSystem.Win32 {
 
     object IEnumerator.Current {
       get { return Current; }
+    }
+
+    private static SafeHGlobalHandle AcquireByteBuffer() {
+      if (_threadLocalBuffer == null) {
+        return new SafeHGlobalHandle(NtQueryDirectoryFileBufferSize);
+      } else {
+        var buffer = _threadLocalBuffer;
+        _threadLocalBuffer = null;
+        return buffer;
+      }
+    }
+
+    private static void ReleaseByteBuffer(SafeHGlobalHandle bufferHandle) {
+      if (_threadLocalBuffer == null) {
+        _threadLocalBuffer = bufferHandle;
+      } else {
+        bufferHandle.Dispose();
+      }
     }
   }
 }
