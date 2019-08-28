@@ -17,59 +17,57 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Win32.SafeHandles;
+using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem.Win32 {
   /// <summary>
-  /// Enumerator for the list of entries of a directory.  Implements of 
-  /// <see cref="IEnumerator{DirectoryEntry}"/> as a high-performance
-  /// value type. No heap allocation is performeed, except for a <see cref="SafeFindHandle"/>
-  /// 
-  /// <para>
-  /// Note: This is a mutable value type, so copying the value and re-using it
-  /// in different context may lead to unspecified behavior. The intent is to use this
-  /// value type as local variables used in simple <see cref="MoveNext"/>-<see cref="CurrentEntry"/>
-  /// loops.
-  /// </para>
+  /// Enumerator for the list of entries of a directory, based on the <code>NativeMethods.NtQueryDirectoryFile</code>
+  /// API.
   /// </summary>
-  public struct DirectoryFilesEnumerator<TPath> : IEnumerator<FileIdFullInformation> {
+  public class DirectoryFilesEnumerator<TPath> : IEnumerator<FileIdFullInformation> {
+    private const int NtQueryDirectoryFileBufferSize = 8_192;
+
     private readonly Win32<TPath> _win32;
     private readonly TPath _directoryPath;
     private readonly SafeFileHandle _fileHandle;
     private readonly SafeHGlobalHandle _bufferHandle;
+    private FileIdFullInformation _currentEntry;
     private int _bufferOffset;
     private bool _reachedEOF;
 
     public DirectoryFilesEnumerator(Win32<TPath> win32, TPath directoryPath, string pattern) {
-      CurrentEntry = default(FileIdFullInformation);
-      _win32 = win32;
-      _directoryPath = directoryPath;
-      _bufferOffset = 0;
-      _reachedEOF = false;
-      _bufferHandle = new SafeHGlobalHandle(8_192);
-      // FILE_LIST_DIRECTORY to notify we will read the entries of the direction (file)
-      // BackupSemantics is required to allow reading entries
-      _fileHandle = _win32.OpenFile(_directoryPath,
-        NativeMethods.EFileAccess.FILE_LIST_DIRECTORY,
-        NativeMethods.EFileShare.Read | NativeMethods.EFileShare.Write | NativeMethods.EFileShare.Delete,
-        NativeMethods.ECreationDisposition.OpenExisting,
-        NativeMethods.EFileAttributes.BackupSemantics);
+      try {
+        _win32 = win32;
+        _directoryPath = directoryPath;
 
-      _reachedEOF = !_win32.InvokeNtQueryDirectoryFile(directoryPath, _fileHandle, _bufferHandle, true, pattern);
+        _bufferHandle = new SafeHGlobalHandle(NtQueryDirectoryFileBufferSize);
+
+        // FILE_LIST_DIRECTORY to notify we will read the entries of the direction (file)
+        // BackupSemantics is required to allow reading entries of the directory
+        _fileHandle = _win32.OpenFile(_directoryPath,
+          NativeMethods.EFileAccess.FILE_LIST_DIRECTORY,
+          NativeMethods.EFileShare.Read | NativeMethods.EFileShare.Write | NativeMethods.EFileShare.Delete,
+          NativeMethods.ECreationDisposition.OpenExisting,
+          NativeMethods.EFileAttributes.BackupSemantics);
+
+        _reachedEOF = !_win32.InvokeNtQueryDirectoryFile(directoryPath, _fileHandle, _bufferHandle, true, pattern);
+      } catch {
+        // Need to release resources in case of failure, to ensure deterministic behavior
+        _bufferHandle?.Dispose();
+        _fileHandle?.Dispose();
+        throw;
+      }
     }
-
-    /// <summary>
-    /// The current entry, exposed without any copying
-    /// </summary>
-    public FileIdFullInformation CurrentEntry;
 
     public FileIdFullInformation Current {
       get {
-        return CurrentEntry;
+        return _currentEntry;
       }
     }
 
     public void Dispose() {
-      _fileHandle?.Close();
+      _bufferHandle?.Dispose();
+      _fileHandle?.Dispose();
     }
 
     public bool MoveNext() {
@@ -90,10 +88,10 @@ namespace mtsuite.CoreFileSystem.Win32 {
         }
 
         // Extract entry at "_bufferOffset"
-        _bufferOffset = _win32.ExtractQueryDirectoryFileEntry(_bufferHandle, _bufferOffset, out CurrentEntry);
+        _bufferOffset = _win32.ExtractQueryDirectoryFileEntry(_bufferHandle, _bufferOffset, out _currentEntry);
 
         // Skip "." and ".."
-        if (!Win32<TPath>.SkipSpecialEntry(ref CurrentEntry)) {
+        if (!Win32<TPath>.SkipSpecialEntry(ref _currentEntry)) {
           return true;
         }
       }

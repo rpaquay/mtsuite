@@ -18,15 +18,25 @@ using Microsoft.Win32.SafeHandles;
 
 namespace mtsuite.CoreFileSystem.Utils {
   public class SafeHGlobalHandle : SafeHandleZeroOrMinusOneIsInvalid {
+    private int _size;
+
     public SafeHGlobalHandle()
       : base(ownsHandle: true) {
     }
 
+    public SafeHGlobalHandle(int size)
+      : base(ownsHandle: true) {
+      Alloc(size);
+    }
+
     public IntPtr Pointer { get { return handle; } }
+
+    public int Size { get => _size; }
 
     public void Alloc(int size) {
       ReleaseHandle();
       handle = Marshal.AllocHGlobal(size);
+      _size = size;
     }
 
     public void Realloc(int size) {
@@ -34,6 +44,7 @@ namespace mtsuite.CoreFileSystem.Utils {
         Alloc(size);
       } else {
         handle = Marshal.ReAllocHGlobal(handle, new IntPtr(size));
+        _size = size;
       }
     }
 

@@ -96,7 +96,6 @@
     <Compile Include="Utils\SafeHGlobalHandle.cs" />
     <Compile Include="Utils\TypedBuffer.cs" />
     <Compile Include="Win32\PathSerializerBase.cs" />
-    <Compile Include="Win32\SafeHGlobalHandle.cs" />
     <Compile Include="Win32\Win32.cs" />
     <Compile Include="Win32\Win32Errors.cs" />
     <Compile Include="Win32\WIN32_FILE_ATTRIBUTE_DATA.cs" />
