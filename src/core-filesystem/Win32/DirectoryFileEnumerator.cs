@@ -80,8 +80,6 @@ namespace mtsuite.CoreFileSystem.Win32 {
         if (_bufferOffset < 0) {
           _reachedEOF = !_win32.InvokeNtQueryDirectoryFile(_directoryPath, _fileHandle, _bufferHandle, false, null);
           if (_reachedEOF) {
-            // Close eagerly to release resources as fast as possible
-            _fileHandle.Close();
             return false;
           }
           _bufferOffset = 0;
