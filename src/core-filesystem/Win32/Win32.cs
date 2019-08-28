@@ -117,7 +117,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
     public IEnumerable<FileIdFullInformation> EnumerateDirectoryFiles(TPath path, string pattern = null) {
       using (var e = GetDirectoryFilesEnumerator(path, pattern)) {
         while (e.MoveNext()) {
-          yield return e.CurrentEntry;
+          yield return e.Current;
         }
       }
     }
