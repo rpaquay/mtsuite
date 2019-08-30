@@ -63,9 +63,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DirectorySummary.cs" />
     <Compile Include="DirectorySummaryCollector.cs" />
-    <Compile Include="DirectorySummaryRoot.cs" />
     <Compile Include="FileNameMatcher.cs" />
     <Compile Include="FindProgressMonitor.cs" />
     <Compile Include="MtFind.cs" />
@@ -75,6 +73,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SearchPatternMatcher.cs" />
     <Compile Include="SearchPatternParser.cs" />
+    <Compile Include="VoidValue.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\core-filesystem\**\*.cs" Exclude="..\core-filesystem\**\AssemblyInfo.cs;..\core-filesystem\obj\**">

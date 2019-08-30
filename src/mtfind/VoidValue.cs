@@ -13,7 +13,7 @@
 // limitations under the License.
 
 namespace mtfind {
-  public class DirectorySummaryRoot {
-    public DirectorySummary Summary { get; set; }
+  public struct VoidValue {
+    public static VoidValue Instance = default(VoidValue);
   }
 }

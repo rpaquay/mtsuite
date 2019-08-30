@@ -17,36 +17,31 @@ using mtsuite.shared;
 using mtsuite.CoreFileSystem;
 
 namespace mtfind {
-  public class DirectorySummaryCollector : IDirectorCollector<DirectorySummary> {
-    private readonly DirectorySummaryRoot _root;
+  public class DirectorySummaryCollector : IDirectorCollector<VoidValue> {
+    private readonly List<FileSystemEntry> _matchedFiles = new List<FileSystemEntry>();
     private readonly FileNameMatcher _nameMatcher;
 
     public DirectorySummaryCollector(FileNameMatcher nameMatcher) {
-      _root = new DirectorySummaryRoot();
       _nameMatcher = nameMatcher;
     }
 
-    public DirectorySummaryRoot Root {
-      get { return _root; }
+    public List<FileSystemEntry> MatchedFiles => _matchedFiles;
+
+    public VoidValue CreateItemForDirectory(FileSystemEntry directory, int depth) {
+      return VoidValue.Instance;
     }
 
-    public DirectorySummary CreateItemForDirectory(FileSystemEntry directory, int depth) {
-      var result = new DirectorySummary(directory);
-      if (_root.Summary == null)
-        _root.Summary = result;
-      return result;
-    }
-
-    public void OnDirectoryEntriesEnumerated(DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries) {
+    public void OnDirectoryEntriesEnumerated(VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries) {
       foreach (var entry in entries) {
         if (_nameMatcher(entry)) {
-          summary.AddMatchedFile(entry);
+          lock (_matchedFiles) {
+            _matchedFiles.Add(entry);
+          }
         }
       }
     }
 
-    public void OnDirectoryTraversed(DirectorySummary parentSummary, DirectorySummary childSummary) {
-      parentSummary.MergeChild(childSummary);
+    public void OnDirectoryTraversed(VoidValue parentValue, VoidValue childValue) {
     }
   }
 }

@@ -62,9 +62,9 @@ namespace mtfind {
         DisplayBanner();
       }
 
-      var summaryRoot = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var matchedFiles = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
-      DisplayMatchesFiles(summaryRoot, pattern, isPlainOutput);
+      DisplayMatchesFiles(matchedFiles, pattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
       if (!isPlainOutput) {
@@ -91,7 +91,7 @@ namespace mtfind {
       Console.WriteLine();
     }
 
-    public DirectorySummaryRoot DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+    public List<FileSystemEntry> DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
       _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
@@ -113,7 +113,7 @@ namespace mtfind {
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
-      return directorySummaryCollector.Root;
+      return directorySummaryCollector.MatchedFiles;
     }
 
     private static FileNameMatcher CreateFileNameMatcher(string pattern) {
@@ -145,10 +145,8 @@ namespace mtfind {
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
-    private static void DisplayMatchesFiles(DirectorySummaryRoot summaryRoot, string searchPattern, bool isPlainOutput) {
-      var directorySummary = summaryRoot.Summary;
-
-      var matchedEntries = directorySummary.MatchedFiles
+    private static void DisplayMatchesFiles(List<FileSystemEntry> matchedFiles, string searchPattern, bool isPlainOutput) {
+      var matchedEntries = matchedFiles
         .OrderBy(entry => entry.Path)
         .ToList();
 
