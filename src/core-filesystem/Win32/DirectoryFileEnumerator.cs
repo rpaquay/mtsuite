@@ -25,7 +25,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
   /// Enumerator for the list of entries of a directory, based on the <code>NativeMethods.NtQueryDirectoryFile</code>
   /// API.
   /// </summary>
-  public class DirectoryFilesEnumerator<TPath> : IEnumerator<FileIdFullInformation> {
+  public struct DirectoryFilesEnumerator<TPath> : IEnumerator<FileIdFullInformation> {
     private const int NtQueryDirectoryFileBufferSize = 8_192;
     [ThreadStatic]
     private static SafeHGlobalHandle _threadLocalBuffer;
@@ -39,27 +39,30 @@ namespace mtsuite.CoreFileSystem.Win32 {
     private bool _reachedEOF;
 
     public DirectoryFilesEnumerator(Win32<TPath> win32, TPath directoryPath, string pattern) {
+      _currentEntry = default(FileIdFullInformation);
+      _bufferOffset = 0;
+      _win32 = win32;
+      _directoryPath = directoryPath;
+
+      // FILE_LIST_DIRECTORY to notify we will read the entries of the direction (file)
+      // BackupSemantics is required to allow reading entries of the directory
+      _fileHandle = _win32.OpenFile(_directoryPath,
+        NativeMethods.EFileAccess.FILE_LIST_DIRECTORY,
+        NativeMethods.EFileShare.Read | NativeMethods.EFileShare.Write | NativeMethods.EFileShare.Delete,
+        NativeMethods.ECreationDisposition.OpenExisting,
+        NativeMethods.EFileAttributes.BackupSemantics);
       try {
-        _win32 = win32;
-        _directoryPath = directoryPath;
-
         _bufferHandle = AcquireByteBuffer();
-
-        // FILE_LIST_DIRECTORY to notify we will read the entries of the direction (file)
-        // BackupSemantics is required to allow reading entries of the directory
-        _fileHandle = _win32.OpenFile(_directoryPath,
-          NativeMethods.EFileAccess.FILE_LIST_DIRECTORY,
-          NativeMethods.EFileShare.Read | NativeMethods.EFileShare.Write | NativeMethods.EFileShare.Delete,
-          NativeMethods.ECreationDisposition.OpenExisting,
-          NativeMethods.EFileAttributes.BackupSemantics);
-
-        _reachedEOF = !_win32.InvokeNtQueryDirectoryFile(directoryPath, _fileHandle, _bufferHandle, true, pattern);
+        try {
+          _reachedEOF = !_win32.InvokeNtQueryDirectoryFile(directoryPath, _fileHandle, _bufferHandle, true, pattern);
+        } catch {
+          // Need to release resources in case of failure, to ensure deterministic behavior
+          ReleaseByteBuffer(_bufferHandle);
+          throw;
+        }
       } catch {
         // Need to release resources in case of failure, to ensure deterministic behavior
-        if (_bufferHandle != null) {
-          ReleaseByteBuffer(_bufferHandle);
-        }
-        _fileHandle?.Dispose();
+        _fileHandle.Dispose();
         throw;
       }
     }
