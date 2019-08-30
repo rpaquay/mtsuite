@@ -46,7 +46,7 @@ namespace mtfind {
     }
 
     public void OnDirectoryTraversed(DirectorySummary parentSummary, DirectorySummary childSummary) {
-      parentSummary.AddChild(childSummary);
+      parentSummary.MergeChild(childSummary);
     }
   }
 }

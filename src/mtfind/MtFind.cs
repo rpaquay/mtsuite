@@ -148,8 +148,7 @@ namespace mtfind {
     private static void DisplayMatchesFiles(DirectorySummaryRoot summaryRoot, string searchPattern, bool isPlainOutput) {
       var directorySummary = summaryRoot.Summary;
 
-      var matchedEntries = EnumerateDirectories(directorySummary)
-        .SelectMany(item => item.MatchedFiles)
+      var matchedEntries = directorySummary.MatchedFiles
         .OrderBy(entry => entry.Path)
         .ToList();
 
@@ -158,22 +157,6 @@ namespace mtfind {
       }
       if (!isPlainOutput) {
         Console.WriteLine("Found {0} entries matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
-      }
-    }
-
-    /// <summary>
-    /// Flatten the list of directories starting at <paramref name="root"/>. Returns
-    /// an enumeration of (node, depth) tuples.
-    /// </summary>
-    private static IEnumerable<DirectorySummary> EnumerateDirectories(DirectorySummary root) {
-      var stack = new Stack<DirectorySummary>();
-      stack.Push(root);
-      while (stack.Count > 0) {
-        var item = stack.Pop();
-        yield return item;
-        foreach (var child in item.Children) {
-          stack.Push(child);
-        }
       }
     }
   }

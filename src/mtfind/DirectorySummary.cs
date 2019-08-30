@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using mtsuite.CoreFileSystem;
@@ -21,13 +20,12 @@ namespace mtfind {
 
   /// <summary>
   /// Data object used to collect summary information for a single directory.
-  /// There is a disctinct object per directory to ensure that parallel processing
+  /// There is a distinct object per directory to ensure that parallel processing
   /// can occur without locking, as a given directory is processed by at most one
   /// thread at any single point in time.
   /// </summary>
   public class DirectorySummary {
     private readonly FileSystemEntry _directoryEntry;
-    private List<DirectorySummary> _children;
     private List<FileSystemEntry> _matchedFiles;
 
     public DirectorySummary(FileSystemEntry directoryEntry) {
@@ -41,11 +39,10 @@ namespace mtfind {
       _matchedFiles.Add(entry);
     }
 
-    public void AddChild(DirectorySummary summary) {
-      if (_children == null) {
-        _children = new List<DirectorySummary>();
+    public void MergeChild(DirectorySummary childSummary) {
+      foreach (var entry in childSummary.MatchedFiles) {
+        AddMatchedFile(entry);
       }
-      _children.Add(summary);
     }
 
     /// <summary>
@@ -53,13 +50,6 @@ namespace mtfind {
     /// </summary>
     public FileSystemEntry DirectoryEntry {
       get { return _directoryEntry; }
-    }
-
-    /// <summary>
-    /// The list of summaries of the child directories.
-    /// </summary>
-    public IEnumerable<DirectorySummary> Children {
-      get { return _children ?? Enumerable.Empty<DirectorySummary>(); }
     }
 
     /// <summary>
