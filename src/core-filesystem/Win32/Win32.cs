@@ -73,7 +73,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
     public IEnumerable<DirectoryEntry> EnumerateDirectoryEntries(TPath path, string pattern = null) {
       using (var e = GetDirectoryEntriesEnumerator(path, pattern)) {
         while (e.MoveNext()) {
-          yield return e.CurrentEntry;
+          yield return e.Current;
         }
       }
     }

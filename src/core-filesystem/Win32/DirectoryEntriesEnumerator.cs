@@ -33,23 +33,19 @@ namespace mtsuite.CoreFileSystem.Win32 {
     private readonly Win32<TPath> _win32;
     private readonly TPath _directoryPath;
     private readonly SafeFindHandle _findHandle;
+    private DirectoryEntry _currentEntry;
     private bool _isFirst;
 
     public DirectoryEntriesEnumerator(Win32<TPath> win32, TPath directoryPath, string pattern) {
       _win32 = win32;
       _directoryPath = directoryPath;
-      _findHandle = _win32.FindFirstFile(_directoryPath, pattern, out CurrentEntry.Data);
       _isFirst = true;
+      _findHandle = _win32.FindFirstFile(_directoryPath, pattern, out _currentEntry.Data);
     }
-
-    /// <summary>
-    /// The current entry, exposed without any copying
-    /// </summary>
-    public DirectoryEntry CurrentEntry;
 
     public DirectoryEntry Current {
       get {
-        return CurrentEntry;
+        return _currentEntry;
       }
     }
 
@@ -67,12 +63,12 @@ namespace mtsuite.CoreFileSystem.Win32 {
           _isFirst = false;
         }
         else {
-          if (!_win32.FindNextFile(_findHandle, _directoryPath, out CurrentEntry.Data)) {
+          if (!_win32.FindNextFile(_findHandle, _directoryPath, out _currentEntry.Data)) {
             return false;
           }
         }
 
-        if (!Win32<TPath>.SkipSpecialEntry(ref CurrentEntry.Data)) {
+        if (!Win32<TPath>.SkipSpecialEntry(ref _currentEntry.Data)) {
           return true;
         }
       }
