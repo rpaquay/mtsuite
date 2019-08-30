@@ -312,7 +312,7 @@ namespace tests {
 
       // Act
       var entries = new List<DirectoryEntry>();
-      using (var e = _fileSystemSetup.FileSystem.GetDirectoryEntriesEnumerator(fooTarget.Path, null)) {
+      using (var e = _fileSystemSetup.FileSystem.GetDirectoryFilesEnumerator(fooTarget.Path, null)) {
         while (e.MoveNext()) {
           entries.Add(e.Current);
         }
