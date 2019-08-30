@@ -19,7 +19,7 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public FileSystemEntryData(FileIdFullInformation data)
-      : this(data.FileAttributes, data.FileSize, data.ftLastWritTime) {
+      : this(data.Attributes, data.FileSize, data.ftLastWritTime) {
     }
 
     public FileSystemEntryData(uint attributes, uint fileSizeHigh, uint fileSizeLow,

@@ -311,7 +311,7 @@ namespace tests {
       }
 
       // Act
-      var entries = new List<DirectoryEntry>();
+      var entries = new List<FileIdFullInformation>();
       using (var e = _fileSystemSetup.FileSystem.GetDirectoryFilesEnumerator(fooTarget.Path, null)) {
         while (e.MoveNext()) {
           entries.Add(e.Current);
@@ -323,7 +323,7 @@ namespace tests {
 
       for (var i = 0; i < fileCount; i++) {
         Assert.AreEqual(String.Format("testfile{0:00000}.txt", i), entries[i].FileName);
-        Assert.AreEqual(20L + i, entries[i].Length);
+        Assert.AreEqual(20L + i, entries[i].FileSize);
         Assert.IsTrue(IsTodaysDate(entries[i].CreationTimeUtc));
         Assert.IsTrue(IsTodaysDate(entries[i].LastAccessTimeUtc));
         Assert.IsTrue(IsTodaysDate(entries[i].LastWriteTimeUtc));

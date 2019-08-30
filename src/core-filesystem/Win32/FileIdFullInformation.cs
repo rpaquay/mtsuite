@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.IO;
 
 namespace mtsuite.CoreFileSystem.Win32 {
@@ -21,7 +22,11 @@ namespace mtsuite.CoreFileSystem.Win32 {
     public long ftCreationTime;
     public long ftLastWritTime;
     public long ftLastAccessTime;
-    public FileAttributes FileAttributes;
+    public FileAttributes Attributes;
     public long FileID;
+
+    public DateTime CreationTimeUtc => DateTime.FromFileTimeUtc(ftCreationTime);
+    public DateTime LastAccessTimeUtc => DateTime.FromFileTimeUtc(ftLastAccessTime);
+    public DateTime LastWriteTimeUtc => DateTime.FromFileTimeUtc(ftLastWritTime);
   }
 }

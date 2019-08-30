@@ -191,7 +191,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
     }
 
     public static bool SkipSpecialEntry(ref FileIdFullInformation data) {
-      if ((data.FileAttributes & FileAttributes.Directory) != 0) {
+      if ((data.Attributes & FileAttributes.Directory) != 0) {
         return ".".Equals(data.FileName) || "..".Equals(data.FileName);
       }
 
@@ -312,7 +312,7 @@ namespace mtsuite.CoreFileSystem.Win32 {
       //  IO_REPARSE_TAG_SYMLINK (0xA000000C)
       //
       //int reparseTagData = GetBufferInt32(entryPointer, OFFSETOF_EA_SIZE);
-      data.FileAttributes = (FileAttributes)GetBufferInt32(entryPointer, OFFSETOF_FILE_ATTRIBUTES);
+      data.Attributes = (FileAttributes)GetBufferInt32(entryPointer, OFFSETOF_FILE_ATTRIBUTES);
       data.FileID = GetBufferInt64(entryPointer, OFFSETOF_FILE_ID);
 
       int FileNameByteCount = GetBufferInt32(entryPointer, OFFSETOF_FILENAME_LENGTH);
