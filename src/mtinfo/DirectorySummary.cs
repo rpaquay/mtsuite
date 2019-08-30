@@ -19,11 +19,11 @@ using mtsuite.shared.Collections;
 
 namespace mtinfo {
   public class DirectorySummaryRoot {
-    public DirectorySummaryRoot() {
-      LongestPaths = new PriorityQueue<LongestPathInfo>();
-    }
+    private readonly PriorityQueue<LongestPathInfo> _longestPaths = new PriorityQueue<LongestPathInfo>();
+
     public DirectorySummary Summary { get; set; }
-    public PriorityQueue<LongestPathInfo> LongestPaths { get; set; }
+
+    public PriorityQueue<LongestPathInfo> LongestPaths => _longestPaths;
   }
 
   public class LongestPathInfo : IComparable<LongestPathInfo> {

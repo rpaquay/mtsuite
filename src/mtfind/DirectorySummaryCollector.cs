@@ -40,13 +40,13 @@ namespace mtfind {
     public void OnDirectoryEntriesEnumerated(DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries) {
       foreach (var entry in entries) {
         if (_nameMatcher(entry)) {
-          summary.MatchedFiles.Add(entry);
+          summary.AddMatchedFile(entry);
         }
       }
     }
 
     public void OnDirectoryTraversed(DirectorySummary parentSummary, DirectorySummary childSummary) {
-      parentSummary.Children.Add(childSummary);
+      parentSummary.AddChild(childSummary);
     }
   }
 }

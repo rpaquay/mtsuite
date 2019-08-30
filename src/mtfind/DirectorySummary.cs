@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Collections.Generic;
-
+using System.Linq;
 using mtsuite.CoreFileSystem;
 
 namespace mtfind {
@@ -26,13 +27,25 @@ namespace mtfind {
   /// </summary>
   public class DirectorySummary {
     private readonly FileSystemEntry _directoryEntry;
-    private readonly List<DirectorySummary> _children;
-    private readonly List<FileSystemEntry> _matchedFiles;
+    private List<DirectorySummary> _children;
+    private List<FileSystemEntry> _matchedFiles;
 
     public DirectorySummary(FileSystemEntry directoryEntry) {
       _directoryEntry = directoryEntry;
-      _children = new List<DirectorySummary>();
-      _matchedFiles = new List<FileSystemEntry>();
+    }
+
+    public void AddMatchedFile(FileSystemEntry entry) {
+      if (_matchedFiles == null) {
+        _matchedFiles = new List<FileSystemEntry>();
+      }
+      _matchedFiles.Add(entry);
+    }
+
+    public void AddChild(DirectorySummary summary) {
+      if (_children == null) {
+        _children = new List<DirectorySummary>();
+      }
+      _children.Add(summary);
     }
 
     /// <summary>
@@ -45,15 +58,15 @@ namespace mtfind {
     /// <summary>
     /// The list of summaries of the child directories.
     /// </summary>
-    public List<DirectorySummary> Children {
-      get { return _children; }
+    public IEnumerable<DirectorySummary> Children {
+      get { return _children ?? Enumerable.Empty<DirectorySummary>(); }
     }
 
     /// <summary>
     /// The list of file system entries that match the search pattern(s).
     /// </summary>
-    public List<FileSystemEntry> MatchedFiles {
-      get { return _matchedFiles; }
+    public IEnumerable<FileSystemEntry> MatchedFiles {
+      get { return _matchedFiles ?? Enumerable.Empty<FileSystemEntry>(); }
     }
   }
 }
