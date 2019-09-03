@@ -13,7 +13,10 @@
 // limitations under the License.
 
 namespace mtfind {
-  public struct VoidValue {
+  public class VoidValue {
     public static VoidValue Instance = default(VoidValue);
+
+    private VoidValue() {
+    }
   }
 }
