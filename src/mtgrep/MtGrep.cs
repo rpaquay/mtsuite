@@ -14,7 +14,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -55,7 +57,8 @@ namespace mtgrep {
       }
 
       var sourcePath = ProgramHelpers.MakeFullPath(arguments.Values.Directory);
-      var pattern = arguments.Values.Pattern;
+      var filePattern = arguments.Values.FilePattern;
+      var searchPattern = arguments.Values.SearchPattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
       bool followLinks = !arguments.Values.NoFollowLinks;
       bool isPlainOutput = arguments.Values.PlainOutput;
@@ -63,9 +66,9 @@ namespace mtgrep {
         DisplayBanner();
       }
 
-      var matchedFiles = DoGrep(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var grepResult = DoGrep(sourcePath, filePattern, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
-      DisplayMatchesFiles(matchedFiles, pattern, isPlainOutput);
+      DisplayMatchesFiles(grepResult, filePattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
       if (!isPlainOutput) {
@@ -92,7 +95,7 @@ namespace mtgrep {
       Console.WriteLine();
     }
 
-    public List<FileSystemEntry> DoGrep(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+    public List<GrepFileResult> DoGrep(FullPath sourcePath, string fileNamePattern, string searchPattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
       _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
@@ -106,20 +109,55 @@ namespace mtgrep {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Search files for \"{0}\" in \"{1}\"", pattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine("Search files for \"{0}\" in \"{1}\"", searchPattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var collector = new MtGrepSummaryCollector(CreateFileNameMatcher(pattern));
+      var collector = new MtGrepSummaryCollector(CreateFileNameMatcher(fileNamePattern), CreateGrepMatcher(searchPattern));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
-      return collector.MatchedFiles;
+      return collector.GrepResults;
     }
 
     private static FileNameMatcher CreateFileNameMatcher(string pattern) {
       var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
       return entry => matcher.MatchString(entry.Path.Name);
+    }
+
+    private static GrepMatcher CreateGrepMatcher(string pattern) {
+      var emptyResult = new ReadOnlyCollection<GrepEntry>(new List<GrepEntry>());
+      return (fileSystem, entry) => GrepFile(pattern, fileSystem, entry, emptyResult);
+    }
+
+    private static IList<GrepEntry> GrepFile(string pattern, IFileSystem fileSystem, FileSystemEntry entry, ReadOnlyCollection<GrepEntry> emptyResult) {
+      if (!entry.IsFile) {
+        return emptyResult;
+      }
+      // Create collection lazily in case there are no matches
+      IList<GrepEntry> result = null;
+      using(var stream = fileSystem.OpenFile(entry.Path, FileAccess.Read)) {
+        using (var reader = new StreamReader(stream)) {
+          int lineNumber = 0;
+          long currentOffset = stream.Position;
+          for (string line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+            if (line.IndexOf(pattern) >= 0) {
+              // Create collection lazily in case there are no matches
+              if (result == null) {
+                result = new List<GrepEntry>(); ;
+              }
+              result.Add(new GrepEntry() {
+                TextExtract = line,
+                LineNumber = lineNumber,
+                StartOffset = currentOffset,
+                EndOffset = currentOffset + line.Length
+              });
+            }
+            lineNumber++;
+          }
+        }
+      }
+      return result ?? emptyResult;
     }
 
     private static void DisplayStatistics(Statistics statistics) {
@@ -146,7 +184,7 @@ namespace mtgrep {
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
-    private static void DisplayMatchesFiles(List<FileSystemEntry> matchedFiles, string searchPattern, bool isPlainOutput) {
+    private static void DisplayMatchesFiles(List<GrepFileResult> matchedFiles, string searchPattern, bool isPlainOutput) {
       var matchedEntries = matchedFiles
         .OrderBy(entry => entry.Path)
         .ToList();

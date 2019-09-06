@@ -171,7 +171,7 @@ namespace mtinfo {
         get { return _root; }
       }
 
-      public DirectorySummary CreateItemForDirectory(FileSystemEntry directory, int depth) {
+      public DirectorySummary CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth) {
         SetLongestPath(directory);
 
         var result = new DirectorySummary(directory, depth);
@@ -180,7 +180,7 @@ namespace mtinfo {
         return result;
       }
 
-      public ITaskCollection OnDirectoryEntriesEnumerated(DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
+      public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
         foreach (var entry in entries) {
           SetLongestPath(entry);
           if (entry.IsFile && !entry.IsReparsePoint) {
@@ -222,7 +222,7 @@ namespace mtinfo {
         }
       }
 
-      public void OnDirectoryTraversed(DirectorySummary parentSummary, DirectorySummary childSummary) {
+      public void OnDirectoryTraversed(IFileSystem fileSystem, DirectorySummary parentSummary, DirectorySummary childSummary) {
         if (parentSummary.Depth + 1 < _options.LevelCount) {
           parentSummary.Children.Add(childSummary);
         }

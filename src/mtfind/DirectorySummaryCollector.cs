@@ -29,11 +29,11 @@ namespace mtfind {
 
     public List<FileSystemEntry> MatchedFiles => _matchedFiles;
 
-    public VoidValue CreateItemForDirectory(FileSystemEntry directory, int depth) {
+    public VoidValue CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth) {
       return VoidValue.Instance;
     }
 
-    public ITaskCollection OnDirectoryEntriesEnumerated(VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
+    public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
       foreach (var entry in entries) {
         if (_nameMatcher(entry)) {
           lock (_matchedFiles) {
@@ -44,7 +44,7 @@ namespace mtfind {
       return taskFactory.EmptyCollection();
     }
 
-    public void OnDirectoryTraversed(VoidValue parentValue, VoidValue childValue) {
+    public void OnDirectoryTraversed(IFileSystem fileSystem, VoidValue parentValue, VoidValue childValue) {
     }
   }
 }

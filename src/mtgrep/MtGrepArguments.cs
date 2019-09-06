@@ -33,7 +33,7 @@ namespace mtgrep {
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithString("pattern", "The pattern to search for", true)
-        .WithString("file", "The file pattern to select files to search", false, "*")
+        .WithString("file-pattern", "The file pattern to select files to search", false, "*")
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);
@@ -73,7 +73,9 @@ namespace mtgrep {
 
       public string Directory => _parser["directory"].StringValue;
 
-      public string Pattern => _parser["pattern"].StringValue;
+      public string FilePattern => _parser["file-pattern"].StringValue;
+
+      public string SearchPattern => _parser["pattern"].StringValue;
 
       public int ThreadCount => _parser["thread-count"].IntValue;
 

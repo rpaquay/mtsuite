@@ -60,19 +60,19 @@ namespace mtsuite.shared {
     /// <summary>
     /// Create a collector item for the given <paramref name="directory"/>
     /// </summary>
-    T CreateItemForDirectory(FileSystemEntry directory, int depth);
+    T CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth);
 
     /// <summary>
     /// Called when children entries of the directory corresponding to <paramref
     /// name="item"/> have been enumerated.
     /// </summary>
-    ITaskCollection OnDirectoryEntriesEnumerated(T item, FileSystemEntry directory, List<FileSystemEntry> children, ITaskFactory taskFactory);
+    ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, T item, FileSystemEntry directory, List<FileSystemEntry> children, ITaskFactory taskFactory);
 
     /// <summary>
     /// Called after a sub-directory <paramref name="childItem"/> of the
     /// directory <paramref name="parentItem"/> has been processed.
     /// </summary>
-    void OnDirectoryTraversed(T parentItem, T childItem);
+    void OnDirectoryTraversed(IFileSystem fileSystem, T parentItem, T childItem);
   }
 
   [Flags]

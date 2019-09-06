@@ -110,8 +110,8 @@ namespace mtsuite.shared {
       OnEntriesDiscovered(directoryEntry, entries.Item);
 
       // Notify collector
-      var collectorItem = collector.CreateItemForDirectory(directoryEntry, depth);
-      var additionalTasks = collector.OnDirectoryEntriesEnumerated(collectorItem, directoryEntry, entries.Item, _taskFactory);
+      var collectorItem = collector.CreateItemForDirectory(_fileSystem, directoryEntry, depth);
+      var additionalTasks = collector.OnDirectoryEntriesEnumerated(_fileSystem, collectorItem, directoryEntry, entries.Item, _taskFactory);
 
       // Create tasks for children directories
       var childDirectoriesTasks = _taskFactory.CreateCollection<T>();
@@ -132,7 +132,7 @@ namespace mtsuite.shared {
       return additionalTasks.Then(tasks => {
         return childDirectoriesTasks.ContinueWith(tasks2 => {
           foreach (var task in tasks2) {
-            collector.OnDirectoryTraversed(collectorItem, task.Result);
+            collector.OnDirectoryTraversed(_fileSystem, collectorItem, task.Result);
           }
           return collectorItem;
         });
