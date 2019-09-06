@@ -203,7 +203,7 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    protected abstract void DisplayStatus(Statistics statistics);
+    protected abstract void DisplayStatus(TStatistics statistics);
 
     protected virtual void Print(ICollection<PrinterEntry> fields) {
       _printer.Print(fields);

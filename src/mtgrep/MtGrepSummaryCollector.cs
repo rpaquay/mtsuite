@@ -65,6 +65,7 @@ namespace mtgrep {
             Entries = grepEntries
           });
         }
+        _progressMonitor.OnFileMatchFound();
       }
     }
 

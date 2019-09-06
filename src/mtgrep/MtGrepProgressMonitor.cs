@@ -14,16 +14,23 @@
 
 using System;
 using System.ComponentModel;
-
+using System.Threading;
 using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtgrep {
-  public class MtGrepProgressMonitor : ProgressMonitor<Statistics> {
+  public class MtGrepProgressMonitor : ProgressMonitor<GrepStatistics> {
+    private long _fileMatchedCount;
+
     public bool QuietMode { get; set; }
 
-    protected override void DisplayStatus(Statistics statistics) {
+    protected override void SetStatistics(GrepStatistics statistics) {
+      base.SetStatistics(statistics);
+      statistics.FileMatchedCount = _fileMatchedCount;
+    }
+
+    protected override void DisplayStatus(GrepStatistics statistics) {
       if (QuietMode) {
         return;
       }
@@ -33,6 +40,7 @@ namespace mtgrep {
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
       var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var filesFoundText = string.Format("{0:n0}", statistics.FileMatchedCount);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
@@ -42,8 +50,13 @@ namespace mtgrep {
         new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right),
         new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
+        new PrinterEntry("# of files found", filesFoundText, shortName: "files", valueAlign: Align.Right),
       };
       Print(fields);
+    }
+
+    public void OnFileMatchFound() {
+      Interlocked.Increment(ref _fileMatchedCount);
     }
 
     /// <summary>
