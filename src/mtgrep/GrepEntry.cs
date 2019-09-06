@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using mtsuite.CoreFileSystem;
-using mtsuite.shared.CommandLine;
-
 namespace mtgrep {
-  internal class Program {
-    private static int Main(string[] args) {
-      return ProgramHelpers.RunProgram(args, () => {
-        new MtGrep(new FileSystem()).Run(args);
-      });
-    }
+  public class GrepEntry {
+    public int LineNumber { get; set; }
+    public long StartOffset { get; set; }
+    public long EndOffset { get; set; }
+    public string TextExtract { get; set; }
   }
 }

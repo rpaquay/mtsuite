@@ -15,7 +15,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -68,7 +67,7 @@ namespace mtgrep {
 
       var grepResult = DoGrep(sourcePath, filePattern, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
-      DisplayMatchesFiles(grepResult, filePattern, isPlainOutput);
+      DisplayMatchesFiles(grepResult, filePattern, searchPattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
       if (!isPlainOutput) {
@@ -109,7 +108,7 @@ namespace mtgrep {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Search files for \"{0}\" in \"{1}\"", searchPattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine("Search files matching pattern \"{0}\" for string \"{1}\" in \"{2}\"", fileNamePattern, searchPattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
         Console.WriteLine();
       }
       _progressMonitor.Start();
@@ -184,7 +183,7 @@ namespace mtgrep {
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
-    private static void DisplayMatchesFiles(List<GrepFileResult> matchedFiles, string searchPattern, bool isPlainOutput) {
+    private static void DisplayMatchesFiles(List<GrepFileResult> matchedFiles, string filePattern, string searchPattern, bool isPlainOutput) {
       var matchedEntries = matchedFiles
         .OrderBy(entry => entry.Path)
         .ToList();
@@ -193,7 +192,8 @@ namespace mtgrep {
         Console.WriteLine(PathHelpers.StripLongPathPrefix(entry.Path.FullName));
       }
       if (!isPlainOutput) {
-        Console.WriteLine("Found {0} entries matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
+        Console.WriteLine();
+        Console.WriteLine("Found {0} files matchin pattern \"{1}\" and containing string \"{2}\"", matchedEntries.Count, filePattern, searchPattern);
       }
     }
   }

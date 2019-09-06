@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections.Generic;
+
 using mtsuite.CoreFileSystem;
-using mtsuite.shared.CommandLine;
 
 namespace mtgrep {
-  internal class Program {
-    private static int Main(string[] args) {
-      return ProgramHelpers.RunProgram(args, () => {
-        new MtGrep(new FileSystem()).Run(args);
-      });
-    }
-  }
+  public delegate IList<GrepEntry> GrepMatcher(IFileSystem fileSystem, FileSystemEntry entry);
 }

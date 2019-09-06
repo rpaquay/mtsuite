@@ -63,9 +63,13 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GrepEntry.cs" />
+    <Compile Include="GrepErrorEntry.cs" />
+    <Compile Include="GrepFileResult.cs" />
     <Compile Include="MtGrep.cs" />
     <Compile Include="MtGrepArguments.cs" />
     <Compile Include="MtGrepProgressMonitor.cs" />
+    <Compile Include="GrepMatcher.cs" />
     <Compile Include="MtGrepSummaryCollector.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
