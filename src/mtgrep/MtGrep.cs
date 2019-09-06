@@ -125,22 +125,49 @@ namespace mtgrep {
     }
 
     private static GrepMatcher CreateGrepMatcher(string pattern) {
-      var emptyResult = new ReadOnlyCollection<GrepEntry>(new List<GrepEntry>());
-      return (fileSystem, entry) => GrepFile(pattern, fileSystem, entry, emptyResult);
+      return new GrepFileSearch(pattern).SearchFile;
     }
 
-    private static IList<GrepEntry> GrepFile(string pattern, IFileSystem fileSystem, FileSystemEntry entry, ReadOnlyCollection<GrepEntry> emptyResult) {
-      if (!entry.IsFile) {
-        return emptyResult;
+    public class GrepFileSearch {
+      private readonly string _pattern;
+      private readonly IList<GrepEntry> _emptyResult = new ReadOnlyCollection<GrepEntry>(new List<GrepEntry>());
+
+      public GrepFileSearch(string pattern) {
+        _pattern = pattern;
       }
-      // Create collection lazily in case there are no matches
-      IList<GrepEntry> result = null;
-      using (var stream = fileSystem.OpenFile(entry.Path, FileAccess.Read)) {
+
+      public IList<GrepEntry> SearchFile(IFileSystem fileSystem, FileSystemEntry entry) {
+        if (!entry.IsFile) {
+          return _emptyResult;
+        }
+
+        // Skip small files
+        if (_pattern.Length > entry.FileSize) {
+          return _emptyResult;
+        }
+
+        // Create collection lazily in case there are no matches
+        using (var stream = fileSystem.OpenFile(entry.Path, FileAccess.Read)) {
+          return SearchStream(stream, entry);
+        }
+      }
+
+      public IList<GrepEntry> SearchStream(FileStream stream, FileSystemEntry entry) {
+        var grepStream = new GrepStream(stream);
+        if (grepStream.IsBinary()) {
+          return _emptyResult;
+        }
+
+        // Reset stream
+        stream.Position = 0;
+
+        // Create collection lazily in case there are no matches
+        IList<GrepEntry> result = null;
         using (var reader = new StreamReader(stream)) {
           int lineNumber = 0;
           long currentOffset = stream.Position;
           for (string line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-            if (line.IndexOf(pattern) >= 0) {
+            if (line.IndexOf(_pattern) >= 0) {
               // Create collection lazily in case there are no matches
               if (result == null) {
                 result = new List<GrepEntry>(); ;
@@ -155,8 +182,52 @@ namespace mtgrep {
             lineNumber++;
           }
         }
+        return result ?? _emptyResult;
       }
-      return result ?? emptyResult;
+
+      public class GrepStream {
+        private readonly FileStream _stream;
+        private readonly byte[] _buffer = new byte[1_024];
+        private int _bufferLength;
+        private int _bufferOffset;
+        private bool _eof;
+
+        public bool EOF => _eof;
+        public GrepStream(FileStream stream) {
+          _stream = stream;
+        }
+
+        public bool IsBinary() {
+          EnsureBuffer();
+          int asciiCount = 0;
+          for(var i = 0; i < _bufferLength; i++) {
+            if (IsAscii(_buffer[i])) {
+              asciiCount++;
+            }
+          }
+
+          float asciiRatio = (float)asciiCount / (float)_bufferLength;
+          RestartBuffer();
+          return asciiRatio <= 0.8;
+        }
+
+        private void RestartBuffer() {
+          _bufferOffset = 0;
+        }
+
+        private static bool IsAscii(byte v) {
+          return (v >= 32 && v <= 126);
+        }
+
+        private void EnsureBuffer() {
+          if (_bufferOffset >= _bufferLength) {
+            var count = _stream.Read(_buffer, 0, _buffer.Length);
+            _eof = (count == 0);
+            _bufferLength = count;
+            _bufferOffset = 0;
+          }
+        }
+      }
     }
 
     private static void DisplayStatistics(Statistics statistics) {
