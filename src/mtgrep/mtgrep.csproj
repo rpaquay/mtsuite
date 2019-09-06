@@ -66,6 +66,8 @@
     <Compile Include="GrepEntry.cs" />
     <Compile Include="GrepErrorEntry.cs" />
     <Compile Include="GrepFileResult.cs" />
+    <Compile Include="GrepFileSearch.cs" />
+    <Compile Include="GrepFileStream.cs" />
     <Compile Include="GrepStatistics.cs" />
     <Compile Include="MtGrep.cs" />
     <Compile Include="MtGrepArguments.cs" />
