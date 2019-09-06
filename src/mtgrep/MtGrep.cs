@@ -112,7 +112,7 @@ namespace mtgrep {
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var collector = new MtGrepSummaryCollector(CreateFileNameMatcher(fileNamePattern), CreateGrepMatcher(searchPattern));
+      var collector = new MtGrepSummaryCollector(_progressMonitor, CreateFileNameMatcher(fileNamePattern), CreateGrepMatcher(searchPattern));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
@@ -135,7 +135,7 @@ namespace mtgrep {
       }
       // Create collection lazily in case there are no matches
       IList<GrepEntry> result = null;
-      using(var stream = fileSystem.OpenFile(entry.Path, FileAccess.Read)) {
+      using (var stream = fileSystem.OpenFile(entry.Path, FileAccess.Read)) {
         using (var reader = new StreamReader(stream)) {
           int lineNumber = 0;
           long currentOffset = stream.Position;

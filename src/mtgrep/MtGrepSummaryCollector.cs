@@ -23,19 +23,18 @@ using mtsuite.shared.Tasks;
 
 namespace mtgrep {
   public class MtGrepSummaryCollector : IDirectorCollector<VoidValue> {
+    private readonly MtGrepProgressMonitor _progressMonitor;
     private readonly List<GrepFileResult> _grepResults = new List<GrepFileResult>();
-    private readonly List<GrepErrorEntry> _errors = new List<GrepErrorEntry>();
     private readonly FileNameMatcher _nameMatcher;
     private readonly GrepMatcher _grepMatcher;
 
-    public MtGrepSummaryCollector(FileNameMatcher nameMatcher, GrepMatcher grepMatcher) {
+    public MtGrepSummaryCollector(MtGrepProgressMonitor progressMonitor, FileNameMatcher nameMatcher, GrepMatcher grepMatcher) {
+      _progressMonitor = progressMonitor;
       _nameMatcher = nameMatcher;
       _grepMatcher = grepMatcher;
     }
 
     public List<GrepFileResult> GrepResults => _grepResults;
-
-    public List<GrepErrorEntry> Errors => _errors;
 
     public VoidValue CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth) {
       return VoidValue.Instance;
@@ -70,9 +69,7 @@ namespace mtgrep {
     }
 
     private void AddError(FileSystemEntry entry, Exception e) {
-      lock (_errors) {
-        _errors.Add(new GrepErrorEntry() { Path = entry.Path, Error = e });
-      }
+      _progressMonitor.OnError(e);
     }
 
     public void OnDirectoryTraversed(IFileSystem fileSystem, VoidValue parentValue, VoidValue childValue) {
