@@ -84,14 +84,15 @@ namespace mtsuite.shared {
       bool skipNotification) {
 
       return _taskFactory.StartNew(() => {
-        if (!skipNotification)
+        if (!skipNotification) {
           OnDirectoryTraversing(directoryEntry);
-        var item = collector.CreateItemForDirectory(directoryEntry, depth);
+        }
+        var collectorItem = collector.CreateItemForDirectory(directoryEntry, depth);
         return TraverseDirectoryEntriesAsync(
           directoryEntry,
           collector,
           followLinks,
-          item,
+          collectorItem,
           depth);
       }).Then(t => {
         if (!skipNotification)
@@ -104,14 +105,14 @@ namespace mtsuite.shared {
       FileSystemEntry directoryEntry,
       IDirectorCollector<T> collector,
       bool followLinks,
-      T item,
+      T collectorItem,
       int depth) {
 
       OnEntriesDiscovering(directoryEntry);
       var entries = GetDirectoryEntries(directoryEntry.Path);
       OnEntriesDiscovered(directoryEntry, entries.Item);
 
-      collector.OnDirectoryEntriesEnumerated(item, directoryEntry, entries.Item);
+      collector.OnDirectoryEntriesEnumerated(collectorItem, directoryEntry, entries.Item);
       var directoryInfoTasks = _taskFactory.CreateCollection<T>();
       foreach (var entry in entries.Item) {
         if (entry.IsDirectory) {
@@ -127,9 +128,9 @@ namespace mtsuite.shared {
 
       return directoryInfoTasks.ContinueWith(tasks => {
         foreach (var task in tasks) {
-          collector.OnDirectoryTraversed(item, task.Result);
+          collector.OnDirectoryTraversed(collectorItem, task.Result);
         }
-        return item;
+        return collectorItem;
       });
     }
 
