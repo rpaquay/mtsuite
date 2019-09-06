@@ -15,8 +15,6 @@
 namespace mtgrep {
   public class GrepEntry {
     public int LineNumber { get; set; }
-    public long StartOffset { get; set; }
-    public long EndOffset { get; set; }
-    public string TextExtract { get; set; }
+    public int ColumnNumber { get; set; }
   }
 }

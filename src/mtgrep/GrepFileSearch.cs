@@ -55,22 +55,21 @@ namespace mtgrep {
       // Create collection lazily in case there are no matches
       IList<GrepEntry> result = null;
       using (var reader = new StreamReader(stream)) {
-        int lineNumber = 0;
+        int lineIndex = 0;
         long currentOffset = stream.Position;
         for (string line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-          if (line.IndexOf(_pattern) >= 0) {
-            // Create collection lazily in case there are no matches
+          int columnIndex = line.IndexOf(_pattern);
+          if (columnIndex >= 0) {
+            // Create collection now if needed
             if (result == null) {
               result = new List<GrepEntry>(); ;
             }
             result.Add(new GrepEntry() {
-              TextExtract = line,
-              LineNumber = lineNumber,
-              StartOffset = currentOffset,
-              EndOffset = currentOffset + line.Length
+              LineNumber = lineIndex + 1,
+              ColumnNumber = columnIndex + 1
             });
           }
-          lineNumber++;
+          lineIndex++;
         }
       }
       return result ?? _emptyResult;

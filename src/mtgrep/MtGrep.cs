@@ -152,17 +152,22 @@ namespace mtgrep {
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
-    private static void DisplayMatchesFiles(List<GrepFileResult> matchedFiles, string filePattern, string searchPattern, bool isPlainOutput) {
-      var matchedEntries = matchedFiles
+    private static void DisplayMatchesFiles(List<GrepFileResult> grepResult, string filePattern, string searchPattern, bool isPlainOutput) {
+      var sortedGrepResult = grepResult
         .OrderBy(entry => entry.Path)
         .ToList();
 
-      foreach (var entry in matchedEntries) {
-        Console.WriteLine(PathHelpers.StripLongPathPrefix(entry.Path.FullName));
+      foreach (var fileResult in sortedGrepResult) {
+        foreach (var grepEntry in fileResult.Entries) {
+          Console.WriteLine("{0}({1},{2})",
+            PathHelpers.StripLongPathPrefix(fileResult.Path.FullName),
+            grepEntry.LineNumber,
+            grepEntry.ColumnNumber);
+        }
       }
       if (!isPlainOutput) {
         Console.WriteLine();
-        Console.WriteLine("Found {0} files matchin pattern \"{1}\" and containing string \"{2}\"", matchedEntries.Count, filePattern, searchPattern);
+        Console.WriteLine("Found {0} files matchin pattern \"{1}\" and containing string \"{2}\"", sortedGrepResult.Count, filePattern, searchPattern);
       }
     }
   }
