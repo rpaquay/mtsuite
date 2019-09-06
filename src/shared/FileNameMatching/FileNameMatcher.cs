@@ -14,6 +14,6 @@
 
 using mtsuite.CoreFileSystem;
 
-namespace mtgrep {
+namespace mtsuite.shared.FileNameMatching {
   public delegate bool FileNameMatcher(FileSystemEntry entry);
 }

@@ -14,7 +14,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using mtfind;
+using mtsuite.shared.FileNameMatching;
 
 namespace tests {
   [TestClass]

@@ -21,6 +21,7 @@ using System.Reflection;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared;
 using mtsuite.shared.CommandLine;
+using mtsuite.shared.FileNameMatching;
 using mtsuite.shared.Utils;
 
 namespace mtgrep {

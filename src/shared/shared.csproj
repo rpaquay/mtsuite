@@ -67,6 +67,10 @@
     <Compile Include="CommandLine\IArgumentDefinitionVisitor.cs" />
     <Compile Include="CopyProgressMonitor.cs" />
     <Compile Include="FieldsPrinter.cs" />
+    <Compile Include="FileNameMatching\FileNameMatcher.cs" />
+    <Compile Include="FileNameMatching\SearchPatternMatcher.cs" />
+    <Compile Include="FileNameMatching\SearchPatternParser.cs" />
+    <Compile Include="FileNameMatching\SearchPatternPartMatcher.cs" />
     <Compile Include="PrinterEntry.cs" />
     <Compile Include="ProgressPrinter.cs" />
     <Compile Include="Utils\FormatHelpers.cs" />
@@ -100,6 +104,7 @@
     <Compile Include="Statistics.cs" />
     <Compile Include="CommandLine\ProgramHelpers.cs" />
     <Compile Include="Utils\TaskHelpers.cs" />
+    <Compile Include="VoidValue.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\core-filesystem\**\*.cs" Exclude="..\core-filesystem\**\AssemblyInfo.cs;..\core-filesystem\obj\**">

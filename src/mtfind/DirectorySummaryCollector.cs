@@ -15,6 +15,7 @@
 using System.Collections.Generic;
 using mtsuite.shared;
 using mtsuite.CoreFileSystem;
+using mtsuite.shared.FileNameMatching;
 
 namespace mtfind {
   public class DirectorySummaryCollector : IDirectorCollector<VoidValue> {

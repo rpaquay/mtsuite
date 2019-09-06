@@ -12,11 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace mtgrep {
-  public class VoidValue {
-    public static VoidValue Instance = default(VoidValue);
+using System.Collections.Generic;
 
-    private VoidValue() {
+namespace mtsuite.shared.FileNameMatching {
+  public class SearchPatternMatcher {
+    private List<SearchPatternPartMatcher> _matchers;
+
+    public SearchPatternMatcher(List<SearchPatternPartMatcher> matchers) {
+      _matchers = matchers;
+    }
+
+    public bool MatchString(string value) {
+      return SearchPatternPartMatcher.MatchAll(value, 0, _matchers, 0);
     }
   }
 }

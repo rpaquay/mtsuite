@@ -16,7 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace mtfind {
+namespace mtsuite.shared.FileNameMatching {
   public class SearchPatternParser {
     public enum Options {
       Default,

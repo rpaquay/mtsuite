@@ -15,7 +15,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace mtfind {
+namespace mtsuite.shared.FileNameMatching {
 
   public abstract class SearchPatternPartMatcher {
     public abstract bool Match(string value, int valuePosition, List<SearchPatternPartMatcher> matchers, int matcherPosition);
