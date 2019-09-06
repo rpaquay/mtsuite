@@ -22,6 +22,7 @@ using mtsuite.shared;
 using mtsuite.shared.CommandLine;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.Utils;
+using mtsuite.shared.Tasks;
 
 namespace mtinfo {
   public class MtInfo {
@@ -179,7 +180,7 @@ namespace mtinfo {
         return result;
       }
 
-      public void OnDirectoryEntriesEnumerated(DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries) {
+      public ITaskCollection OnDirectoryEntriesEnumerated(DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
         foreach (var entry in entries) {
           SetLongestPath(entry);
           if (entry.IsFile && !entry.IsReparsePoint) {
@@ -191,6 +192,7 @@ namespace mtinfo {
             summary.Stats.SymlinkCount++;
           }
         }
+        return taskFactory.EmptyCollection();
       }
 
       private void SetLongestPath(FileSystemEntry entry) {

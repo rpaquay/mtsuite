@@ -31,6 +31,8 @@ namespace mtsuite.shared.Tasks {
       AddRange(source);
     }
 
+    public int Count => _tasks.Count;
+
     public void Add(ITask task) {
       _tasks.Add((DefaultTask)task);
     }

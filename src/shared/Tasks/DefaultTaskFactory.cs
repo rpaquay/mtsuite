@@ -20,9 +20,11 @@ using mtsuite.shared.Utils;
 namespace mtsuite.shared.Tasks {
   public class DefaultTaskFactory : ITaskFactory {
     private readonly DefaultTask _completedTask;
+    private readonly DefaultTaskCollection _emptyCollection;
 
     public DefaultTaskFactory() {
       _completedTask = new DefaultTask(TaskHelpers.CompletedTask);
+      _emptyCollection = new DefaultTaskCollection(this);
     }
 
     public ITask CompletedTask {
@@ -39,6 +41,10 @@ namespace mtsuite.shared.Tasks {
 
     public ITask<T> StartNew<T>(Func<T> func) {
       return new DefaultTask<T>(Task<T>.Factory.StartNew(func));
+    }
+
+    public ITaskCollection EmptyCollection() {
+      return _emptyCollection;
     }
 
     public ITaskCollection CreateCollection() {

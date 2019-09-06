@@ -17,6 +17,7 @@ using System.Collections.Generic;
 
 namespace mtsuite.shared.Tasks {
   public interface ITaskFactory : IDisposable {
+    ITaskCollection EmptyCollection();
     ITask CompletedTask { get; }
 
     ITask StartNew(Action action);

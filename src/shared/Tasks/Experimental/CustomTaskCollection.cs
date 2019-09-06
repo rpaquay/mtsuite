@@ -30,6 +30,8 @@ namespace mtsuite.shared.Tasks.Experimental {
       AddRange(source);
     }
 
+    public int Count => _tasks.Count;
+
     public IEnumerator<ITask> GetEnumerator() {
       return _tasks.GetEnumerator();
     }
@@ -77,6 +79,8 @@ namespace mtsuite.shared.Tasks.Experimental {
       : this(factory) {
       AddRange(source);
     }
+
+    public int Count => _tasks.Count;
 
     public IEnumerator<ITask<TResult>> GetEnumerator() {
       return _tasks.GetEnumerator();

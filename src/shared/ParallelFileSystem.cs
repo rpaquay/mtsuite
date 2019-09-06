@@ -87,12 +87,10 @@ namespace mtsuite.shared {
         if (!skipNotification) {
           OnDirectoryTraversing(directoryEntry);
         }
-        var collectorItem = collector.CreateItemForDirectory(directoryEntry, depth);
         return TraverseDirectoryEntriesAsync(
           directoryEntry,
           collector,
           followLinks,
-          collectorItem,
           depth);
       }).Then(t => {
         if (!skipNotification)
@@ -105,32 +103,39 @@ namespace mtsuite.shared {
       FileSystemEntry directoryEntry,
       IDirectorCollector<T> collector,
       bool followLinks,
-      T collectorItem,
       int depth) {
 
       OnEntriesDiscovering(directoryEntry);
       var entries = GetDirectoryEntries(directoryEntry.Path);
       OnEntriesDiscovered(directoryEntry, entries.Item);
 
-      collector.OnDirectoryEntriesEnumerated(collectorItem, directoryEntry, entries.Item);
-      var directoryInfoTasks = _taskFactory.CreateCollection<T>();
+      // Notify collector
+      var collectorItem = collector.CreateItemForDirectory(directoryEntry, depth);
+      var additionalTasks = collector.OnDirectoryEntriesEnumerated(collectorItem, directoryEntry, entries.Item, _taskFactory);
+
+      // Create tasks for children directories
+      var childDirectoriesTasks = _taskFactory.CreateCollection<T>();
       foreach (var entry in entries.Item) {
         if (entry.IsDirectory) {
           bool isRealDirectory = !entry.IsReparsePoint;
           bool followDirectoryLink = entry.IsReparsePoint && followLinks;
           if (isRealDirectory || followDirectoryLink) {
             var directoryTask = TraverseDirectoryAsync(entry, collector, followLinks, depth + 1, false);
-            directoryInfoTasks.Add(directoryTask);
+            childDirectoriesTasks.Add(directoryTask);
           }
         }
       }
+
       entries.Dispose();
 
-      return directoryInfoTasks.ContinueWith(tasks => {
-        foreach (var task in tasks) {
-          collector.OnDirectoryTraversed(collectorItem, task.Result);
-        }
-        return collectorItem;
+      // Run "additionalTasks", then run "childDirectoryTasks" then return "collectorItem"
+      return additionalTasks.Then(tasks => {
+        return childDirectoriesTasks.ContinueWith(tasks2 => {
+          foreach (var task in tasks2) {
+            collector.OnDirectoryTraversed(collectorItem, task.Result);
+          }
+          return collectorItem;
+        });
       });
     }
 

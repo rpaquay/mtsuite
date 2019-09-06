@@ -17,24 +17,31 @@ using System.Collections.Generic;
 
 namespace mtsuite.shared.Tasks {
   public interface ITaskCollection : IEnumerable<ITask> {
+    int Count { get; }
+
     void Add(ITask task);
     void AddRange(IEnumerable<ITask> tasks);
 
+    /// <summary>
+    /// Returns a <see cref="ITask"/> that completes when all tasks in the collection and a follow up <see cref="Action"/> are completed.
+    /// The parameter is a lamdba that contains the code to run after all tasks in the collection are completed.
+    /// </summary>
     ITask ContinueWith(Action<ITaskCollection> continuation);
+    /// <summary>
+    /// Returns a <see cref="ITask{TResult}"/> that completes when all tasks in the collection and a follow up <see cref="Func{ITaskCollection, TResult}"/> are completed.
+    /// The parameter is a lamdba that contains the code to run after all tasks in the collection are completed.
+    /// </summary>
     ITask<TResult> ContinueWith<TResult>(Func<ITaskCollection, TResult> continuation);
 
+    /// <summary>
+    /// Returns a <see cref="ITask"/> that completes when all tasks in the collection and a follow up <see cref="ITask"/> are completed.
+    /// The parameter is a lamdba that creates the follow up task to run after all tasks in the collection are completed.
+    /// </summary>
     ITask Then(Func<ITaskCollection, ITask> taskFactory);
+    /// <summary>
+    /// Returns a <see cref="ITask{TResult}"/> that completes when all tasks in the collection and a follow up <see cref="ITask{TResult}"/> are completed.
+    /// The parameter is a lamdba that creates the follow up task to run after all tasks in the collection are completed.
+    /// </summary>
     ITask<TResult> Then<TResult>(Func<ITaskCollection, ITask<TResult>> taskFactory);
-  }
-
-  public interface ITaskCollection<TResult> : IEnumerable<ITask<TResult>> {
-    void Add(ITask<TResult> task);
-    void AddRange(IEnumerable<ITask<TResult>> tasks);
-
-    ITask ContinueWith(Action<ITaskCollection<TResult>> continuation);
-    ITask<TNewResult> ContinueWith<TNewResult>(Func<ITaskCollection<TResult>, TNewResult> continuation);
-
-    ITask Then(Func<ITaskCollection<TResult>, ITask> taskFactory);
-    ITask<TNewResult> Then<TNewResult>(Func<ITaskCollection<TResult>, ITask<TNewResult>> taskFactory);
   }
 }

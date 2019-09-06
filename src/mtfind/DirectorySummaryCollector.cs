@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using mtsuite.shared;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.FileNameMatching;
+using mtsuite.shared.Tasks;
 
 namespace mtfind {
   public class DirectorySummaryCollector : IDirectorCollector<VoidValue> {
@@ -32,7 +33,7 @@ namespace mtfind {
       return VoidValue.Instance;
     }
 
-    public void OnDirectoryEntriesEnumerated(VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries) {
+    public ITaskCollection OnDirectoryEntriesEnumerated(VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
       foreach (var entry in entries) {
         if (_nameMatcher(entry)) {
           lock (_matchedFiles) {
@@ -40,6 +41,7 @@ namespace mtfind {
           }
         }
       }
+      return taskFactory.EmptyCollection();
     }
 
     public void OnDirectoryTraversed(VoidValue parentValue, VoidValue childValue) {

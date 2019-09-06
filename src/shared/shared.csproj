@@ -73,6 +73,7 @@
     <Compile Include="FileNameMatching\SearchPatternPartMatcher.cs" />
     <Compile Include="PrinterEntry.cs" />
     <Compile Include="ProgressPrinter.cs" />
+    <Compile Include="Tasks\ITaskCollection`1.cs" />
     <Compile Include="Utils\FormatHelpers.cs" />
     <Compile Include="IParallelFileSystem.cs" />
     <Compile Include="IProgressMonitor.cs" />

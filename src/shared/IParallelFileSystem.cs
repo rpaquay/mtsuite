@@ -66,7 +66,7 @@ namespace mtsuite.shared {
     /// Called when children entries of the directory corresponding to <paramref
     /// name="item"/> have been enumerated.
     /// </summary>
-    void OnDirectoryEntriesEnumerated(T item, FileSystemEntry directory, List<FileSystemEntry> children);
+    ITaskCollection OnDirectoryEntriesEnumerated(T item, FileSystemEntry directory, List<FileSystemEntry> children, ITaskFactory taskFactory);
 
     /// <summary>
     /// Called after a sub-directory <paramref name="childItem"/> of the

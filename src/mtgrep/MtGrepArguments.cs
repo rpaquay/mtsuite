@@ -32,7 +32,8 @@ namespace mtgrep {
         .WithSwitch("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
         .WithThreadCountSwitch()
         .WithGcSwitch()
-        .WithString("pattern", "The pattern to search for", true, "*")
+        .WithString("pattern", "The pattern to search for", true)
+        .WithString("file", "The file pattern to select files to search", false, "*")
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);
@@ -46,7 +47,7 @@ namespace mtgrep {
     public ArgumentValues Values => _values;
 
     public void DisplayUsage() {
-      Console.WriteLine("Search for file names inside a directory.");
+      Console.WriteLine("Search for strings in files.");
       Console.WriteLine();
       Console.WriteLine("Usage: {0} {1}", Process.GetCurrentProcess().ProcessName,
         ArgumentsHelper.BuildUsageSummary(_argumentDefinitions));

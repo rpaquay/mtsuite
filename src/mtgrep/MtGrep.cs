@@ -63,7 +63,7 @@ namespace mtgrep {
         DisplayBanner();
       }
 
-      var matchedFiles = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var matchedFiles = DoGrep(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
       DisplayMatchesFiles(matchedFiles, pattern, isPlainOutput);
 
@@ -86,13 +86,13 @@ namespace mtgrep {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTFIND :: Multi-Threaded File Search for Windows - version {0}",
+      Console.WriteLine("MTFIND :: Multi-Threaded File Grep for Windows - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version);
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
     }
 
-    public List<FileSystemEntry> DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+    public List<FileSystemEntry> DoGrep(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
       _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
@@ -106,15 +106,15 @@ namespace mtgrep {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Search file names from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine("Search files for \"{0}\" in \"{1}\"", pattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var directorySummaryCollector = new MtGrepSummaryCollector(CreateFileNameMatcher(pattern));
-      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, followLinks);
+      var collector = new MtGrepSummaryCollector(CreateFileNameMatcher(pattern));
+      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
-      return directorySummaryCollector.MatchedFiles;
+      return collector.MatchedFiles;
     }
 
     private static FileNameMatcher CreateFileNameMatcher(string pattern) {

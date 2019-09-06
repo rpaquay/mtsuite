@@ -20,10 +20,12 @@ namespace mtsuite.shared.Tasks.Experimental {
     private readonly TaskQueue _queue;
     private readonly List<TaskThread> _threads = new List<TaskThread>();
     private readonly CustomTask _completedTask;
+    private readonly CustomTaskCollection _emptyCollection;
 
     public CustomTaskFactory() {
       _queue = new TaskQueue(this);
       _completedTask = new CustomActionTask(this, () => { });
+      _emptyCollection = new CustomTaskCollection(this);
       _completedTask.Run(); // Ensure "IsCompleted" is "true".
       for (var i = 0; i < Environment.ProcessorCount; i++) {
         _threads.Add(new TaskThread(this));
@@ -60,6 +62,10 @@ namespace mtsuite.shared.Tasks.Experimental {
       var task = new CustomTask<T>(this, func);
       _queue.Enqueue(task);
       return task;
+    }
+
+    public ITaskCollection EmptyCollection() {
+      return _emptyCollection;
     }
 
     public ITaskCollection CreateCollection() {
