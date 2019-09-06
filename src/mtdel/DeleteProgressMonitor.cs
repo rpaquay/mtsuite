@@ -16,7 +16,7 @@ using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtdel {
-  public class DeleteProgressMonitor : ProgressMonitor {
+  public class DeleteProgressMonitor : ProgressMonitor<Statistics> {
     protected override void DisplayStatus(Statistics statistics) {
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));

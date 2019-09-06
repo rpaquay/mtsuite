@@ -20,7 +20,7 @@ using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtgrep {
-  public class MtGrepProgressMonitor : ProgressMonitor {
+  public class MtGrepProgressMonitor : ProgressMonitor<Statistics> {
     public bool QuietMode { get; set; }
 
     protected override void DisplayStatus(Statistics statistics) {

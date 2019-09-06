@@ -20,7 +20,7 @@ using System.Threading;
 using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared {
-  public abstract class ProgressMonitor : IProgressMonitor {
+  public abstract class ProgressMonitor<TStatistics> : IProgressMonitor<TStatistics> where TStatistics : Statistics, new() {
     private readonly ProgressPrinter _printer = new ProgressPrinter();
     private readonly Stopwatch _stopWatch = new Stopwatch();
     private readonly Stopwatch _displayTimer = new Stopwatch();
@@ -68,38 +68,34 @@ namespace mtsuite.shared {
       _printer.Stop();
     }
 
-    public Statistics GetStatistics() {
-      return new Statistics {
-        ElapsedTime = _stopWatch.Elapsed,
-        TotalProcessorTime = Process.GetCurrentProcess().TotalProcessorTime,
+    public TStatistics GetStatistics() {
+      var stats = new TStatistics();
+      SetStatistics(stats);
+      return stats;
+    }
 
-        DirectoryEnumeratedCount = _directoryEnumeratedCount,
-        FileEnumeratedCount = _fileEnumeratedCount,
-        SymlinkEnumeratedCount = _symlinkEnumeratedCount,
-        FileEnumeratedTotalSize = _fileEnumeratedTotalSize,
-
-        DirectoryToDeleteCount = _directoryToDeleteCount,
-        FileToDeleteCount = _fileToDeleteCount,
-
-        DirectoryTraversedCount = _directoryTraversedCount,
-
-        FileCopiedCount = _fileCopiedCount,
-        SymlinkCopiedCount = _symlinkCopiedCount,
-        FileCopiedTotalSize = _fileCopiedTotalSize,
-
-        DirectoryDeletedCount = _directoryDeletedCount,
-        FileDeletedCount = _fileDeletedCount,
-        SymlinkDeletedCount = _symlinkDeletedCount,
-        FileDeletedTotalSize = _fileDeletedTotalSize,
-
-        DirectoryCreatedCount = _directoryCreatedCount,
-
-        FileSkippedCount = _fileSkippedCount,
-        SymlinkSkippedCount = _symlinkSkippedCount,
-        FileSkippedTotalSize = _fileSkippedTotalSize,
-
-        Errors = _errors
-      };
+    protected virtual void SetStatistics(TStatistics statistics) {
+      statistics.ElapsedTime = _stopWatch.Elapsed;
+      statistics.TotalProcessorTime = Process.GetCurrentProcess().TotalProcessorTime;
+      statistics.DirectoryEnumeratedCount = _directoryEnumeratedCount;
+      statistics.FileEnumeratedCount = _fileEnumeratedCount;
+      statistics.SymlinkEnumeratedCount = _symlinkEnumeratedCount;
+      statistics.FileEnumeratedTotalSize = _fileEnumeratedTotalSize;
+      statistics.DirectoryToDeleteCount = _directoryToDeleteCount;
+      statistics.FileToDeleteCount = _fileToDeleteCount;
+      statistics.DirectoryTraversedCount = _directoryTraversedCount;
+      statistics.FileCopiedCount = _fileCopiedCount;
+      statistics.SymlinkCopiedCount = _symlinkCopiedCount;
+      statistics.FileCopiedTotalSize = _fileCopiedTotalSize;
+      statistics.DirectoryDeletedCount = _directoryDeletedCount;
+      statistics.FileDeletedCount = _fileDeletedCount;
+      statistics.SymlinkDeletedCount = _symlinkDeletedCount;
+      statistics.FileDeletedTotalSize = _fileDeletedTotalSize;
+      statistics.DirectoryCreatedCount = _directoryCreatedCount;
+      statistics.FileSkippedCount = _fileSkippedCount;
+      statistics.SymlinkSkippedCount = _symlinkSkippedCount;
+      statistics.FileSkippedTotalSize = _fileSkippedTotalSize;
+      statistics.Errors = _errors;
     }
 
     private KeyValuePair<int, int> CountPair<T>(List<T> list, Func<T, bool> pred1, Func<T, bool> pred2) {
@@ -116,7 +112,7 @@ namespace mtsuite.shared {
       var directoryCount = 0;
       var fileCount = 0;
       var symlinkCount = 0;
-      foreach(var entry in entries) {
+      foreach (var entry in entries) {
         // Note: Order is important (symlink first)
         if (entry.IsReparsePoint) symlinkCount++;
         else if (entry.IsDirectory) directoryCount++;

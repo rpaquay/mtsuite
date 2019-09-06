@@ -19,7 +19,7 @@ using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtfind {
-  public class FindProgressMonitor : ProgressMonitor {
+  public class FindProgressMonitor : ProgressMonitor<Statistics> {
     public bool QuietMode { get; set; }
 
     protected override void DisplayStatus(Statistics statistics) {

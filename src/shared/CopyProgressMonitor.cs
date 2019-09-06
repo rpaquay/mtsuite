@@ -15,7 +15,7 @@
 using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
-  public class CopyProgressMonitor : ProgressMonitor {
+  public class CopyProgressMonitor : ProgressMonitor<Statistics> {
     protected override void DisplayStatus(Statistics statistics) {
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = elapsed.TotalSeconds;

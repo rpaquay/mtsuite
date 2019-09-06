@@ -24,7 +24,7 @@ namespace mtcopy {
   public class MtCopy {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
-    private readonly IProgressMonitor _progressMonitor;
+    private readonly IProgressMonitor<Statistics> _progressMonitor;
 
     public MtCopy(IFileSystem fileSystem) {
       _fileSystem = fileSystem;

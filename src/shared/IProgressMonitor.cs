@@ -18,13 +18,13 @@ using System.Diagnostics;
 using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared {
-  public interface IProgressMonitor {
+  public interface IProgressMonitor<TStatistics> where TStatistics : Statistics {
     #region single threaded methods
     void Start();
     void Pulse();
     void Stop();
 
-    Statistics GetStatistics();
+    TStatistics GetStatistics();
     #endregion
 
     #region multi-threaded methods
