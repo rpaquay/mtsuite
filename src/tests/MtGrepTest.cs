@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System.IO;
-using System.Text;
-
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+using mtgrep;
+
+using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
 
 using tests.FileSystemHelpers;
@@ -38,25 +38,13 @@ namespace tests {
     }
 
     [TestMethod]
-    public void SearchStreamShouldFindEntries() {
-      var value = "foo bar foo\n\n\nbar foo";
-      byte[] byteArray = Encoding.ASCII.GetBytes(value);
-      using (var stream = new MemoryStream(byteArray)) {
-        using (var reader = new StreamReader(stream)) {
-          var result = new mtgrep.GrepStream().Search(reader, "foo".ToCharArray());
-
-          Assert.AreEqual(3, result.Count);
-
-          Assert.AreEqual(1, result[0].LineNumber);
-          Assert.AreEqual(1, result[0].ColumnNumber);
-
-          Assert.AreEqual(1, result[1].LineNumber);
-          Assert.AreEqual(9, result[1].ColumnNumber);
-
-          Assert.AreEqual(4, result[2].LineNumber);
-          Assert.AreEqual(5, result[2].ColumnNumber);
-        }
-      }
+    [ExpectedException(typeof(CommandLineReturnValueException))]
+    public void MtGrepShouldThrowWithNonExistingFolder() {
+      var mtgrep = new MtGrep(_fileSystemSetup.FileSystem);
+      mtgrep.Run(new string[] {
+        "-d:" + PathHelpers.StripLongPathPrefix(_fileSystemSetup.Root.Path.Combine("fake").FullName),
+        "foobar2"
+      });
     }
   }
 }

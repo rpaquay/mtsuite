@@ -20,10 +20,9 @@ using System.IO;
 namespace mtgrep {
   public class GrepStream {
     private const int StreamBufferSize = 64 * 1024;
-    private static readonly ReadOnlyCollection<GrepEntry> _emptyResult = new ReadOnlyCollection<GrepEntry>(new List<GrepEntry>());
     private readonly char[] _buffer = new char[StreamBufferSize];
 
-    public static ReadOnlyCollection<GrepEntry> EmptyResult => _emptyResult;
+    public static ReadOnlyCollection<GrepEntry> EmptyResult { get; } = new ReadOnlyCollection<GrepEntry>(new List<GrepEntry>());
 
     public GrepStream() : this(StreamBufferSize) {
     }
@@ -53,6 +52,9 @@ namespace mtgrep {
       public bool EOF => _bufferLength == 0;
 
       public IList<GrepEntry> Run(StreamReader stream, char[] patternArray) {
+        if (((patternArray.Length + 1) / 2) > _buffer.Length) {
+          throw new ArgumentException("Buffer should be larger than pattern");
+        }
         EnsureBuffer(stream);
 
         if (IsBinary()) {
@@ -77,21 +79,78 @@ namespace mtgrep {
 
       private GrepEntry FindNextEntry(StreamReader stream, char[] patternArray) {
         while (!EOF) {
+          // Search for pattern inside current buffer
           int patternIndex = SearchChars(
             _buffer, _bufferOffset, _bufferLength - _bufferOffset,
             patternArray, 0, patternArray.Length);
           if (patternIndex >= 0) {
             UpdatePosition(_bufferOffset, patternIndex);
             _bufferOffset = patternIndex + patternArray.Length;
+            EnsureBuffer(stream);
             return new GrepEntry() {
               LineNumber = _lineIndex + 1,
               ColumnNumber = _columnIndex + 1,
             };
-          } else {
-            _bufferOffset = _bufferLength;
-            EnsureBuffer(stream);
+          }
+
+          // Handle case where the pattern overlaps at end of current buffer to the
+          // next buffer from the stream
+          var grepEntry = FindNextEntryAtEndOfBuffer(stream, patternArray);
+          if (grepEntry != null) {
+            return grepEntry;
           }
         }
+        return null;
+      }
+
+      private GrepEntry FindNextEntryAtEndOfBuffer(StreamReader stream, char[] patternArray) {
+        for (var candidate = 0; candidate < patternArray.Length - 1; candidate++) {
+          int patternPart1Length = patternArray.Length - 1 - candidate;
+          int patternIndex = SearchChars(
+            _buffer,
+            _bufferLength - patternPart1Length,
+            patternPart1Length,
+            patternArray,
+            0,
+            patternPart1Length);
+
+          // If we found the beginning of the pattern at the end of the buffer,
+          // look for the end of the pattern at the beginning of the next buffer
+          if (patternIndex >= 0) {
+            // Update position and remember column where pattern start was found
+            UpdatePosition(_bufferOffset, patternIndex);
+            var patternPart1ColumnIndex = _columnIndex;
+
+            // Read next block from the stream
+            _bufferOffset = _bufferLength;
+            EnsureBuffer(stream);
+            if (EOF) {
+              return null;
+            }
+
+            // Look for the end of the pattern at the beginning of the current buffer
+            int patternPart2Length = patternArray.Length - patternPart1Length;
+            patternIndex = SearchChars(
+              _buffer,
+              0,
+              patternPart2Length,
+              patternArray,
+              patternPart1Length,
+              patternPart2Length);
+            if (patternIndex >= 0) {
+              UpdatePosition(_bufferOffset, patternIndex);
+              _bufferOffset = patternIndex + patternPart2Length;
+              return new GrepEntry() {
+                LineNumber = _lineIndex + 1,
+                ColumnNumber = patternPart1ColumnIndex + 1,
+              };
+            }
+          }
+        }
+        // Fetch next buffer from stream
+        UpdatePosition(_bufferOffset, _bufferLength);
+        _bufferOffset = _bufferLength;
+        EnsureBuffer(stream);
         return null;
       }
 
@@ -173,21 +232,22 @@ namespace mtgrep {
         // See http://github.com/dotnet/coreclr/pull/7029 to explain why
         // 1. We use "&haystack[0]" instead of "haystack"
         // 2. The "return -1" is inside the "fixed" block
+        var needleEnd = needleStart + needleCount;
         fixed (char* haystackPtr = &haystack[0]) {
           fixed (char* needlePtr = &needle[0]) {
-            var haystackLimit = haystackCount - needleCount;
+            var haystackLimit = haystackStart + haystackCount - needleCount;
             for (var haystackIndex = haystackStart; haystackIndex <= haystackLimit; haystackIndex++) {
               char* haystackCurrentPtr = haystackPtr + haystackIndex;
-              char* needleCurrentPtr = needlePtr;
+              char* needleCurrentPtr = needlePtr + needleStart;
               var needleIndex = needleStart;
-              for (; needleIndex < needleCount; needleIndex++) {
+              for (; needleIndex < needleEnd; needleIndex++) {
                 if (*needleCurrentPtr != *haystackCurrentPtr) {
                   break;
                 }
                 haystackCurrentPtr++;
                 needleCurrentPtr++;
               }
-              if (needleIndex == needleCount) {
+              if (needleIndex == needleEnd) {
                 return haystackIndex;
               }
             }
