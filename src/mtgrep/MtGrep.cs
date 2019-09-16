@@ -70,10 +70,12 @@ namespace mtgrep {
       DisplayMatchesFiles(grepResult, filePattern, searchPattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
+#if false
       if (!isPlainOutput) {
         DisplayStatistics(statistics);
         Console.WriteLine();
       }
+#endif
 
       if (arguments.Values.GarbageCollect) {
         ProgramHelpers.DisplayGcStatistics();
