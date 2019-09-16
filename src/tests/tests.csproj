@@ -73,6 +73,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="MtGrepTest.cs" />
     <Compile Include="SearchPatternParserTest.cs" />
     <Compile Include="MtFindTest.cs" />
     <Compile Include="PathSerializersAsIsTest.cs" />
@@ -112,6 +113,11 @@
   <ItemGroup>
     <Compile Include="..\mtfind\*.cs" Exclude="..\mtfind\**\AssemblyInfo.cs">
       <Link>mtfind\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\mtgrep\**\*.cs" Exclude="..\mtgrep\**\AssemblyInfo.cs">
+      <Link>mtgrep\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>

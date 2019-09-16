@@ -125,7 +125,7 @@ namespace mtgrep {
     }
 
     private static GrepMatcher CreateGrepMatcher(string pattern) {
-      return new GrepFileSearch(pattern).SearchFile;
+      return new GrepFileEntry(pattern).SearchFile;
     }
 
     private static void DisplayStatistics(Statistics statistics) {
@@ -167,7 +167,7 @@ namespace mtgrep {
       }
       if (!isPlainOutput) {
         Console.WriteLine();
-        Console.WriteLine("Found {0} files matchin pattern \"{1}\" and containing string \"{2}\"", sortedGrepResult.Count, filePattern, searchPattern);
+        Console.WriteLine("Found {0} files matching pattern \"{1}\" and containing string \"{2}\"", sortedGrepResult.Count, filePattern, searchPattern);
       }
     }
   }
