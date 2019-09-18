@@ -41,13 +41,14 @@ namespace mtgrep {
     }
 
     public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
-      var filesWithMatchingName = entries.Where(entry => _nameMatcher(entry)).ToList();
+      var filesWithMatchingName = entries.Where(entry => entry.IsFile && _nameMatcher(entry)).ToList();
       if (filesWithMatchingName.Count == 0) {
         return taskFactory.EmptyCollection();
       }
 
       var tasks = filesWithMatchingName.Select(entry => taskFactory.StartNew(() => {
         try {
+          _progressMonitor.OnFileSearched();
           var grepEntries = _grepMatcher(fileSystem, entry);
           AddGrepResult(entry, grepEntries);
         } catch (Exception e) {

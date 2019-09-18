@@ -22,12 +22,14 @@ using mtsuite.shared.Utils;
 namespace mtgrep {
   public class MtGrepProgressMonitor : ProgressMonitor<GrepStatistics> {
     private long _fileMatchedCount;
+    private long _fileSearchedCount;
 
     public bool QuietMode { get; set; }
 
     protected override void SetStatistics(GrepStatistics statistics) {
       base.SetStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;
+      statistics.FileSearchedCount = _fileSearchedCount;
     }
 
     protected override void DisplayStatus(GrepStatistics statistics) {
@@ -39,24 +41,30 @@ namespace mtgrep {
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
-      var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
-      var filesFoundText = string.Format("{0:n0}", statistics.FileMatchedCount);
+      //var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
+      var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
-        new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right),
-        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right),
-        new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of directories visited", directoriesText, shortName: "directories", valueAlign: Align.Right),
+        new PrinterEntry("# of files discovered", filesText, shortName: "files", valueAlign: Align.Right),
+        //new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right),
+        new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
-        new PrinterEntry("# of files found", filesFoundText, shortName: "files", valueAlign: Align.Right),
       };
       Print(fields);
     }
 
     public void OnFileMatchFound() {
       Interlocked.Increment(ref _fileMatchedCount);
+    }
+
+    public void OnFileSearched() {
+      Interlocked.Increment(ref _fileSearchedCount);
     }
 
     /// <summary>

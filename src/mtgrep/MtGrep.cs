@@ -110,7 +110,10 @@ namespace mtgrep {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Search files matching pattern \"{0}\" for string \"{1}\" in \"{2}\"", fileNamePattern, searchPattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine("Searching for string \"{0}\" in files matching pattern \"{1}\" under \"{2}\"",
+          searchPattern,
+          fileNamePattern,
+          PathHelpers.StripLongPathPrefix(sourcePath.FullName));
         Console.WriteLine();
       }
       _progressMonitor.Start();

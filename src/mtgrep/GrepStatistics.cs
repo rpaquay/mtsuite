@@ -17,5 +17,6 @@ using mtsuite.shared;
 namespace mtgrep {
   public class GrepStatistics : Statistics {
     public long FileMatchedCount { get; set; }
+    public long FileSearchedCount { get; set; }
   }
 }
