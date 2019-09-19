@@ -15,6 +15,7 @@
 using System;
 using System.ComponentModel;
 using System.Threading;
+using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
@@ -44,6 +45,7 @@ namespace mtgrep {
       //var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
+      var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
@@ -54,6 +56,7 @@ namespace mtgrep {
         //new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right),
         new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
+        new PrinterEntry("# of warnings", warningsText, shortName:"warnings", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
       };
       Print(fields);
@@ -71,12 +74,8 @@ namespace mtgrep {
     /// Ignore errors that are harmless, such as inability to enumerate files in
     /// a directory.
     /// </summary>
-    public override void OnError(Exception e) {
-      if (IsIgnorableError(e)) {
-        return;
-      }
-
-      base.OnError(e);
+    public override bool IsWarning(FullPath path, Exception e) {
+      return IsIgnorableError(e);
     }
 
     private bool IsIgnorableError(Exception e) {

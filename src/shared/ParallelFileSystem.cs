@@ -36,7 +36,7 @@ namespace mtsuite.shared {
       _fileSystem = fileSystem;
     }
 
-    public event Action<Exception> Error;
+    public event Action<FullPath, Exception> Error;
     public event Action Pulse;
     public event Action<FileSystemEntry> EntriesDiscovering;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
@@ -57,7 +57,7 @@ namespace mtsuite.shared {
       try {
         return _fileSystem.GetDirectoryFiles(directoryPath);
       } catch (Exception e) {
-        OnError(e);
+        OnError(directoryPath, e);
         // Assume no entries available on error, so we can continue processing
         return _entryListPool.AllocateFrom();
       }
@@ -232,7 +232,7 @@ namespace mtsuite.shared {
           _fileSystem.CreateDirectory(destinationPath);
           directoryCreated = true;
         } catch (Exception e) {
-          OnError(e);
+          OnError(destinationPath, e);
         }
       }
 
@@ -240,7 +240,7 @@ namespace mtsuite.shared {
       try {
         destinationDirectory = _fileSystem.GetEntry(destinationPath);
       } catch (Exception e) {
-        OnError(e);
+        OnError(destinationPath,  e);
         // If we can find the destination entry, give up this directory.
         return null;
       }
@@ -323,7 +323,7 @@ namespace mtsuite.shared {
             }
           } catch (Exception e) {
             // If we can't compare files, log error and continue with normal copy operation.
-            OnError(e);
+            OnError(sourceEntry.Path, e);
           }
         }
 
@@ -342,7 +342,7 @@ namespace mtsuite.shared {
             _fileSystem.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, callback);
           }
         } catch (Exception e) {
-          OnError(e);
+          OnError(sourceEntry.Path, e);
         }
         OnFileCopied(sw, sourceEntry);
       }
@@ -403,14 +403,14 @@ namespace mtsuite.shared {
       try {
         _fileSystem.DeleteEntry(entry);
       } catch (Exception e) {
-        OnError(e);
+        OnError(entry.Path, e);
       }
       OnEntryDeleted(sw, entry);
     }
 
-    protected virtual void OnError(Exception obj) {
+    protected virtual void OnError(FullPath path, Exception obj) {
       var handler = Error;
-      if (handler != null) handler(obj);
+      if (handler != null) handler(path, obj);
     }
 
     protected virtual void OnPulse() {

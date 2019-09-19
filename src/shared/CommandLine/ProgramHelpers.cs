@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -56,6 +57,12 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
+    public static void DisplayWarnings(IEnumerable<Exception> warnings) {
+      foreach (var error in FlattenErrors(warnings)) {
+        Console.Error.WriteLine("Warning: {0}", error.Message);
+      }
+    }
+
     private static bool IsInternalError(Exception error) {
       return error is ArgumentException ||
         error is NullReferenceException ||
@@ -91,7 +98,6 @@ namespace mtsuite.shared.CommandLine {
       ThreadPool.SetMinThreads(count, minc);
       ThreadPool.SetMaxThreads(count, maxc);
     }
-
 
     public static void DisplayFullStatistics(Statistics statistics) {
       Console.WriteLine();

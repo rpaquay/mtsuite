@@ -46,7 +46,7 @@ namespace mtsuite.shared {
     void OnFileCopyingProgress(Stopwatch stopwatch, FileSystemEntry entry, long size);
     void OnFileCopied(Stopwatch stopwatch, FileSystemEntry entry);
 
-    void OnError(Exception e);
+    void OnError(FullPath path, Exception e);
     #endregion
   }
 }

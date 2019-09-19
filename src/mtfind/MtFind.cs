@@ -35,7 +35,7 @@ namespace mtfind {
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
       _progressMonitor = new FindProgressMonitor();
 
-      _parallelFileSystem.Error += exception => _progressMonitor.OnError(exception);
+      _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
 
       _parallelFileSystem.EntriesDiscovered += (entry, list) => _progressMonitor.OnEntriesDiscovered(entry, list);

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -24,7 +25,8 @@ namespace mtsuite.shared {
     private readonly ProgressPrinter _printer = new ProgressPrinter();
     private readonly Stopwatch _stopWatch = new Stopwatch();
     private readonly Stopwatch _displayTimer = new Stopwatch();
-    private readonly List<Exception> _errors = new List<Exception>();
+    private readonly ConcurrentQueue<Exception> _errors = new ConcurrentQueue<Exception>();
+    private readonly ConcurrentQueue<Exception> _warnings = new ConcurrentQueue<Exception>();
 
     private long _directoryEnumeratedCount;
     private long _fileEnumeratedCount;
@@ -96,6 +98,7 @@ namespace mtsuite.shared {
       statistics.SymlinkSkippedCount = _symlinkSkippedCount;
       statistics.FileSkippedTotalSize = _fileSkippedTotalSize;
       statistics.Errors = _errors;
+      statistics.Warnings = _warnings;
     }
 
     private KeyValuePair<int, int> CountPair<T>(List<T> list, Func<T, bool> pred1, Func<T, bool> pred2) {
@@ -195,12 +198,17 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    public virtual void OnError(Exception e) {
-      lock (_errors) {
-        _errors.Add(e);
+    public virtual void OnError(FullPath path, Exception e) {
+      if (IsWarning(path, e)) {
+        _warnings.Enqueue(e);
+      } else {
+        _errors.Enqueue(e);
       }
-
       Pulse();
+    }
+
+    public virtual bool IsWarning(FullPath path, Exception e) {
+      return false;
     }
 
     protected abstract void DisplayStatus(TStatistics statistics);

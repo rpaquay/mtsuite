@@ -32,7 +32,7 @@ namespace mtdel {
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
       _progressMonitor = new DeleteProgressMonitor();
 
-      _parallelFileSystem.Error += exception => _progressMonitor.OnError(exception);
+      _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
       //_parallelFileSystem.EntriesToDeleteDiscovering += entry => _progressMonitor.OnEntriesToDeleteDiscovering(entry);
       _parallelFileSystem.EntriesToDeleteDiscovered += (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);

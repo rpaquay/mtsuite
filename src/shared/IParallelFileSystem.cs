@@ -20,7 +20,6 @@ using mtsuite.shared.Tasks;
 
 namespace mtsuite.shared {
   public interface IParallelFileSystem {
-    event Action<Exception> Error;
     event Action Pulse;
     event Action<FileSystemEntry> EntriesDiscovering;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
@@ -36,6 +35,8 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> DirectoryTraversing;
     event Action<FileSystemEntry> DirectoryTraversed;
     event Action<FileSystemEntry> DirectoryCreated;
+    event Action<FullPath, Exception> Error;
+
     void WaitForTask(ITask task);
 
     ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false);

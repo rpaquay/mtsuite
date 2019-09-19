@@ -14,6 +14,7 @@
 
 using System;
 using System.ComponentModel;
+using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
@@ -49,12 +50,8 @@ namespace mtfind {
     /// Ignore errors that are harmless, such as inability to enumerate files in
     /// a directory.
     /// </summary>
-    public override void OnError(Exception e) {
-      if (IsIgnorableError(e)) {
-        return;
-      }
-
-      base.OnError(e);
+    public override bool IsWarning(FullPath path, Exception e) {
+      return IsIgnorableError(e);
     }
 
     private bool IsIgnorableError(Exception e) {

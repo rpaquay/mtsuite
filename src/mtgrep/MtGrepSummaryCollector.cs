@@ -71,7 +71,7 @@ namespace mtgrep {
     }
 
     private void AddError(FileSystemEntry entry, Exception e) {
-      _progressMonitor.OnError(e);
+      _progressMonitor.OnError(entry.Path, e);
     }
 
     public void OnDirectoryTraversed(IFileSystem fileSystem, VoidValue parentValue, VoidValue childValue) {

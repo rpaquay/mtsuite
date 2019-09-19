@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace mtsuite.shared {
@@ -48,6 +49,8 @@ namespace mtsuite.shared {
     public long SymlinkSkippedCount { get; set; }
     public long FileSkippedTotalSize { get; set; }
 
-    public List<Exception> Errors { get; set; }
+    public ConcurrentQueue<Exception> Errors { get; set; }
+
+    public ConcurrentQueue<Exception> Warnings { get; set; }
   }
 }

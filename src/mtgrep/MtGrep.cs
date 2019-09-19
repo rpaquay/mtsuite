@@ -36,7 +36,7 @@ namespace mtgrep {
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
       _progressMonitor = new MtGrepProgressMonitor();
 
-      _parallelFileSystem.Error += exception => _progressMonitor.OnError(exception);
+      _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
 
       _parallelFileSystem.EntriesDiscovered += (entry, list) => _progressMonitor.OnEntriesDiscovered(entry, list);
@@ -76,6 +76,13 @@ namespace mtgrep {
         Console.WriteLine();
       }
 #endif
+
+      if (!isPlainOutput) {
+        if (arguments.Values.ShowWarnings) {
+          ProgramHelpers.DisplayWarnings(statistics.Warnings);
+        }
+        ProgramHelpers.DisplayErrors(statistics.Errors);
+      }
 
       if (arguments.Values.GarbageCollect) {
         ProgramHelpers.DisplayGcStatistics();
@@ -153,8 +160,6 @@ namespace mtgrep {
       };
       Console.WriteLine();
       FieldsPrinter.WriteLine(fields);
-
-      ProgramHelpers.DisplayErrors(statistics.Errors);
     }
 
     private static void DisplayMatchesFiles(List<GrepFileResult> grepResult, string filePattern, string searchPattern, bool isPlainOutput) {
