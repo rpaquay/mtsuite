@@ -59,11 +59,12 @@ namespace mtfind {
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
       bool followLinks = !arguments.Values.NoFollowLinks;
       bool isPlainOutput = arguments.Values.PlainOutput;
+      bool includeDir = arguments.Values.IncludeDir;
       if (!isPlainOutput) {
         DisplayBanner();
       }
 
-      var matchedFiles = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var matchedFiles = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks, includeDir);
 
       DisplayMatchesFiles(matchedFiles, pattern, isPlainOutput);
 
@@ -94,7 +95,7 @@ namespace mtfind {
       Console.WriteLine();
     }
 
-    public List<FileSystemEntry> DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+    public List<FileSystemEntry> DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks, bool includeDir) {
       _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
@@ -112,16 +113,21 @@ namespace mtfind {
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var directorySummaryCollector = new DirectorySummaryCollector(CreateFileNameMatcher(pattern));
+      var directorySummaryCollector = new DirectorySummaryCollector(CreateFileNameMatcher(pattern, includeDir));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return directorySummaryCollector.MatchedFiles;
     }
 
-    private static FileNameMatcher CreateFileNameMatcher(string pattern) {
+    private static FileNameMatcher CreateFileNameMatcher(string pattern, bool includeDir) {
       var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
-      return entry => matcher.MatchString(entry.Path.Name);
+      return entry => {
+        if (includeDir || !entry.IsDirectory) {
+          return matcher.MatchString(entry.Path.Name);
+        }
+        return false;
+      };
     }
 
     private static void DisplayStatistics(Statistics statistics) {

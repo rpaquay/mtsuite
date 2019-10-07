@@ -27,6 +27,7 @@ namespace mtfind {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithHelpSwitch()
         .WithStringFlag("directory", "The directory tree to search", "d", "path", Environment.CurrentDirectory, null, "", "directory")
+        .WithSwitch("include-dir", "Include directory names in search", "i", "", "include-dir")
         .WithSwitch("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
         .WithSwitch("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
         .WithSwitch("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
@@ -81,6 +82,8 @@ namespace mtfind {
       public bool NoFollowLinks => _parser.Contains("no-follow-links");
 
       public bool PlainOutput => _parser.Contains("plain-output");
+
+      public bool IncludeDir => _parser.Contains("include-dir");
 
       public bool NoProgress => _parser.Contains("no-progress");
     }
