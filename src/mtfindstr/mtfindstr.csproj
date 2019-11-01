@@ -63,17 +63,17 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GrepEntry.cs" />
-    <Compile Include="GrepErrorEntry.cs" />
-    <Compile Include="GrepFileEntry.cs" />
-    <Compile Include="GrepFileResult.cs" />
-    <Compile Include="GrepStatistics.cs" />
-    <Compile Include="GrepStream.cs" />
-    <Compile Include="MtGrep.cs" />
-    <Compile Include="MtGrepArguments.cs" />
-    <Compile Include="MtGrepProgressMonitor.cs" />
-    <Compile Include="GrepMatcher.cs" />
-    <Compile Include="MtGrepSummaryCollector.cs" />
+    <Compile Include="FindStrEntry.cs" />
+    <Compile Include="FindStrErrorEntry.cs" />
+    <Compile Include="FindStrFileEntry.cs" />
+    <Compile Include="FindStrFileResult.cs" />
+    <Compile Include="FindStrStatistics.cs" />
+    <Compile Include="FindStrStream.cs" />
+    <Compile Include="MtFindStr.cs" />
+    <Compile Include="MtFindStrArguments.cs" />
+    <Compile Include="FindStrProgressMonitor.cs" />
+    <Compile Include="FindStrMatcher.cs" />
+    <Compile Include="FindStrSummaryCollector.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

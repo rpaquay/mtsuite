@@ -22,7 +22,7 @@ using tests.FileSystemHelpers;
 
 namespace tests {
   [TestClass]
-  public class GrepSearchTest {
+  public class FindStrSearchTest {
     private FileSystemSetup _fileSystemSetup;
 
     [TestInitialize]
@@ -42,7 +42,7 @@ namespace tests {
       byte[] byteArray = Encoding.ASCII.GetBytes(value);
       using (var stream = new MemoryStream(byteArray)) {
         using (var reader = new StreamReader(stream)) {
-          var result = new mtgrep.GrepStream().Search(reader, "foo".ToCharArray());
+          var result = new mtfindstr.FindStrStream().Search(reader, "foo".ToCharArray());
 
           Assert.AreEqual(3, result.Count);
 
@@ -64,7 +64,7 @@ namespace tests {
       byte[] byteArray = Encoding.ASCII.GetBytes(value);
       using (var stream = new MemoryStream(byteArray)) {
         using (var reader = new StreamReader(stream)) {
-          var result = new mtgrep.GrepStream(8).Search(reader, "bar foo".ToCharArray());
+          var result = new mtfindstr.FindStrStream(8).Search(reader, "bar foo".ToCharArray());
 
           Assert.AreEqual(2, result.Count);
 
@@ -83,7 +83,7 @@ namespace tests {
       byte[] byteArray = Encoding.ASCII.GetBytes(value);
       using (var stream = new MemoryStream(byteArray)) {
         using (var reader = new StreamReader(stream)) {
-          var result = new mtgrep.GrepStream(3).Search(reader, "foo".ToCharArray());
+          var result = new mtfindstr.FindStrStream(3).Search(reader, "foo".ToCharArray());
 
           Assert.AreEqual(3, result.Count);
 
@@ -105,7 +105,7 @@ namespace tests {
       byte[] byteArray = Encoding.ASCII.GetBytes(value);
       using (var stream = new MemoryStream(byteArray)) {
         using (var reader = new StreamReader(stream)) {
-          var result = new mtgrep.GrepStream(2).Search(reader, "foo".ToCharArray());
+          var result = new mtfindstr.FindStrStream(2).Search(reader, "foo".ToCharArray());
 
           Assert.AreEqual(3, result.Count);
 
@@ -128,7 +128,7 @@ namespace tests {
       byte[] byteArray = Encoding.ASCII.GetBytes(value);
       using (var stream = new MemoryStream(byteArray)) {
         using (var reader = new StreamReader(stream)) {
-          var result = new mtgrep.GrepStream(2).Search(reader, "foo bar".ToCharArray());
+          var result = new mtfindstr.FindStrStream(2).Search(reader, "foo bar".ToCharArray());
         }
       }
     }

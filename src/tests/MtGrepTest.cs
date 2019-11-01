@@ -14,7 +14,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-using mtgrep;
+using mtfindstr;
 
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
@@ -23,7 +23,7 @@ using tests.FileSystemHelpers;
 
 namespace tests {
   [TestClass]
-  public class MtGrepTest {
+  public class MtFindStrTest {
     private FileSystemSetup _fileSystemSetup;
 
     [TestInitialize]
@@ -39,9 +39,9 @@ namespace tests {
 
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
-    public void MtGrepShouldThrowWithNonExistingFolder() {
-      var mtgrep = new MtGrep(_fileSystemSetup.FileSystem);
-      mtgrep.Run(new string[] {
+    public void MtFindStrShouldThrowWithNonExistingFolder() {
+      var findStr = new MtFindStr(_fileSystemSetup.FileSystem);
+      findStr.Run(new string[] {
         "-d:" + PathHelpers.StripLongPathPrefix(_fileSystemSetup.Root.Path.Combine("fake").FullName),
         "foobar2"
       });

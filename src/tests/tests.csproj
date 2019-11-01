@@ -73,7 +73,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="GrepSearchTest.cs" />
+    <Compile Include="FindStrSearchTest.cs" />
     <Compile Include="MtGrepTest.cs" />
     <Compile Include="SearchPatternParserTest.cs" />
     <Compile Include="MtFindTest.cs" />

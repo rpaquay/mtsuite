@@ -17,21 +17,21 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 
-namespace mtgrep {
-  public class GrepStream {
+namespace mtfindstr {
+  public class FindStrStream {
     private const int StreamBufferSize = 64 * 1024;
     private readonly char[] _buffer = new char[StreamBufferSize];
 
-    public static ReadOnlyCollection<GrepEntry> EmptyResult { get; } = new ReadOnlyCollection<GrepEntry>(new List<GrepEntry>());
+    public static ReadOnlyCollection<FindStrEntry> EmptyResult { get; } = new ReadOnlyCollection<FindStrEntry>(new List<FindStrEntry>());
 
-    public GrepStream() : this(StreamBufferSize) {
+    public FindStrStream() : this(StreamBufferSize) {
     }
 
-    public GrepStream(int buffersize) {
+    public FindStrStream(int buffersize) {
       _buffer = new char[buffersize];
     }
 
-    public IList<GrepEntry> Search(StreamReader stream, char[] patternArray) {
+    public IList<FindStrEntry> Search(StreamReader stream, char[] patternArray) {
       return new SingleSearcher(_buffer).Run(stream, patternArray);
     }
 
@@ -51,7 +51,7 @@ namespace mtgrep {
 
       public bool EOF => _bufferLength == 0;
 
-      public IList<GrepEntry> Run(StreamReader stream, char[] patternArray) {
+      public IList<FindStrEntry> Run(StreamReader stream, char[] patternArray) {
         if (((patternArray.Length + 1) / 2) > _buffer.Length) {
           throw new ArgumentException("Buffer should be larger than pattern");
         }
@@ -62,22 +62,22 @@ namespace mtgrep {
         }
 
         // Create collection lazily in case there are no matches
-        IList<GrepEntry> result = null;
+        IList<FindStrEntry> result = null;
         while (true) {
-          var grepEntry = FindNextEntry(stream, patternArray);
-          if (grepEntry == null) {
+          var entry = FindNextEntry(stream, patternArray);
+          if (entry == null) {
             break;
           }
           // Create collection now if needed
           if (result == null) {
-            result = new List<GrepEntry>(); ;
+            result = new List<FindStrEntry>(); ;
           }
-          result.Add(grepEntry);
+          result.Add(entry);
         }
         return result ?? EmptyResult;
       }
 
-      private GrepEntry FindNextEntry(StreamReader stream, char[] patternArray) {
+      private FindStrEntry FindNextEntry(StreamReader stream, char[] patternArray) {
         while (!EOF) {
           // Search for pattern inside current buffer
           int patternIndex = SearchChars(
@@ -87,7 +87,7 @@ namespace mtgrep {
             UpdatePosition(_bufferOffset, patternIndex);
             _bufferOffset = patternIndex + patternArray.Length;
             EnsureBuffer(stream);
-            return new GrepEntry() {
+            return new FindStrEntry() {
               LineNumber = _lineIndex + 1,
               ColumnNumber = _columnIndex + 1,
             };
@@ -95,15 +95,15 @@ namespace mtgrep {
 
           // Handle case where the pattern overlaps at end of current buffer to the
           // next buffer from the stream
-          var grepEntry = FindNextEntryAtEndOfBuffer(stream, patternArray);
-          if (grepEntry != null) {
-            return grepEntry;
+          var entry = FindNextEntryAtEndOfBuffer(stream, patternArray);
+          if (entry != null) {
+            return entry;
           }
         }
         return null;
       }
 
-      private GrepEntry FindNextEntryAtEndOfBuffer(StreamReader stream, char[] patternArray) {
+      private FindStrEntry FindNextEntryAtEndOfBuffer(StreamReader stream, char[] patternArray) {
         for (var candidate = 0; candidate < patternArray.Length - 1; candidate++) {
           int patternPart1Length = patternArray.Length - 1 - candidate;
           int patternIndex = SearchChars(
@@ -140,7 +140,7 @@ namespace mtgrep {
             if (patternIndex >= 0) {
               UpdatePosition(_bufferOffset, patternIndex);
               _bufferOffset = patternIndex + patternPart2Length;
-              return new GrepEntry() {
+              return new FindStrEntry() {
                 LineNumber = _lineIndex + 1,
                 ColumnNumber = patternPart1ColumnIndex + 1,
               };

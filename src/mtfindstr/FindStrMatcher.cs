@@ -16,9 +16,6 @@ using System.Collections.Generic;
 
 using mtsuite.CoreFileSystem;
 
-namespace mtgrep {
-  public class GrepFileResult {
-    public FullPath Path { get; set; }
-    public IList<GrepEntry> Entries { get; set; }
-  }
+namespace mtfindstr {
+  public delegate IList<FindStrEntry> FindStrMatcher(IFileSystem fileSystem, FileSystemEntry entry);
 }

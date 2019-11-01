@@ -15,11 +15,11 @@
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
 
-namespace mtgrep {
+namespace mtfindstr {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtGrep(new FileSystem()).Run(args);
+        new MtFindStr(new FileSystem()).Run(args);
       });
     }
   }

@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System.Collections.Generic;
+using mtsuite.shared;
 
-using mtsuite.CoreFileSystem;
-
-namespace mtgrep {
-  public delegate IList<GrepEntry> GrepMatcher(IFileSystem fileSystem, FileSystemEntry entry);
+namespace mtfindstr {
+  public class FindStrStatistics : Statistics {
+    public long FileMatchedCount { get; set; }
+    public long FileSearchedCount { get; set; }
+  }
 }

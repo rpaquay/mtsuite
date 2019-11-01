@@ -18,13 +18,13 @@ using System.Diagnostics;
 
 using mtsuite.shared.CommandLine;
 
-namespace mtgrep {
-  public class MtGrepArguments {
+namespace mtfindstr {
+  public class MtFindStrArguments {
     private readonly IList<ArgDef> _argumentDefinitions;
     private readonly ArgumentsParser _parser;
     private readonly ArgumentValues _values;
 
-    public MtGrepArguments(string[] args) {
+    public MtFindStrArguments(string[] args) {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithHelpSwitch()
         .WithStringFlag("directory", "The directory tree to search", "d", "path", Environment.CurrentDirectory, null, "", "directory")

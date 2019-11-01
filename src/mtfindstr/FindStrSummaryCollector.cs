@@ -21,27 +21,27 @@ using mtsuite.shared;
 using mtsuite.shared.FileNameMatching;
 using mtsuite.shared.Tasks;
 
-namespace mtgrep {
-  public class MtGrepSummaryCollector : IDirectorCollector<VoidValue> {
-    private readonly MtGrepProgressMonitor _progressMonitor;
-    private readonly List<GrepFileResult> _grepResults = new List<GrepFileResult>();
-    private readonly FileNameMatcher _nameMatcher;
-    private readonly GrepMatcher _grepMatcher;
+namespace mtfindstr {
+  public class FindStrSummaryCollector : IDirectorCollector<VoidValue> {
+    private readonly FindStrProgressMonitor _progressMonitor;
+    private readonly List<FindStrFileResult> _fileResults = new List<FindStrFileResult>();
+    private readonly FileNameMatcher _fileNameMatcher;
+    private readonly FindStrMatcher _findStrMatcher;
 
-    public MtGrepSummaryCollector(MtGrepProgressMonitor progressMonitor, FileNameMatcher nameMatcher, GrepMatcher grepMatcher) {
+    public FindStrSummaryCollector(FindStrProgressMonitor progressMonitor, FileNameMatcher fileNameMatched, FindStrMatcher fileStrMatcher) {
       _progressMonitor = progressMonitor;
-      _nameMatcher = nameMatcher;
-      _grepMatcher = grepMatcher;
+      _fileNameMatcher = fileNameMatched;
+      _findStrMatcher = fileStrMatcher;
     }
 
-    public List<GrepFileResult> GrepResults => _grepResults;
+    public List<FindStrFileResult> FileResults => _fileResults;
 
     public VoidValue CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth) {
       return VoidValue.Instance;
     }
 
     public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
-      var filesWithMatchingName = entries.Where(entry => entry.IsFile && _nameMatcher(entry)).ToList();
+      var filesWithMatchingName = entries.Where(entry => entry.IsFile && _fileNameMatcher(entry)).ToList();
       if (filesWithMatchingName.Count == 0) {
         return taskFactory.EmptyCollection();
       }
@@ -49,8 +49,8 @@ namespace mtgrep {
       var tasks = filesWithMatchingName.Select(entry => taskFactory.StartNew(() => {
         try {
           _progressMonitor.OnFileSearched();
-          var grepEntries = _grepMatcher(fileSystem, entry);
-          AddGrepResult(entry, grepEntries);
+          var findStrEntries = _findStrMatcher(fileSystem, entry);
+          AddFindStrResult(entry, findStrEntries);
         } catch (Exception e) {
           AddError(entry, e);
         }
@@ -58,12 +58,12 @@ namespace mtgrep {
       return taskFactory.CreateCollection(tasks);
     }
 
-    private void AddGrepResult(FileSystemEntry entry, IList<GrepEntry> grepEntries) {
-      if (grepEntries.Count > 0) {
-        lock (_grepResults) {
-          _grepResults.Add(new GrepFileResult {
+    private void AddFindStrResult(FileSystemEntry entry, IList<FindStrEntry> entries) {
+      if (entries.Count > 0) {
+        lock (_fileResults) {
+          _fileResults.Add(new FindStrFileResult {
             Path = entry.Path,
-            Entries = grepEntries
+            Entries = entries
           });
         }
         _progressMonitor.OnFileMatchFound();

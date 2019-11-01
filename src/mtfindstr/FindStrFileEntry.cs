@@ -18,30 +18,30 @@ using System.Threading;
 
 using mtsuite.CoreFileSystem;
 
-namespace mtgrep {
-  public class GrepFileEntry {
+namespace mtfindstr {
+  public class FindStrFileEntry {
     private readonly string _pattern;
     private readonly char[] _patternArray;
-    private static readonly ThreadLocal<GrepStream> _grepSearch = new ThreadLocal<GrepStream>(() => new GrepStream());
+    private static readonly ThreadLocal<FindStrStream> _treadLocalStream = new ThreadLocal<FindStrStream>(() => new FindStrStream());
 
-    public GrepFileEntry(string pattern) {
+    public FindStrFileEntry(string pattern) {
       _pattern = pattern;
       _patternArray = pattern.ToCharArray();
     }
 
-    public IList<GrepEntry> SearchFile(IFileSystem fileSystem, FileSystemEntry entry) {
+    public IList<FindStrEntry> SearchFile(IFileSystem fileSystem, FileSystemEntry entry) {
       if (!entry.IsFile) {
-        return GrepStream.EmptyResult;
+        return FindStrStream.EmptyResult;
       }
 
       // Skip small files
       if (_pattern.Length > entry.FileSize) {
-        return GrepStream.EmptyResult;
+        return FindStrStream.EmptyResult;
       }
 
       using (var stream = fileSystem.OpenFile(entry.Path, FileAccess.Read)) {
         using (var reader = new StreamReader(stream)) {
-          return _grepSearch.Value.Search(reader, _patternArray);
+          return _treadLocalStream.Value.Search(reader, _patternArray);
         }
       }
     }

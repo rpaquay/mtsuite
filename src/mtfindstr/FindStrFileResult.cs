@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System;
+using System.Collections.Generic;
 
 using mtsuite.CoreFileSystem;
 
-namespace mtgrep {
-  public class GrepErrorEntry {
+namespace mtfindstr {
+  public class FindStrFileResult {
     public FullPath Path { get; set; }
-    public Exception Error { get; set; }
+    public IList<FindStrEntry> Entries { get; set; }
   }
 }

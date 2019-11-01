@@ -25,16 +25,16 @@ using mtsuite.shared.CommandLine;
 using mtsuite.shared.FileNameMatching;
 using mtsuite.shared.Utils;
 
-namespace mtgrep {
-  public class MtGrep {
+namespace mtfindstr {
+  public class MtFindStr {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
-    private readonly MtGrepProgressMonitor _progressMonitor;
+    private readonly FindStrProgressMonitor _progressMonitor;
 
-    public MtGrep(IFileSystem fileSystem) {
+    public MtFindStr(IFileSystem fileSystem) {
       _fileSystem = fileSystem;
       _parallelFileSystem = new ParallelFileSystem(fileSystem);
-      _progressMonitor = new MtGrepProgressMonitor();
+      _progressMonitor = new FindStrProgressMonitor();
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
@@ -45,7 +45,7 @@ namespace mtgrep {
     }
 
     public void Run(string[] args) {
-      var arguments = new MtGrepArguments(args);
+      var arguments = new MtFindStrArguments(args);
       if (!arguments.IsValid || arguments.Values.Help) {
         DisplayBanner();
         if (!arguments.Values.Help) {
@@ -65,9 +65,9 @@ namespace mtgrep {
         DisplayBanner();
       }
 
-      var grepResult = DoGrep(sourcePath, filePattern, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var findStrResult = DoFindStr(sourcePath, filePattern, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
-      DisplayMatchesFiles(grepResult, filePattern, searchPattern, isPlainOutput);
+      DisplayMatchesFiles(findStrResult, filePattern, searchPattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
 #if false
@@ -97,13 +97,13 @@ namespace mtgrep {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTFIND :: Multi-Threaded File Grep for Windows - version {0}",
+      Console.WriteLine("MTFIND :: Multi-Threaded File String Search for Windows - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version);
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
     }
 
-    public List<GrepFileResult> DoGrep(FullPath sourcePath, string fileNamePattern, string searchPattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+    public List<FindStrFileResult> DoFindStr(FullPath sourcePath, string fileNamePattern, string searchPattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
       _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
@@ -124,11 +124,11 @@ namespace mtgrep {
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var collector = new MtGrepSummaryCollector(_progressMonitor, CreateFileNameMatcher(fileNamePattern), CreateGrepMatcher(searchPattern));
+      var collector = new FindStrSummaryCollector(_progressMonitor, CreateFileNameMatcher(fileNamePattern), CreateFindStrMatcher(searchPattern));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
-      return collector.GrepResults;
+      return collector.FileResults;
     }
 
     private static FileNameMatcher CreateFileNameMatcher(string pattern) {
@@ -136,8 +136,8 @@ namespace mtgrep {
       return entry => matcher.MatchString(entry.Path.Name);
     }
 
-    private static GrepMatcher CreateGrepMatcher(string pattern) {
-      return new GrepFileEntry(pattern).SearchFile;
+    private static FindStrMatcher CreateFindStrMatcher(string pattern) {
+      return new FindStrFileEntry(pattern).SearchFile;
     }
 
     private static void DisplayStatistics(Statistics statistics) {
@@ -162,22 +162,22 @@ namespace mtgrep {
       FieldsPrinter.WriteLine(fields);
     }
 
-    private static void DisplayMatchesFiles(List<GrepFileResult> grepResult, string filePattern, string searchPattern, bool isPlainOutput) {
-      var sortedGrepResult = grepResult
+    private static void DisplayMatchesFiles(List<FindStrFileResult> fileResults, string filePattern, string searchPattern, bool isPlainOutput) {
+      var sortedFileResults = fileResults
         .OrderBy(entry => entry.Path)
         .ToList();
 
-      foreach (var fileResult in sortedGrepResult) {
-        foreach (var grepEntry in fileResult.Entries) {
+      foreach (var fileResult in sortedFileResults) {
+        foreach (var entry in fileResult.Entries) {
           Console.WriteLine("{0}({1},{2})",
             PathHelpers.StripLongPathPrefix(fileResult.Path.FullName),
-            grepEntry.LineNumber,
-            grepEntry.ColumnNumber);
+            entry.LineNumber,
+            entry.ColumnNumber);
         }
       }
       if (!isPlainOutput) {
         Console.WriteLine();
-        Console.WriteLine("Found {0} files matching pattern \"{1}\" and containing string \"{2}\"", sortedGrepResult.Count, filePattern, searchPattern);
+        Console.WriteLine("Found {0} files matching pattern \"{1}\" and containing string \"{2}\"", sortedFileResults.Count, filePattern, searchPattern);
       }
     }
   }

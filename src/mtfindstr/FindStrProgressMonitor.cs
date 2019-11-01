@@ -20,20 +20,20 @@ using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
-namespace mtgrep {
-  public class MtGrepProgressMonitor : ProgressMonitor<GrepStatistics> {
+namespace mtfindstr {
+  public class FindStrProgressMonitor : ProgressMonitor<FindStrStatistics> {
     private long _fileMatchedCount;
     private long _fileSearchedCount;
 
     public bool QuietMode { get; set; }
 
-    protected override void SetStatistics(GrepStatistics statistics) {
+    protected override void SetStatistics(FindStrStatistics statistics) {
       base.SetStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;
       statistics.FileSearchedCount = _fileSearchedCount;
     }
 
-    protected override void DisplayStatus(GrepStatistics statistics) {
+    protected override void DisplayStatus(FindStrStatistics statistics) {
       if (QuietMode) {
         return;
       }

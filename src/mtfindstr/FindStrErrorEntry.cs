@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace mtgrep {
-  public class GrepEntry {
-    public int LineNumber { get; set; }
-    public int ColumnNumber { get; set; }
+using System;
+
+using mtsuite.CoreFileSystem;
+
+namespace mtfindstr {
+  public class FindStrErrorEntry {
+    public FullPath Path { get; set; }
+    public Exception Error { get; set; }
   }
 }
