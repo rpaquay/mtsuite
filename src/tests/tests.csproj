@@ -117,8 +117,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\mtgrep\**\*.cs" Exclude="..\mtgrep\**\AssemblyInfo.cs">
-      <Link>mtgrep\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <Compile Include="..\mtfindstr\**\*.cs" Exclude="..\mtfindstr\**\AssemblyInfo.cs">
+      <Link>mtfindstr\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>

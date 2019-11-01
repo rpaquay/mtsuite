@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtdel", "mtdel\mtdel.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtfind", "mtfind\mtfind.csproj", "{4A7B2E63-C2DC-4DF6-A6E0-765EB99AAD3E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtgrep", "mtgrep\mtgrep.csproj", "{D29F413D-783A-411E-AE56-99820371ECC8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtgrep", "mtfindstr\mtfindstr.csproj", "{D29F413D-783A-411E-AE56-99820371ECC8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mtinfo", "mtinfo\mtinfo.csproj", "{774431E9-4F80-438C-8B13-0AC74F9927EE}"
 EndProject

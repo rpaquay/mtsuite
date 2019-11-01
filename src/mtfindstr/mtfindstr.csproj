@@ -7,8 +7,8 @@
     <ProjectGuid>{D29F413D-783A-411E-AE56-99820371ECC8}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>mtgrep</RootNamespace>
-    <AssemblyName>mtgrep</AssemblyName>
+    <RootNamespace>mtfindstr</RootNamespace>
+    <AssemblyName>mtfindstr</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
