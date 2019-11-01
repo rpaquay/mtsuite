@@ -21,9 +21,11 @@ using mtsuite.shared.Tasks;
 namespace mtfind {
   public class DirectorySummaryCollector : IDirectorCollector<VoidValue> {
     private readonly List<FileSystemEntry> _matchedFiles = new List<FileSystemEntry>();
+    private readonly FindProgressMonitor _progressMonitor;
     private readonly FileNameMatcher _nameMatcher;
 
-    public DirectorySummaryCollector(FileNameMatcher nameMatcher) {
+    public DirectorySummaryCollector(FindProgressMonitor progressMonitor, FileNameMatcher nameMatcher) {
+      _progressMonitor = progressMonitor;
       _nameMatcher = nameMatcher;
     }
 
@@ -38,6 +40,7 @@ namespace mtfind {
         if (_nameMatcher(entry)) {
           lock (_matchedFiles) {
             _matchedFiles.Add(entry);
+            _progressMonitor.OnFileMatchFound();
           }
         }
       }

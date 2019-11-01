@@ -109,11 +109,11 @@ namespace mtfind {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Search file names from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine("Searching files names matching pattern \"{0}\" under \"{1}\"", pattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var directorySummaryCollector = new DirectorySummaryCollector(CreateFileNameMatcher(pattern, includeDir));
+      var directorySummaryCollector = new DirectorySummaryCollector(_progressMonitor, CreateFileNameMatcher(pattern, includeDir));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
@@ -163,7 +163,8 @@ namespace mtfind {
         Console.WriteLine(PathHelpers.StripLongPathPrefix(entry.Path.FullName));
       }
       if (!isPlainOutput) {
-        Console.WriteLine("Found {0} entries matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
+        Console.WriteLine();
+        Console.WriteLine("Found {0} file names matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
       }
     }
   }

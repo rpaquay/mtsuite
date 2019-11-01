@@ -65,6 +65,7 @@
   <ItemGroup>
     <Compile Include="DirectorySummaryCollector.cs" />
     <Compile Include="FindProgressMonitor.cs" />
+    <Compile Include="FindStatistics.cs" />
     <Compile Include="MtFind.cs" />
     <Compile Include="MtFindArguments.cs" />
     <Compile Include="Program.cs" />

@@ -14,16 +14,24 @@
 
 using System;
 using System.ComponentModel;
+using System.Threading;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
 namespace mtfind {
-  public class FindProgressMonitor : ProgressMonitor<Statistics> {
+  public class FindProgressMonitor : ProgressMonitor<FindStatistics> {
+    private long _fileMatchedCount;
+
     public bool QuietMode { get; set; }
 
-    protected override void DisplayStatus(Statistics statistics) {
+    protected override void SetStatistics(FindStatistics statistics) {
+      base.SetStatistics(statistics);
+      statistics.FileMatchedCount = _fileMatchedCount;
+    }
+
+    protected override void DisplayStatus(FindStatistics statistics) {
       if (QuietMode) {
         return;
       }
@@ -32,7 +40,8 @@ namespace mtfind {
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
-      var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
+      //var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
@@ -40,10 +49,15 @@ namespace mtfind {
         new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
         new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right),
         new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right),
-        new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
+        //new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of files matching pattern", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
       };
       Print(fields);
+    }
+
+    public void OnFileMatchFound() {
+      Interlocked.Increment(ref _fileMatchedCount);
     }
 
     /// <summary>
