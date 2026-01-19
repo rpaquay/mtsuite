@@ -19,7 +19,7 @@ namespace mtdel {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtDelete(new FileSystem()).Run(args);
+        new MtDelete(FileSystem.Default).Run(args);
       });
     }
   }

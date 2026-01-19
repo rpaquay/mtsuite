@@ -19,7 +19,7 @@ namespace mtinfo {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtInfo(new FileSystem()).Run(args);
+        new MtInfo(FileSystem.Default).Run(args);
       });
     }
   }

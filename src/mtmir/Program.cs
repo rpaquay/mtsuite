@@ -19,7 +19,7 @@ namespace mtmir {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtMirror(new FileSystem()).Run(args);
+        new MtMirror(FileSystem.Default).Run(args);
       });
     }
   }

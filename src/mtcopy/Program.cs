@@ -19,7 +19,7 @@ namespace mtcopy {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtCopy(new FileSystem()).Run(args);
+        new MtCopy(FileSystem.Default).Run(args);
       });
     }
   }
