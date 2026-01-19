@@ -70,8 +70,8 @@ public class FileSystemWin32 : IFileSystem {
         }
     }
 
-    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, string pattern = null) {
-        using (var entries = _win32.GetDirectoryFiles(path, pattern)) {
+    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
+        using (var entries = _win32.GetDirectoryFiles(path)) {
             var result = _entryListPool.AllocateFrom();
             foreach (var x in entries.Item) {
                 result.Item.Add(new FileSystemEntry(path.Combine(x.FileName), new FileSystemEntryData(x)));

@@ -15,12 +15,18 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.IO.Enumeration;
 using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtsuite.CoreFileSystem;
 
 public class FileSystemPortable : IFileSystem {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
+
+    private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions() {
+      RecurseSubdirectories = false,
+      AttributesToSkip = FileAttributes.None
+    };
 
     public FileSystemEntry GetEntry(FullPath path) {
       if (Directory.Exists(path.FullName)) {
@@ -64,23 +70,26 @@ public class FileSystemPortable : IFileSystem {
       };
     }
 
-    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, string pattern = null) {
-      if (pattern == null) pattern = "*";
+
+    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
       var list = _entryListPool.AllocateFrom();
-      
       try {
-        var entries = new DirectoryInfo(path.FullName).EnumerateFileSystemInfos();
-        foreach (var fileSystemInfo in entries) {
-          var entryPath = path.Combine(fileSystemInfo.Name);
-          var length = (fileSystemInfo is FileInfo fileInfo) ? fileInfo.Length : 0;
-          var data = new FileSystemEntryData(
-            fileSystemInfo.Attributes,
-            length,
-            fileSystemInfo.LastWriteTimeUtc.ToFileTimeUtc()); 
+        // Transform a `System.IO.Enumeration.FileSystemEntry` into our `FileSystemEntry`
+        FileSystemEntry FindTransform(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
+          var entryPath = path.Combine(fsEntry.FileName.ToString());
+          var length = fsEntry.IsDirectory ? 0 : fsEntry.Length;
+          var data = new FileSystemEntryData(fsEntry.Attributes, length, fsEntry.LastWriteTimeUtc.UtcDateTime.ToFileTimeUtc());
           var entry = new FileSystemEntry(entryPath, data);
-          list.Item.Add(entry);
+          return entry;
         }
-      } catch (Exception) {
+
+        var entries = new FileSystemEnumerable<FileSystemEntry>(
+          directory: path.FullName,
+          transform: FindTransform,
+          options: _enumerationOptions
+        );
+        list.Item.AddRange(entries);
+      } catch {
         list.Dispose();
         throw;
       }
