@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using CoreFileSystem;
 using mtsuite.shared;
 using mtsuite.shared.CommandLine;
 using mtsuite.CoreFileSystem;
@@ -23,7 +24,7 @@ using mtsuite.CoreFileSystem;
 namespace mtcopy {
   public class MtCopy {
     private readonly IFileSystem _fileSystem;
-    private readonly ParallelFileSystem _parallelFileSystem;
+    private readonly IParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor _progressMonitor;
 
     public MtCopy(IFileSystem fileSystem) {

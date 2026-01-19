@@ -40,9 +40,9 @@ namespace mtsuite.CoreFileSystem {
     /// </summary>
     public FullPath(string path) {
       if (!PathHelpers.IsPathAbsolute(path))
-        ThrowArgumentException("Path should be absolute", "path");
+        ThrowArgumentException($"Path '{path}' should be absolute", "path");
       if (PathHelpers.HasAltDirectorySeparators(path))
-        ThrowArgumentException("Path should only contain valid directory separators", "path");
+        ThrowArgumentException($"Path '{path}' should only contain valid directory separators", "path");
       _parent = CreatePath(PathHelpers.GetParent(path));
       _name = _parent == null ? path : PathHelpers.GetName(path);
     }

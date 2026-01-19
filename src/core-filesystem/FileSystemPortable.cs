@@ -22,6 +22,7 @@ namespace mtsuite.CoreFileSystem;
 
 public class FileSystemPortable : IFileSystem {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
+    private readonly IPool<byte[]> _copyFileBufferPool = PoolFactory<byte[]>.Create(() => new byte[64 * 1024]);
 
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions() {
       RecurseSubdirectories = false,
@@ -29,17 +30,16 @@ public class FileSystemPortable : IFileSystem {
     };
 
     public FileSystemEntry GetEntry(FullPath path) {
-      if (Directory.Exists(path.FullName)) {
-        var info = new DirectoryInfo(path.FullName);
-        var data = new FileSystemEntryData(info.Attributes, 0, info.LastWriteTimeUtc.ToFileTimeUtc());
-        return new FileSystemEntry(path, data);
-      } else if (File.Exists(path.FullName)) {
-        var info = new FileInfo(path.FullName);
-        var data = new FileSystemEntryData(info.Attributes, info.Length, info.LastWriteTimeUtc.ToFileTimeUtc());
-        return new FileSystemEntry(path, data);
-      } else {
-        throw new FileNotFoundException("Entry not found", path.FullName);
-      }
+      var fullName = path.FullName;
+      FileSystemInfo info = File.GetAttributes(fullName).HasFlag(FileAttributes.Directory) 
+        ? new DirectoryInfo(fullName) 
+        : new FileInfo(fullName);
+      var length =
+        info.Attributes.HasFlag(FileAttributes.Directory) || info.Attributes.HasFlag(FileAttributes.ReparsePoint)
+          ? 0
+          : ((FileInfo)info).Length;
+      var data = new FileSystemEntryData(info.Attributes, length, info.LastWriteTimeUtc.ToFileTimeUtc());
+      return new FileSystemEntry(path, data);
     }
 
     public ReparsePointInfo GetReparsePointInfo(FullPath path) {
@@ -109,26 +109,114 @@ public class FileSystemPortable : IFileSystem {
       }
     }
 
-    public void CopyFile(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions options, CopyFileCallback callback) {
-      //TODO: What is source and/or destination is a symlink?
-      
-      // Standard File.Copy does not support all options or callback.
-      // We implement basic copy.
-      //bool overwrite = (options & CopyFileOptions.FailIfDestinationExists) == 0;
-      bool overwrite = true;
-      File.Copy(sourceEntry.Path.FullName, destinationPath.FullName, overwrite);
-      
-      // Invoke callback at least once to indicate completion?
-      // Or maybe not, as it might be unexpected if it wasn't called during progress.
-      // Converting CopyFileCallback to something we can use is hard without manual stream copy.
-      // For portability and "missing methods" request, this is likely sufficient for now.
+    public void CopyFile(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
+        CopyFileWorker(sourceEntry, destinationEntry.Path, destinationEntry, options, callback);
     }
 
-    public void CopyFile(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
-      CopyFile(sourceEntry, destinationEntry.Path, options, callback);
+    public void CopyFile(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions options, CopyFileCallback callback) {
+        if (TryGetEntry(destinationPath, out var destinationEntry)) {
+            CopyFileWorker(sourceEntry, destinationPath, destinationEntry, options, callback);
+        } else {
+            CopyFileWorker(sourceEntry, destinationPath, null, options, callback);
+        }
+    }
+
+    private void CopyFileWorker(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
+        // If the source is a reparse point, delete the destination and
+        // copy the reparse point.
+        if (sourceEntry.IsReparsePoint) {
+            if (destinationEntry.HasValue) {
+                try {
+                    DeleteEntry(destinationEntry.Value);
+                } catch {
+                    // Nothing to do here, as CopyDirectoryReparsePoint will report an exception below.
+                }
+            }
+            if (sourceEntry.IsDirectory) {
+                //File.CreateSymbolicLink(destinationPath.FullName, sourceEntry.);
+                CopyDirectoryReparsePoint(sourceEntry.Path, destinationPath);
+            } else {
+                //Directory.CreateSymbolicLink()
+                CopyFileReparsePoint(sourceEntry.Path, destinationPath);
+            }
+        } else {
+            // If destination exists and is read-only, remove the read-only attribute
+            if (destinationEntry.HasValue) {
+                try {
+                    RemoveAccessDeniedAttributes(destinationEntry.Value);
+                } catch {
+                    // Nothing to do here, as CopyFile will report an exception below.
+                }
+            }
+            
+            CopyFileImpl(sourceEntry, destinationPath, options, callback);
+        }
+    }
+
+    private void CopyFileImpl(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, CopyFileCallback callback) {
+        using var buffer = _copyFileBufferPool.AllocateFrom();
+        using var sourceStream = new FileStream(sourceEntry.Path.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var destinationStream = new FileStream(destinationPath.FullName, FileMode.Create, FileAccess.Write, FileShare.None);
+        
+        long totalBytes = 0;
+        int bytesRead;
+        while ((bytesRead = sourceStream.Read(buffer.Item, 0, buffer.Item.Length)) > 0) {
+            destinationStream.Write(buffer.Item, 0, bytesRead);
+            totalBytes += bytesRead;
+            callback?.Invoke(totalBytes, sourceEntry.FileSize);
+        }
+
+        if (totalBytes != sourceEntry.FileSize) {
+            throw new IOException($"Size of source file has changed during copy ({totalBytes} != {sourceEntry.FileSize})");
+        }
     }
 
     public FileStream OpenFile(FullPath path, FileAccess access) {
       return File.Open(path.FullName, FileMode.Open, access, FileShare.Read);
+    }
+    
+    private bool TryGetEntry(FullPath path, out FileSystemEntry entry) {
+        try {
+            entry = GetEntry(path);
+            return true;
+        }
+        catch {
+            entry = default(FileSystemEntry);
+            return false;
+        }
+    }
+    private void CopyDirectoryReparsePoint(FullPath sourcePath, FullPath destinationPath) {
+        var info = GetReparsePointInfo(sourcePath);
+
+        if (info.IsSymbolicLink) {
+            Directory.CreateSymbolicLink(destinationPath.FullName, info.Target);
+            //TODO: Check this sets the time on the link, not the target directory
+            Directory.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+        }
+        else {
+            throw new NotSupportedException(
+                $"Error copying reparse point \"{sourcePath}\" (unsupported reparse point type?)");
+        }
+    }
+
+    private void CopyFileReparsePoint(FullPath sourcePath, FullPath destinationPath) {
+        var info = GetReparsePointInfo(sourcePath);
+
+        if (info.IsSymbolicLink) {
+            File.CreateSymbolicLink(destinationPath.FullName, info.Target);
+            //TODO: Check this sets the time on the link, not the target directory
+            File.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+        }
+        else {
+            throw new NotSupportedException(
+                $"Error copying reparse point \"{sourcePath}\" (unsupported reparse point type?)");
+        }
+    }
+    
+    private void RemoveAccessDeniedAttributes(FileSystemEntry entry) {
+        if (entry.IsReadOnly || entry.IsSystem) {
+            var attrs = entry.FileAttributes & ~(FileAttributes.ReadOnly | FileAttributes.System);
+            File.SetAttributes(entry.Path.FullName, attrs);
+        }
     }
 }

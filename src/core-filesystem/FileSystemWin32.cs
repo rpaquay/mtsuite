@@ -20,7 +20,7 @@ using mtsuite.CoreFileSystem.Win32;
 
 namespace mtsuite.CoreFileSystem;
 
-public class FileSystemWin32 : IFileSystem {
+public class FileSystemWin32 : IFileSystemExtended {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
     private readonly Win32<FullPath> _win32;
 

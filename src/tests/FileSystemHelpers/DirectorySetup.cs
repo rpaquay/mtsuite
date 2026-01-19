@@ -17,93 +17,93 @@ using System.Collections.Generic;
 using System.Linq;
 using mtsuite.CoreFileSystem;
 
-namespace tests.FileSystemHelpers {
-  public class DirectorySetup : FileEntrySetup {
-    /// <summary>
-    /// Create the root directory
-    /// </summary>
-    public DirectorySetup(FileSystemSetup fileSystemSetup, FullPath path)
-      : base(fileSystemSetup, path) {
-    }
+namespace tests.FileSystemHelpers;
 
-    /// <summary>
-    /// Create a sub directory of <paramref name="parent"/>
-    /// </summary>
-    public DirectorySetup(DirectorySetup parent, string name)
-      : base(parent, name) {
-    }
+public class DirectorySetup : FileEntrySetup {
+  /// <summary>
+  /// Create the root directory
+  /// </summary>
+  public DirectorySetup(FileSystemSetup fileSystemSetup, FullPath path)
+    : base(fileSystemSetup, path) {
+  }
 
-    public FileSetup CreateFile(string name, int size) {
-      var file = new FileSetup(this, name);
-      using (var stream = FileSystemSetup.FileSystem.CreateFile(file.Path)) {
-        var buffer = new byte[size];
-        stream.Write(buffer, 0, buffer.Length);
-      }
-      return file;
-    }
+  /// <summary>
+  /// Create a sub directory of <paramref name="parent"/>
+  /// </summary>
+  public DirectorySetup(DirectorySetup parent, string name)
+    : base(parent, name) {
+  }
 
-    public FileLinkSetup CreateFileLink(string name, string target) {
-      var fileLink = new FileLinkSetup(this, name);
-      FileSystemSetup.FileSystem.CreateFileSymbolicLink(fileLink.Path, target);
-      return fileLink;
+  public FileSetup CreateFile(string name, int size) {
+    var file = new FileSetup(this, name);
+    using (var stream = FileSystemSetup.CreateFile(file.Path)) {
+      var buffer = new byte[size];
+      stream.Write(buffer, 0, buffer.Length);
     }
+    return file;
+  }
 
-    public DirectoryLinkSetup CreateDirectoryLink(string name, string target) {
-      var directoryLink = new DirectoryLinkSetup(this, name);
-      FileSystemSetup.FileSystem.CreateDirectorySymbolicLink(directoryLink.Path, target);
-      return directoryLink;
-    }
+  public FileLinkSetup CreateFileLink(string name, string target) {
+    var fileLink = new FileLinkSetup(this, name);
+    FileSystemSetup.CreateFileSymbolicLink(fileLink.Path, target);
+    return fileLink;
+  }
 
-    public JunctionPointSetup CreateJunctionPoint(string name, string target) {
-      var junctionPoint = new JunctionPointSetup(this, name);
-      FileSystemSetup.FileSystem.CreateJunctionPoint(junctionPoint.Path, target);
-      return junctionPoint;
-    }
+  public DirectoryLinkSetup CreateDirectoryLink(string name, string target) {
+    var directoryLink = new DirectoryLinkSetup(this, name);
+    FileSystemSetup.CreateDirectorySymbolicLink(directoryLink.Path, target);
+    return directoryLink;
+  }
 
-    public DirectorySetup CreateDirectory(string name) {
-      var directory = new DirectorySetup(this, name);
-      FileSystemSetup.FileSystem.CreateDirectory(directory.Path);
-      return directory;
-    }
+  public JunctionPointSetup CreateJunctionPoint(string name, string target) {
+    var junctionPoint = new JunctionPointSetup(this, name);
+    FileSystemSetup.CreateJunctionPoint(junctionPoint.Path, target);
+    return junctionPoint;
+  }
 
-    public List<FileEntrySetup> GetEntries() {
-      return FileSystemSetup.FileSystem.GetDirectoryEntries(Path).Item
-        .Select(x => MapEntry(this, x))
-        .ToList();
-    }
+  public DirectorySetup CreateDirectory(string name) {
+    var directory = new DirectorySetup(this, name);
+    FileSystemSetup.FileSystem.CreateDirectory(directory.Path);
+    return directory;
+  }
 
-    public FileEntrySetup GetEntry(string name) {
-      var entry = FileSystemSetup.FileSystem.GetEntry(Path.Combine(name));
+  public List<FileEntrySetup> GetEntries() {
+    return FileSystemSetup.FileSystem.GetDirectoryFiles(Path).Item
+      .Select(x => MapEntry(this, x))
+      .ToList();
+  }
 
-      return MapEntry(this, entry);
-    }
+  public FileEntrySetup GetEntry(string name) {
+    var entry = FileSystemSetup.FileSystem.GetEntry(Path.Combine(name));
 
-    public DirectorySetup GetDirectory(string name) {
-      return GetEntry<DirectorySetup>(name);
-    }
+    return MapEntry(this, entry);
+  }
 
-    public FileSetup GetFile(string name) {
-      return GetEntry<FileSetup>(name);
-    }
+  public DirectorySetup GetDirectory(string name) {
+    return GetEntry<DirectorySetup>(name);
+  }
 
-    public FileLinkSetup GetFileLink(string name) {
-      return GetEntry<FileLinkSetup>(name);
-    }
+  public FileSetup GetFile(string name) {
+    return GetEntry<FileSetup>(name);
+  }
 
-    public DirectoryLinkSetup GetDirectoryLink(string name) {
-      return GetEntry<DirectoryLinkSetup>(name);
-    }
+  public FileLinkSetup GetFileLink(string name) {
+    return GetEntry<FileLinkSetup>(name);
+  }
 
-    public JunctionPointSetup GetJunctionPoint(string name) {
-      return GetEntry<JunctionPointSetup>(name);
-    }
+  public DirectoryLinkSetup GetDirectoryLink(string name) {
+    return GetEntry<DirectoryLinkSetup>(name);
+  }
 
-    public T GetEntry<T>(string name) where T : FileEntrySetup {
-      var entry = GetEntry(name);
-      var result = entry as T;
-      if (result == null)
-        throw new ArgumentException("Invalid entry type");
-      return result;
-    }
+  public JunctionPointSetup GetJunctionPoint(string name) {
+    return GetEntry<JunctionPointSetup>(name);
+  }
+
+  public T GetEntry<T>(string name) where T : FileEntrySetup {
+    var entry = GetEntry(name);
+    var result = entry as T;
+    if (result == null)
+      throw new ArgumentException($"Invalid entry type ({entry.GetType()})");
+    return result;
   }
 }

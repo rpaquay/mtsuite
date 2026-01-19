@@ -17,6 +17,11 @@ using System.IO;
 using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtsuite.CoreFileSystem {
+  
+  /// <summary>
+  /// A File system abstraction that contains a **minimal** set of methods required for
+  /// all tools of "mtsuite" to work.
+  /// </summary>
   public interface IFileSystem {
     /// <summary>
     /// Returns the <see cref="FileSystemEntry"/> corresponding to the <paramref
@@ -93,7 +98,7 @@ namespace mtsuite.CoreFileSystem {
     
     /// <summary>
     /// Open an existing file given its <paramref name="path"/>. Throws an
-    /// exception if the file does not exists or can't be opened with the
+    /// exception if the file does not exist or cannot be opened with the
     /// requested access for some reason.
     /// </summary>
     FileStream OpenFile(FullPath path, FileAccess access);

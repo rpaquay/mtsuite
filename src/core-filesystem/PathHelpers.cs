@@ -334,7 +334,7 @@ namespace mtsuite.CoreFileSystem {
     }
 
     private static int GetDiskRootPrefix(string path, int index) {
-      if (path.Length >= index + 3 && char.IsLetter(path[index + 0]) && path[index + 1] == Path.VolumeSeparatorChar && path[index + 2] == Path.DirectorySeparatorChar) {
+      if (path.Length >= index + 3 && char.IsLetter(path[index + 0]) && path[index + 1] == ':' && path[index + 2] == '\\') {
         return 3;
       }
       return 0;

@@ -14,12 +14,12 @@
 
 using System;
 
-namespace tests.FileSystemHelpers {
-  public class FileSetup : FileEntrySetup {
-    public FileSetup(DirectorySetup parent, string name)
-      : base(parent, name) {
-      if (parent == null)
-        throw new ArgumentNullException("parent");
-    }
+namespace tests.FileSystemHelpers;
+
+public class FileSetup : FileEntrySetup {
+  public FileSetup(DirectorySetup parent, string name)
+    : base(parent, name) {
+    if (parent == null)
+      throw new ArgumentNullException("parent");
   }
 }
