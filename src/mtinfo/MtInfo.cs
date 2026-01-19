@@ -149,6 +149,7 @@ namespace mtinfo {
       }
 
       Console.WriteLine("Collecting info from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+      Console.WriteLine();
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(options);
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector);
@@ -232,7 +233,6 @@ namespace mtinfo {
     }
 
     private static void DisplayResults(Statistics statistics) {
-      Console.WriteLine();
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
