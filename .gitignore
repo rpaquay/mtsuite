@@ -4,6 +4,7 @@ Debug/
 Release/
 /Releases/
 /.dotnet/
+.idea/
 *.suo
 *.user
 .vs/
