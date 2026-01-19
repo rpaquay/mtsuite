@@ -40,9 +40,9 @@ namespace mtsuite.shared.CommandLine {
 
     public void Visit(SwitchArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
-        Append("  /{0,-19} {1}", arg.ShortName, FormatMultiLine(arg.Description, 23));
+        Append("  --{0,-19} {1}", arg.ShortName, FormatMultiLine(arg.Description, 23));
       } else {
-        Append("  /{0,-19} {1}", arg.LongName, FormatMultiLine(arg.Description, 23, arg.ShortName));
+        Append("  --{0,-19} {1}", arg.LongName, FormatMultiLine(arg.Description, 23, arg.ShortName));
       }
     }
 

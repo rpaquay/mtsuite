@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared.CommandLine {
   public class ArgumentsParser {
@@ -40,7 +41,7 @@ namespace mtsuite.shared.CommandLine {
       for (var index = 0; index < _args.Count; ) {
         // If the argument a named argument?
         var argString = _args[index];
-        if (argString.StartsWith("/") || argString.StartsWith("-") || argString.StartsWith("--")) {
+        if (StartsWithNamedArgumentPrefix(argString)) {
           var prefixCount = argString.StartsWith("--") ? 2 : 1;
           var valueIndex = argString.IndexOf(':', prefixCount);
           if (valueIndex == argString.Length - 1) {
@@ -86,6 +87,12 @@ namespace mtsuite.shared.CommandLine {
         AddMissingDefaultValues();
         CheckMissingManadatoryArguments();
       }
+    }
+
+    private static bool StartsWithNamedArgumentPrefix(string argString) {
+      return (PathHelpers.DirectorySeparatorString == "/")
+        ? argString.StartsWith("-") || argString.StartsWith("--")
+        : argString.StartsWith("/") || argString.StartsWith("-") || argString.StartsWith("--");
     }
 
     private void CheckMissingManadatoryArguments() {
