@@ -69,20 +69,16 @@ public class FileSystemPortable : IFileSystem {
       var list = _entryListPool.AllocateFrom();
       
       try {
-        var entries = Directory.GetFileSystemEntries(path.FullName, pattern);
-        foreach (var entryPath in entries) {
-           // We need metadata for each entry. 
-           // Directory.GetFileSystemEntries only returns strings.
-           // To match expected behavior, we might need to fetch attributes/metadata.
-           // However, calling GetEntry for each might be slow. 
-           // But without a custom enumerator that fetches data (like Win32 FindFirstFile), we have to use FileInfo/DirectoryInfo.
-           var entryFullPath = path.Combine(Path.GetFileName(entryPath));
-           try {
-             list.Item.Add(GetEntry(entryFullPath));
-           } catch (FileNotFoundException) {
-             // Race condition: file deleted during enumeration
-             continue;
-           }
+        var entries = new DirectoryInfo(path.FullName).EnumerateFileSystemInfos();
+        foreach (var fileSystemInfo in entries) {
+          var entryPath = path.Combine(fileSystemInfo.Name);
+          var length = (fileSystemInfo is FileInfo fileInfo) ? fileInfo.Length : 0;
+          var data = new FileSystemEntryData(
+            fileSystemInfo.Attributes,
+            length,
+            fileSystemInfo.LastWriteTimeUtc.ToFileTimeUtc()); 
+          var entry = new FileSystemEntry(entryPath, data);
+          list.Item.Add(entry);
         }
       } catch (Exception) {
         list.Dispose();
