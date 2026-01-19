@@ -15,7 +15,6 @@
 using System;
 using System.ComponentModel;
 using System.IO;
-using CoreFileSystem;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.Win32;
