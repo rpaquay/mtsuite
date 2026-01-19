@@ -15,6 +15,10 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using mtsuite.CoreFileSystem;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("tests")]
+
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
