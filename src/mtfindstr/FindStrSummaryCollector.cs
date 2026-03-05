@@ -25,12 +25,12 @@ namespace mtfindstr {
   public class FindStrSummaryCollector : IDirectorCollector<VoidValue> {
     private readonly FindStrProgressMonitor _progressMonitor;
     private readonly List<FindStrFileResult> _fileResults = new List<FindStrFileResult>();
-    private readonly FileNameMatcher _fileNameMatcher;
+    private readonly IList<FileNameMatcher> _fileNameMatchers;
     private readonly FindStrMatcher _findStrMatcher;
 
-    public FindStrSummaryCollector(FindStrProgressMonitor progressMonitor, FileNameMatcher fileNameMatched, FindStrMatcher fileStrMatcher) {
+    public FindStrSummaryCollector(FindStrProgressMonitor progressMonitor, IList<FileNameMatcher> fileNameMatched, FindStrMatcher fileStrMatcher) {
       _progressMonitor = progressMonitor;
-      _fileNameMatcher = fileNameMatched;
+      _fileNameMatchers = fileNameMatched;
       _findStrMatcher = fileStrMatcher;
     }
 
@@ -41,7 +41,7 @@ namespace mtfindstr {
     }
 
     public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
-      var filesWithMatchingName = entries.Where(entry => entry.IsFile && _fileNameMatcher(entry)).ToList();
+      var filesWithMatchingName = entries.Where(entry => MatchesFileName(entry)).ToList();
       if (filesWithMatchingName.Count == 0) {
         return taskFactory.EmptyCollection();
       }
@@ -68,6 +68,10 @@ namespace mtfindstr {
         }
         _progressMonitor.OnFileMatchFound();
       }
+    }
+
+    bool MatchesFileName(FileSystemEntry entry) {
+      return entry.IsFile && _fileNameMatchers.Any(matcher => matcher(entry));
     }
 
     private void AddError(FileSystemEntry entry, Exception e) {

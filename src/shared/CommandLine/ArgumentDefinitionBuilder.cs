@@ -34,6 +34,17 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
+    public ArgumentDefinitionBuilder WithMultipleString(string id, string description, bool isMandatory, string defaultValue = null) {
+      var def = new MultipleFreeStringArgDef {
+        Id = id,
+        Description = description,
+        IsMandatory = isMandatory,
+        DefaultValue = defaultValue,
+      };
+      _definitions.Add(def);
+      return this;
+    }
+
     public ArgumentDefinitionBuilder WithSwitch(string id, string description, string shortName, string altShortName = "", string longName = "") {
       var def = new SwitchArgDef {
         Id = id,

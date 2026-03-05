@@ -49,6 +49,13 @@ namespace mtsuite.shared.CommandLine {
   }
 
   /// <summary>
+  /// Definition for arguments specified as "free" string (e.g. a filename).
+  /// </summary>
+  public class MultipleFreeStringArgDef : ArgDef {
+    public string DefaultValue { get; set; }
+  }
+
+  /// <summary>
   /// Definition for arguments which have a name and no value (e.g. "/h").
   /// </summary>
   public class SwitchArgDef : NameArgDef {

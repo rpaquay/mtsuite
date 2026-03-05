@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+using System.Collections.Generic;
+
 namespace mtsuite.shared.CommandLine {
   public class ParsedArgument {
     private readonly ArgDef _argDef;
@@ -31,6 +34,10 @@ namespace mtsuite.shared.CommandLine {
 
     public string StringValue {
       get { return (string)_argValue; }
+    }
+
+    public IList<string> StringListValue {
+      get { return (IList<string>)_argValue; }
     }
 
     public int IntValue {

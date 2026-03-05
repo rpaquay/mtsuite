@@ -40,6 +40,12 @@ namespace mtsuite.shared.CommandLine {
         return;
       }
 
+      var multipleStringDef = argDef as MultipleFreeStringArgDef;
+      if (multipleStringDef != null) {
+        visitor.Visit(multipleStringDef);
+        return;
+      }
+
       var switchDef = argDef as SwitchArgDef;
       if (switchDef != null) {
         visitor.Visit(switchDef);

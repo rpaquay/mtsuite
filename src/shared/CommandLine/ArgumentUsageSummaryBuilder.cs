@@ -46,6 +46,10 @@ namespace mtsuite.shared.CommandLine {
       Append(arg.IsMandatory, "{0}", arg.Id);
     }
 
+    public void Visit(MultipleFreeStringArgDef arg) {
+      Append(arg.IsMandatory, "{0} ...", arg.Id);
+    }
+
     public void Visit(SwitchArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
         Append(arg.IsMandatory, "/{0}", arg.ShortName);

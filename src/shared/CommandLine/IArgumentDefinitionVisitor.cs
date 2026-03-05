@@ -14,6 +14,7 @@
 namespace mtsuite.shared.CommandLine {
   public interface IArgumentDefinitionVisitor {
     void Visit(FreeStringArgDef arg);
+    void Visit(MultipleFreeStringArgDef arg);
     void Visit(SwitchArgDef arg);
     void Visit(IntFlagArgDef arg);
     void Visit(StringFlagArgDef arg);

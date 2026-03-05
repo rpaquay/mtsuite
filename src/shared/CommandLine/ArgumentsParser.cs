@@ -38,6 +38,10 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public void Parse() {
+      var currentFreeArgIndex = 0;
+      var freeArgCount = CountFreeArgDef();
+      var multipleFreeArgStrings = new List<string>();
+      ParsedArgument multipleFreeArgStringsArgument = null;
       for (var index = 0; index < _args.Count; ) {
         // If the argument a named argument?
         var argString = _args[index];
@@ -70,32 +74,47 @@ namespace mtsuite.shared.CommandLine {
           index++;
         } else {
           // Handle free string arguments
-          var freeArgCount = _parserArguments.Count(x => x.ArgDef is FreeStringArgDef);
-          var argDef = FindFreeArgDef(freeArgCount);
-          if (argDef == null) {
-            _errors.Add(string.Format("Extra argument \"{0}\"", argString));
-            index++;
-            continue;
+          var argDef = FindFreeArgDef(currentFreeArgIndex);
+          switch (argDef) {
+            case null:
+              _errors.Add(string.Format("Extra argument \"{0}\"", argString));
+              break;
+            case FreeStringArgDef: {
+              var parsedArg = new ParsedArgument(argDef, argString);
+              _parserArguments.Add(parsedArg);
+              // We got the argument (single) string value, move one to the next one (if there is one)
+              currentFreeArgIndex++;
+              break;
+            }
+            case MultipleFreeStringArgDef: {
+              if (multipleFreeArgStringsArgument == null) {
+                var parsedArg = new ParsedArgument(argDef, multipleFreeArgStrings);
+                _parserArguments.Add(parsedArg);
+                multipleFreeArgStringsArgument = parsedArg;
+              }
+              multipleFreeArgStrings.Add(argString);
+              // Don't increment currentFreeArgIndex because we are dealing with a multiple value argument
+              //currentFreeArgIndex++;
+              break;
+            }
           }
-          var parsedArg = new ParsedArgument(argDef, argString);
-          _parserArguments.Add(parsedArg);
           index++;
         }
       }
 
       if (_errors.Count == 0) {
         AddMissingDefaultValues();
-        CheckMissingManadatoryArguments();
+        CheckMissingMandatoryArguments();
       }
     }
-
+    
     private static bool StartsWithNamedArgumentPrefix(string argString) {
       return (PathHelpers.DirectorySeparatorString == "/")
         ? argString.StartsWith("-") || argString.StartsWith("--")
         : argString.StartsWith("/") || argString.StartsWith("-") || argString.StartsWith("--");
     }
 
-    private void CheckMissingManadatoryArguments() {
+    private void CheckMissingMandatoryArguments() {
       foreach (var argDef in _argumentDefinitions.Where(x => x.IsMandatory)) {
         if (!Contains(argDef.Id)) {
           _errors.Add(string.Format("Missing argument \"{0}\"", argDef.Id));
@@ -117,14 +136,22 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
-    private FreeStringArgDef FindFreeArgDef(int index) {
-      int current = 0;
-      foreach (var argDef in _argumentDefinitions.OfType<FreeStringArgDef>()) {
+    private int CountFreeArgDef() {
+      return _parserArguments.Count(x => IsFreeArgDef(x.ArgDef));
+    }
+    
+    private ArgDef FindFreeArgDef(int index) {
+      var current = 0;
+      foreach (var argDef in _argumentDefinitions.Where(x => IsFreeArgDef(x))) {
         if (index == current)
           return argDef;
         current++;
       }
       return null;
+    }
+
+    private static bool IsFreeArgDef(ArgDef argDef) {
+      return argDef is FreeStringArgDef or MultipleFreeStringArgDef;
     }
 
     private object FindArgumentValue(string argString, NameArgDef argDef, string argValue) {

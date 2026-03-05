@@ -35,7 +35,7 @@ namespace mtfindstr {
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithString("pattern", "The pattern to search for", true)
-        .WithString("file-pattern", "The file pattern to select files to search", false, "*")
+        .WithMultipleString("file-pattern", "The file name pattern(s) to include files to search (default=\"*\")", false, "*")
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);
@@ -75,7 +75,7 @@ namespace mtfindstr {
 
       public string Directory => _parser["directory"].StringValue;
 
-      public string FilePattern => _parser["file-pattern"].StringValue;
+      public IList<string> FileNamePatterns => _parser["file-pattern"].StringListValue;
 
       public string SearchPattern => _parser["pattern"].StringValue;
 

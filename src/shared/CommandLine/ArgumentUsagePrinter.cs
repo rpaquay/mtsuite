@@ -38,6 +38,10 @@ namespace mtsuite.shared.CommandLine {
       Append("  {0,-20} {1}", arg.Id, FormatMultiLine(arg.Description, 23));
     }
 
+    public void Visit(MultipleFreeStringArgDef arg) {
+      Append("  {0,-20} {1}", arg.Id, FormatMultiLine(arg.Description, 23));
+    }
+
     public void Visit(SwitchArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
         Append("  --{0,-19} {1}", arg.ShortName, FormatMultiLine(arg.Description, 23));

@@ -56,18 +56,18 @@ namespace mtfindstr {
       }
 
       var sourcePath = ProgramHelpers.MakeFullPath(arguments.Values.Directory);
-      var filePattern = arguments.Values.FilePattern;
+      var filePatterns = arguments.Values.FileNamePatterns;
       var searchPattern = arguments.Values.SearchPattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
-      bool followLinks = !arguments.Values.NoFollowLinks;
-      bool isPlainOutput = arguments.Values.PlainOutput;
+      var followLinks = !arguments.Values.NoFollowLinks;
+      var isPlainOutput = arguments.Values.PlainOutput;
       if (!isPlainOutput) {
         DisplayBanner();
       }
 
-      var findStrResult = DoFindStr(sourcePath, filePattern, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var findStrResult = DoFindStr(sourcePath, filePatterns, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
 
-      DisplayMatchesFiles(findStrResult, filePattern, searchPattern, isPlainOutput);
+      DisplayMatchesFiles(findStrResult, filePatterns, searchPattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
 #if false
@@ -103,7 +103,7 @@ namespace mtfindstr {
       Console.WriteLine();
     }
 
-    public List<FindStrFileResult> DoFindStr(FullPath sourcePath, string fileNamePattern, string searchPattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
+    public List<FindStrFileResult> DoFindStr(FullPath sourcePath, IList<string> fileNamePatterns, string searchPattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
       _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
 
       // Check source exists
@@ -117,23 +117,34 @@ namespace mtfindstr {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Searching for string \"{0}\" in files matching pattern \"{1}\" under \"{2}\"",
+        Console.WriteLine("Searching for string \"{0}\" in files matching pattern(s) {1} under \"{2}\"",
           searchPattern,
-          fileNamePattern,
+          FormatFileNamePatternList(fileNamePatterns),
           PathHelpers.StripLongPathPrefix(sourcePath.FullName));
         Console.WriteLine();
       }
       _progressMonitor.Start();
-      var collector = new FindStrSummaryCollector(_progressMonitor, CreateFileNameMatcher(fileNamePattern), CreateFindStrMatcher(searchPattern));
+      var collector = new FindStrSummaryCollector(_progressMonitor, CreateFileNameMatchers(fileNamePatterns), CreateFindStrMatcher(searchPattern));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return collector.FileResults;
     }
 
-    private static FileNameMatcher CreateFileNameMatcher(string pattern) {
-      var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
-      return entry => matcher.MatchString(entry.Path.Name);
+    private static string FormatFileNamePatternList(IList<string> fileNamePatterns) {
+      if (fileNamePatterns == null || fileNamePatterns.Count == 0) {
+        return "\"*\"";
+      }
+      else {
+        return fileNamePatterns.Select(x => $"\"{x}\"").Aggregate((a, b) => a + ", " + b);
+      }
+    }
+
+    private static IList<FileNameMatcher> CreateFileNameMatchers(IList<string> fileNamePatterns) {
+      return fileNamePatterns.Select(pattern => {
+        var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
+        return (FileNameMatcher)(entry => matcher.MatchString(entry.Path.Name));
+      }).ToList();
     }
 
     private static FindStrMatcher CreateFindStrMatcher(string pattern) {
@@ -162,14 +173,14 @@ namespace mtfindstr {
       FieldsPrinter.WriteLine(fields);
     }
 
-    private static void DisplayMatchesFiles(List<FindStrFileResult> fileResults, string filePattern, string searchPattern, bool isPlainOutput) {
+    private static void DisplayMatchesFiles(List<FindStrFileResult> fileResults, IList<string> fileNamePatterns, string searchPattern, bool isPlainOutput) {
       var sortedFileResults = fileResults
         .OrderBy(entry => entry.Path)
         .ToList();
 
       foreach (var fileResult in sortedFileResults) {
         foreach (var entry in fileResult.Entries) {
-          Console.WriteLine("{0}({1},{2})",
+          Console.WriteLine("{0}:{1}:{2}",
             PathHelpers.StripLongPathPrefix(fileResult.Path.FullName),
             entry.LineNumber,
             entry.ColumnNumber);
@@ -177,7 +188,10 @@ namespace mtfindstr {
       }
       if (!isPlainOutput) {
         Console.WriteLine();
-        Console.WriteLine("Found {0} files matching pattern \"{1}\" and containing string \"{2}\"", sortedFileResults.Count, filePattern, searchPattern);
+        Console.WriteLine("Found {0} files matching file patterns {1} and containing string \"{2}\"",
+          sortedFileResults.Count,
+          FormatFileNamePatternList(fileNamePatterns),
+          searchPattern);
       }
     }
   }
