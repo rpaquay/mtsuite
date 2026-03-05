@@ -250,7 +250,7 @@ namespace mtinfo {
       DirectorySummaryRoot summaryRoot,
       Func<DirectorySummary, long> sortingFunc) {
       const string directoryHeader = "Directory name";
-      const string sizeHeader = "Size";
+      const string sizeHeader = "Size (Bytes)";
       const string directoriesHeader = "Directories";
       const string filesHeader = "Files";
       const string symlinksHeader = "Symlinks";
