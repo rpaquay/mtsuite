@@ -45,6 +45,7 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public static bool HasAltDirectorySeparators(string path) {
+      if (Path.AltDirectorySeparatorChar == Path.DirectorySeparatorChar) return false;
       return path.IndexOf(Path.AltDirectorySeparatorChar) >= 0;
     }
 
@@ -64,6 +65,7 @@ namespace mtsuite.CoreFileSystem {
         startIndex--;
         count--;
       }
+      if (startIndex < 0) return null;
       var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
       if (lastIndex < 0)
         return null;
@@ -71,6 +73,9 @@ namespace mtsuite.CoreFileSystem {
       // Keep the terminating '\' to avoid returned invalid root path (e.g. 'c:')
       var result = path.Substring(0, lastIndex + 1);
       if (result == LongDiskPathPrefix || result == UncPathPrefix || result == LongUncPathPrefix)
+        return null;
+      var prefixInfo = GetPathRootPrefixInfo(result);
+      if (prefixInfo.RootPrefixKind == RootPrefixKind.UnixPath && result == DirectorySeparatorString)
         return null;
       return result;
     }
@@ -90,6 +95,7 @@ namespace mtsuite.CoreFileSystem {
         startIndex--;
         count--;
       }
+      if (startIndex < 0) return null;
       var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
       if (lastIndex < 0)
         return null;
@@ -122,6 +128,7 @@ namespace mtsuite.CoreFileSystem {
           return @"\\" + path.Substring(LongUncPathPrefix.Length);
         case RootPrefixKind.UncPath:
         case RootPrefixKind.DiskPath:
+        case RootPrefixKind.UnixPath:
           return path;
         default:
           throw new ArgumentOutOfRangeException();
@@ -148,6 +155,8 @@ namespace mtsuite.CoreFileSystem {
           return LongDiskPathPrefix + path;
         case RootPrefixKind.UncPath:
           return LongUncPathPrefix + path.Substring(2);
+        case RootPrefixKind.UnixPath:
+          return path;
         case RootPrefixKind.None:
           throw new ArgumentException("Path should be absolute", path);
         default:
@@ -317,11 +326,15 @@ namespace mtsuite.CoreFileSystem {
       if (path.Length >= 2 && path[0] == Path.DirectorySeparatorChar && path[1] == Path.DirectorySeparatorChar)
         return new PathRootPrefixInfo(2, RootPrefixKind.UncPath);
 
+      // Unix Format: '/' prefix
+      if (path.Length >= 1 && path[0] == Path.DirectorySeparatorChar)
+        return new PathRootPrefixInfo(1, RootPrefixKind.UnixPath);
+
       return default(PathRootPrefixInfo);
     }
 
     private static int GetDiskRootPrefix(string path, int index) {
-      if (path.Length >= index + 3 && char.IsLetter(path[index + 0]) && path[index + 1] == Path.VolumeSeparatorChar && path[index + 2] == Path.DirectorySeparatorChar) {
+      if (path.Length >= index + 3 && char.IsLetter(path[index + 0]) && path[index + 1] == ':' && path[index + 2] == '\\') {
         return 3;
       }
       return 0;
@@ -351,6 +364,7 @@ namespace mtsuite.CoreFileSystem {
       LongUncPath,
       DiskPath,
       UncPath,
+      UnixPath,
     }
 
     private class PathLexer {

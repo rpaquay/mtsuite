@@ -19,7 +19,7 @@ namespace mtfind {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtFind(new FileSystem()).Run(args);
+        new MtFind(FileSystem.Default).Run(args);
       });
     }
   }

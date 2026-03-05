@@ -69,6 +69,10 @@ namespace tests.FileSystemHelpers {
       get { return GetFileSystemEntry().FileAttributes; }
     }
 
+    public bool IsDirectory => (FileAttributes & FileAttributes.Directory) != 0;
+    public bool IsFile => (FileAttributes & FileAttributes.Directory) == 0;
+    public bool IsSymlink => (FileAttributes & FileAttributes.ReparsePoint) != 0;
+
     public void SetReadOnlyAttribute() {
       _fileSystemSetup.SetReadOnlyAttribute(this);
     }
@@ -83,7 +87,7 @@ namespace tests.FileSystemHelpers {
 
     public bool Exists() {
       FileSystemEntry entry;
-      if (!FileSystemSetup.FileSystem.TryGetEntry(Path, out entry))
+      if (!FileSystemSetup.TryGetEntry(Path, out entry))
         return false;
       var mappedEntry = MapEntry(_parent, entry);
       return mappedEntry.GetType().Equals(this.GetType());

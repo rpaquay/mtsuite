@@ -36,7 +36,7 @@ namespace mtsuite.shared {
       _fileSystem = fileSystem;
     }
 
-    public event Action<FullPath, Exception> Error;
+    public event Action<Exception> Error;
     public event Action Pulse;
     public event Action<FileSystemEntry> EntriesDiscovering;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
@@ -57,7 +57,7 @@ namespace mtsuite.shared {
       try {
         return _fileSystem.GetDirectoryFiles(directoryPath);
       } catch (Exception e) {
-        OnError(directoryPath, e);
+        OnError(e);
         // Assume no entries available on error, so we can continue processing
         return _entryListPool.AllocateFrom();
       }

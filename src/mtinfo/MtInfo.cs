@@ -150,6 +150,7 @@ namespace mtinfo {
       }
 
       Console.WriteLine("Collecting info from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+      Console.WriteLine();
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(options);
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector);
@@ -234,7 +235,6 @@ namespace mtinfo {
     }
 
     private static void DisplayResults(Statistics statistics) {
-      Console.WriteLine();
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
@@ -252,7 +252,7 @@ namespace mtinfo {
       DirectorySummaryRoot summaryRoot,
       Func<DirectorySummary, long> sortingFunc) {
       const string directoryHeader = "Directory name";
-      const string sizeHeader = "Size";
+      const string sizeHeader = "Size (Bytes)";
       const string directoriesHeader = "Directories";
       const string filesHeader = "Files";
       const string symlinksHeader = "Symlinks";

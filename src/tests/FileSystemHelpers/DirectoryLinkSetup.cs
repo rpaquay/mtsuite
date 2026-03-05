@@ -11,16 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-namespace tests.FileSystemHelpers {
-  public class DirectoryLinkSetup : SymbolicLinkSetup {
-    public DirectoryLinkSetup(DirectorySetup parent, string name)
-      : base(parent, name) {
-    }
-  }
+namespace tests.FileSystemHelpers;
 
-  public class JunctionPointSetup : SymbolicLinkSetup {
-    public JunctionPointSetup(DirectorySetup parent, string name)
-      : base(parent, name) {
-    }
+public class DirectoryLinkSetup : SymbolicLinkSetup {
+  public DirectoryLinkSetup(DirectorySetup parent, string name)
+    : base(parent, name) {
   }
 }

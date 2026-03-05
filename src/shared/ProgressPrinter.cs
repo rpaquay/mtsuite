@@ -14,59 +14,45 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace mtsuite.shared {
-  public class ProgressPrinter {
-    private readonly object _lock = new object();
-    private bool _init;
-    private int _cursorInitLeft;
-    private int _cursorInitTop;
-    private bool _supportsPositions;
+namespace mtsuite.shared;
+
+public class ProgressPrinter {
+    // The ANSI escape character can be represented as '\u001B' (Unicode), '\x1B' (hexadecimal),
+    // or the new '\e' escape sequence introduced in C# 11.
+    private const string AnsiEsc = "\u001B";
+
+    // ANSI code to move cursor up N lines
+    private const string AnsiCursorUpFormat = AnsiEsc + "[{0}A";
+
+    private readonly object _lock = new();
+    private bool _firstPrint = true;
 
     public void Stop() {
-      if (_init) {
-        Console.WriteLine(); // end previously displayed line
-        Console.WriteLine(); // empty line
-      }
+        lock (_lock) {
+            if (!_firstPrint) {
+                Console.WriteLine(); // end previously displayed line
+                Console.WriteLine(); // empty line
+            }
+        }
     }
 
     public void Print(ICollection<PrinterEntry> fields) {
-      EnsureInit();
-      lock (_lock) {
-        if (!_supportsPositions) {
-          Console.Write("\r{0}", FieldsPrinter.BuildSingleLineOutput(fields));
-        } else {
-          try {
-            Console.SetCursorPosition(_cursorInitLeft, _cursorInitTop);
-            Console.Write(FieldsPrinter.BuildMultiLineOutput(fields));
-          } catch (Exception) {
-            Console.Write("\r{0}", FieldsPrinter.BuildSingleLineOutput(fields));
-            _supportsPositions = false;
-          }
+        var output = FieldsPrinter.BuildMultiLineOutput(fields);
+
+        lock (_lock) {
+            // Move cursor up if not first print
+            if (!_firstPrint) {
+                Console.Write("\r");
+                if (fields.Count >= 1) {
+                    Console.Write(AnsiCursorUpFormat, fields.Count - 1);
+                }
+            }
+
+            _firstPrint = false;
+
+            // Print output
+            Console.Write(output);
         }
-      }
     }
-
-    private void EnsureInit() {
-      if (_init) {
-        return;
-      }
-
-      lock (_lock) {
-        if (!_init) {
-          try {
-            _cursorInitLeft = Console.CursorLeft;
-            _cursorInitTop = Console.CursorTop;
-            _supportsPositions = true;
-          } catch (Exception) {
-            _supportsPositions = false;
-          }
-
-          _init = true;
-        }
-      }
-    }
-  }
 }
