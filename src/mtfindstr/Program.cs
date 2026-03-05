@@ -19,7 +19,7 @@ namespace mtfindstr {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtFindStr(new FileSystem()).Run(args);
+        new MtFindStr(FileSystem.Default).Run(args);
       });
     }
   }

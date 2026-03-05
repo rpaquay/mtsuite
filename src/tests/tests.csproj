@@ -17,6 +17,7 @@
     <ProjectReference Include="..\mtcopy\mtcopy.csproj" />
     <ProjectReference Include="..\mtdel\mtdel.csproj" />
     <ProjectReference Include="..\mtfind\mtfind.csproj" />
+    <ProjectReference Include="..\mtfindstr\mtfindstr.csproj" />
     <ProjectReference Include="..\mtinfo\mtinfo.csproj" />
     <ProjectReference Include="..\mtmir\mtmir.csproj" />
   </ItemGroup>
