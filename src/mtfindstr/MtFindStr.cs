@@ -14,8 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -178,6 +176,15 @@ namespace mtfindstr {
         .OrderBy(entry => entry.Path)
         .ToList();
 
+      if (!isPlainOutput) {
+        Console.WriteLine("Found {0} occurrences of \"{1}\" in {2} files matching file pattern(s) {3}",
+          sortedFileResults.Aggregate(0, (agg, result) => agg + result.Entries.Count),
+          searchPattern,
+          sortedFileResults.Count,
+          FormatFileNamePatternList(fileNamePatterns));
+        Console.WriteLine();
+      }
+      
       foreach (var fileResult in sortedFileResults) {
         foreach (var entry in fileResult.Entries) {
           Console.WriteLine("{0}:{1}:{2}",
@@ -185,13 +192,6 @@ namespace mtfindstr {
             entry.LineNumber,
             entry.ColumnNumber);
         }
-      }
-      if (!isPlainOutput) {
-        Console.WriteLine();
-        Console.WriteLine("Found {0} files matching file patterns {1} and containing string \"{2}\"",
-          sortedFileResults.Count,
-          FormatFileNamePatternList(fileNamePatterns),
-          searchPattern);
       }
     }
   }
