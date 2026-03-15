@@ -134,6 +134,12 @@ namespace mtsuite.shared.CommandLine {
       foreach (var x in stringDefaults) {
         _parserArguments.Add(new ParsedArgument(x, x.DefaultValue));
       }
+      
+      var multiStringDefaults = _argumentDefinitions.OfType<MultipleFreeStringArgDef>()
+        .Where(x => !Contains(x.Id) && x.DefaultValue != null);
+      foreach (var x in multiStringDefaults) {
+        _parserArguments.Add(new ParsedArgument(x, x.DefaultValue));
+      }
     }
 
     private int CountFreeArgDef() {

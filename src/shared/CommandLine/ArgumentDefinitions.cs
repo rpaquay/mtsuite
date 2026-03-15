@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.Collections.Generic;
 
 namespace mtsuite.shared.CommandLine {
   /// <summary>
@@ -52,7 +53,7 @@ namespace mtsuite.shared.CommandLine {
   /// Definition for arguments specified as "free" string (e.g. a filename).
   /// </summary>
   public class MultipleFreeStringArgDef : ArgDef {
-    public string DefaultValue { get; set; }
+    public IList<string> DefaultValue { get; set; }
   }
 
   /// <summary>

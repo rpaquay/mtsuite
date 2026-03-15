@@ -39,7 +39,7 @@ namespace mtsuite.shared.CommandLine {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
-        DefaultValue = defaultValue,
+        DefaultValue = defaultValue == null ? null : new List<string> { defaultValue },
       };
       _definitions.Add(def);
       return this;
