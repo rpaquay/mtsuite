@@ -18,6 +18,8 @@ using System.Text;
 
 namespace mtsuite.shared.CommandLine {
   public class ArgumentUsageBuilder : IArgumentDefinitionVisitor {
+    private const string Delimiter = "--";
+    private const string ShortDelimiter = "-";
     private readonly StringBuilder _sb = new StringBuilder();
 
     public string Text {
@@ -44,34 +46,36 @@ namespace mtsuite.shared.CommandLine {
 
     public void Visit(SwitchArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
-        Append("  --{0,-19} {1}", arg.ShortName, FormatMultiLine(arg.Description, 23));
+        var valueSummary = string.Format("{0}{1}", Delimiter, arg.ShortName);
+        Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
       } else {
-        Append("  --{0,-19} {1}", arg.LongName, FormatMultiLine(arg.Description, 23, arg.ShortName));
+        var valueSummary = string.Format("{0}{1}", Delimiter, arg.LongName);
+        Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
       }
     }
 
     public void Visit(IntFlagArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
-        var valueSummary = string.Format("/{0}:{1}", arg.ShortName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.ShortName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
       } else {
-        var valueSummary = string.Format("/{0}:{1}", arg.LongName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.LongName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
       }
     }
 
     public void Visit(StringFlagArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
-        var valueSummary = string.Format("/{0}:{1}", arg.ShortName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.ShortName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
       } else {
-        var valueSummary = string.Format("/{0}:{1}", arg.LongName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.LongName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
       }
     }
 
     private static string FormatMultiLine(string description, int indent, string shortArgName) {
-      return FormatMultiLine(string.Format("{0} (short: /{1})", description, shortArgName), indent);
+      return FormatMultiLine(string.Format("{0} (short: {1}{2})", description, ShortDelimiter, shortArgName), indent);
     }
     private static string FormatMultiLine(string description, int indent) {
       var sb = new StringBuilder();
