@@ -116,18 +116,19 @@ namespace mtsuite.shared {
       var directoryCount = 0;
       var fileCount = 0;
       var symlinkCount = 0;
+      var diskSize = 0L;
       foreach(var entry in entries) {
         // Note: Order is important (symlink first)
         if (entry.IsReparsePoint) symlinkCount++;
         else if (entry.IsDirectory) directoryCount++;
-        else if (entry.IsFile) fileCount++;
+        else if (entry.IsFile) {
+          fileCount++;
+          diskSize += entry.FileSize;
+        }
       }
       Interlocked.Add(ref _directoryEnumeratedCount, directoryCount);
       Interlocked.Add(ref _fileEnumeratedCount, fileCount);
       Interlocked.Add(ref _symlinkEnumeratedCount, symlinkCount);
-      var diskSize = entries
-        .Where(x => x.IsFile && !x.IsReparsePoint) // Real files only
-        .Aggregate(0L, (size, entry) => size + entry.FileSize);
       Interlocked.Add(ref _fileEnumeratedTotalSize, diskSize);
       Pulse();
     }

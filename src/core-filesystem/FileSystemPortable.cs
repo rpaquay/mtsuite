@@ -76,9 +76,9 @@ public class FileSystemPortable : IFileSystem {
       try {
         // Transform a `System.IO.Enumeration.FileSystemEntry` into our `FileSystemEntry`
         FileSystemEntry FindTransform(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
-          var entryPath = path.Combine(fsEntry.FileName.ToString());
+          var entryPath = MakeFullPath(path, fsEntry);
           var length = fsEntry.IsDirectory ? 0 : fsEntry.Length;
-          var data = new FileSystemEntryData(fsEntry.Attributes, length, fsEntry.LastWriteTimeUtc.UtcDateTime.ToFileTimeUtc());
+          var data = MakeFileSystemEntryData(fsEntry, length);
           var entry = new FileSystemEntry(entryPath, data);
           return entry;
         }
@@ -95,6 +95,14 @@ public class FileSystemPortable : IFileSystem {
       }
 
       return list;
+    }
+
+    private static FileSystemEntryData MakeFileSystemEntryData(System.IO.Enumeration.FileSystemEntry fsEntry, long length) {
+        return new FileSystemEntryData(fsEntry.Attributes, length, fsEntry.LastWriteTimeUtc.UtcDateTime.ToFileTimeUtc());
+    }
+
+    private static FullPath MakeFullPath(FullPath path, System.IO.Enumeration.FileSystemEntry fsEntry) {
+        return path.Combine(fsEntry.FileName.ToString());
     }
 
     public void CreateDirectory(FullPath path) {
