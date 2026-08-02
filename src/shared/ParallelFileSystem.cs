@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -274,7 +274,7 @@ namespace mtsuite.shared {
             // TODO: Perf: Need a hashset?
             foreach (var src in sourceEntries) {
               // Same name, different "kind"?
-              if (StringComparer.OrdinalIgnoreCase.Equals(dst.Name, src.Name)) {
+              if (PathHelpers.FileNameComparer.Equals(dst.Name, src.Name)) {
                 if (dst.IsFile != src.IsFile ||
                     dst.IsDirectory != src.IsDirectory ||
                     dst.IsReparsePoint != src.IsReparsePoint) {

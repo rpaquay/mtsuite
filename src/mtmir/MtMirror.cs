@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,7 +58,8 @@ namespace mtmir {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithString("source-path", "The path of the source directory", true)
         .WithString("destination-path", "The path of the destination directory", true)
-        .WithSwitch("ft", "Compare file modification time instead of file contents (faster)", "ft")
+        .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
+        .WithSwitch("ft", "Compare file modification time (default)", "ft")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -81,11 +82,11 @@ namespace mtmir {
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       IFileComparer fileComparer;
-      if (parser.Contains("ft")) {
-        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
+      if (parser.Contains("fc")) {
+        fileComparer = new FileContentsFileComparer(_fileSystem);
       }
       else {
-        fileComparer = new FileContentsFileComparer(_fileSystem);
+        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       }
 
       var statistics = DoMirror(sourcePath, destinationPath, fileComparer);

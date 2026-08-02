@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ namespace tests {
         }
       };
 
-      var args = new[] { "/?" };
+      var args = new[] { "-?" };
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
       Assert.IsTrue(parser.IsValid);
@@ -137,7 +137,7 @@ namespace tests {
         },
       };
 
-      var args = new string[] { "/d" };
+      var args = new string[] { "-d" };
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
       Assert.IsTrue(parser.IsValid);

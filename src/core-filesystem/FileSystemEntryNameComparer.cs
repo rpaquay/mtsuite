@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ namespace mtsuite.CoreFileSystem {
       return
         (x.IsFile == y.IsFile) &&
         (x.IsReparsePoint == y.IsReparsePoint) &&
-        StringComparer.OrdinalIgnoreCase.Equals(x.Name, y.Name);
+        PathHelpers.FileNameComparer.Equals(x.Name, y.Name);
     }
 
     public int GetHashCode(FileSystemEntry obj) {
-      return obj.Name.GetHashCode();
+      return PathHelpers.FileNameComparer.GetHashCode(obj.Name);
     }
   }
 }

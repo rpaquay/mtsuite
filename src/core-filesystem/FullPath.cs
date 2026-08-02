@@ -189,7 +189,7 @@ namespace mtsuite.CoreFileSystem {
 
     public bool Equals(FullPath other) {
       return Equals(_parent, other._parent) &&
-             string.Equals(_name, other._name, StringComparison.OrdinalIgnoreCase);
+             string.Equals(_name, other._name, PathHelpers.FileNameComparison);
     }
 
     public override bool Equals(object obj) {
@@ -203,7 +203,7 @@ namespace mtsuite.CoreFileSystem {
     public override int GetHashCode() {
       unchecked {
         return ((_parent?.GetHashCode() ?? 0) * 397) ^
-               StringComparer.OrdinalIgnoreCase.GetHashCode(_name);
+               PathHelpers.FileNameComparer.GetHashCode(_name);
       }
     }
 
@@ -222,7 +222,7 @@ namespace mtsuite.CoreFileSystem {
         } else if (i >= yNames.Count) {
           return 1; // x has more names than y
         }
-        int result = string.Compare(xNames[i], yNames[i], StringComparison.OrdinalIgnoreCase);
+        int result = string.Compare(xNames[i], yNames[i], PathHelpers.FileNameComparison);
         if (result != 0)
           return result;
       }

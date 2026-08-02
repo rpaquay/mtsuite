@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.IO;
 using mtmir;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
@@ -219,6 +220,27 @@ namespace tests {
       Assert.AreEqual(1, stats.FileCopiedCount);
       Assert.AreEqual(2, stats.SymlinkCopiedCount);
       Assert.AreEqual(0, stats.Errors.Count);
+    }
+
+    [TestMethod]
+    public void MtMirrorShouldPreserveFileModificationTime() {
+      // Prepare
+      var sourceFile = _sourcefs.Root.CreateFile("timestamp.txt", 50);
+      var expectedTime = new DateTime(2022, 5, 15, 10, 30, 0, DateTimeKind.Utc);
+      File.SetLastWriteTimeUtc(sourceFile.Path.FullName, expectedTime);
+
+      // Act
+      var mtmirror = new MtMirror(_sourcefs.FileSystem);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+      // Assert
+      Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(0, stats.Errors.Count);
+      var destFilePath = _destfs.Root.Path.Combine("timestamp.txt").FullName;
+      Assert.IsTrue(File.Exists(destFilePath));
+      var actualTime = File.GetLastWriteTimeUtc(destFilePath);
+      Assert.IsTrue(Math.Abs((expectedTime - actualTime).TotalSeconds) < 2,
+        $"Expected time {expectedTime} but got {actualTime}");
     }
   }
 }

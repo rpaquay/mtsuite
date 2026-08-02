@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ namespace mtsuite.CoreFileSystem {
 
       // We only need to compare the names, as we know the parent directory
       // are equivalent (although not same paths).
-      if (!StringComparer.OrdinalIgnoreCase.Equals(file1.Name, file2.Name)) {
+      if (!PathHelpers.FileNameComparer.Equals(file1.Name, file2.Name)) {
         return false;
       }
 

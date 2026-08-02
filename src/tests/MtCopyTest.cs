@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
+using System.IO;
 using mtcopy;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.CommandLine;
@@ -392,4 +394,71 @@ public class MtCopyTest {
     Assert.AreEqual(1, stats.SymlinkCopiedCount);
     Assert.AreEqual(0, stats.Errors.Count);
   }
-}
+
+  [TestMethod]
+  public void MtCopyShouldPreserveFileModificationTime() {
+    // Prepare
+    var sourceFile = _sourcefs.Root.CreateFile("timestamp.txt", 50);
+    var expectedTime = new DateTime(2022, 5, 15, 10, 30, 0, DateTimeKind.Utc);
+    File.SetLastWriteTimeUtc(sourceFile.Path.FullName, expectedTime);
+
+    // Act
+    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+    // Assert
+    Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(0, stats.Errors.Count);
+    var destFilePath = _destfs.Root.Path.Combine("timestamp.txt").FullName;
+    Assert.IsTrue(File.Exists(destFilePath));
+    var actualTime = File.GetLastWriteTimeUtc(destFilePath);
+    Assert.IsTrue(Math.Abs((expectedTime - actualTime).TotalSeconds) < 2,
+      $"Expected time {expectedTime} but got {actualTime}");
+  }
+
+  [TestMethod]
+  public void MtCopyShouldPreserveUnixFileModeOnNonWindows() {
+    if (OperatingSystem.IsWindows()) {
+      return;
+    }
+
+    // Prepare
+    var sourceFile = _sourcefs.Root.CreateFile("script.sh", 20);
+    var expectedMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                       UnixFileMode.GroupRead | UnixFileMode.GroupExecute;
+    File.SetUnixFileMode(sourceFile.Path.FullName, expectedMode);
+
+    // Act
+    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+    // Assert
+    Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(0, stats.Errors.Count);
+    var destFilePath = _destfs.Root.Path.Combine("script.sh").FullName;
+    Assert.IsTrue(File.Exists(destFilePath));
+    var actualMode = File.GetUnixFileMode(destFilePath);
+    Assert.AreEqual(expectedMode, actualMode);
+  }
+
+  [TestMethod]
+  public void MtCopyShouldSupportCaseSensitivityOnLinux() {
+    if (!OperatingSystem.IsLinux()) {
+      return;
+    }
+
+    // Prepare
+    _sourcefs.Root.CreateFile("file.txt", 10);
+    _sourcefs.Root.CreateFile("FILE.txt", 20);
+
+    // Act
+    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+    // Assert
+    Assert.AreEqual(2, stats.FileCopiedCount);
+    Assert.AreEqual(0, stats.Errors.Count);
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("FILE.txt").FullName));
+  }
+}

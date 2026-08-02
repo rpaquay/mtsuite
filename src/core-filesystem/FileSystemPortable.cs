@@ -162,20 +162,35 @@ public class FileSystemPortable : IFileSystem {
     }
 
     private void CopyFileImpl(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, CopyFileCallback callback) {
-        using var buffer = _copyFileBufferPool.AllocateFrom();
-        using var sourceStream = new FileStream(sourceEntry.Path.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var destinationStream = new FileStream(destinationPath.FullName, FileMode.Create, FileAccess.Write, FileShare.None);
-        
-        long totalBytes = 0;
-        int bytesRead;
-        while ((bytesRead = sourceStream.Read(buffer.Item, 0, buffer.Item.Length)) > 0) {
-            destinationStream.Write(buffer.Item, 0, bytesRead);
-            totalBytes += bytesRead;
-            callback?.Invoke(totalBytes, sourceEntry.FileSize);
+        using (var buffer = _copyFileBufferPool.AllocateFrom())
+        using (var sourceStream = new FileStream(sourceEntry.Path.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
+        using (var destinationStream = new FileStream(destinationPath.FullName, FileMode.Create, FileAccess.Write, FileShare.None)) {
+            long totalBytes = 0;
+            int bytesRead;
+            while ((bytesRead = sourceStream.Read(buffer.Item, 0, buffer.Item.Length)) > 0) {
+                destinationStream.Write(buffer.Item, 0, bytesRead);
+                totalBytes += bytesRead;
+                callback?.Invoke(totalBytes, sourceEntry.FileSize);
+            }
+
+            if (totalBytes != sourceEntry.FileSize) {
+                throw new IOException($"Size of source file has changed during copy ({totalBytes} != {sourceEntry.FileSize})");
+            }
         }
 
-        if (totalBytes != sourceEntry.FileSize) {
-            throw new IOException($"Size of source file has changed during copy ({totalBytes} != {sourceEntry.FileSize})");
+        try {
+            File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
+        } catch {
+            // Best effort
+        }
+
+        if (!OperatingSystem.IsWindows()) {
+            try {
+                var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
+                File.SetUnixFileMode(destinationPath.FullName, mode);
+            } catch {
+                // Best effort
+            }
         }
     }
 
@@ -198,8 +213,11 @@ public class FileSystemPortable : IFileSystem {
 
         if (info.IsSymbolicLink) {
             Directory.CreateSymbolicLink(destinationPath.FullName, info.Target);
-            //TODO: Check this sets the time on the link, not the target directory
-            Directory.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+            try {
+                Directory.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+            } catch {
+                // Best effort
+            }
         }
         else {
             throw new NotSupportedException(
@@ -212,8 +230,11 @@ public class FileSystemPortable : IFileSystem {
 
         if (info.IsSymbolicLink) {
             File.CreateSymbolicLink(destinationPath.FullName, info.Target);
-            //TODO: Check this sets the time on the link, not the target directory
-            File.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+            try {
+                File.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+            } catch {
+                // Best effort
+            }
         }
         else {
             throw new NotSupportedException(

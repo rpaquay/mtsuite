@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,20 @@ namespace mtsuite.CoreFileSystem {
     public static readonly string LongDiskPathPrefix = @"\\?\";
     public static readonly string LongUncPathPrefix = @"\\?\UNC\";
     private static readonly string UncPathPrefix  = @"\\";
+
+    /// <summary>
+    /// Returns the appropriate StringComparer for file and path names on the current operating system
+    /// (Ordinal on Linux, OrdinalIgnoreCase on Windows and macOS).
+    /// </summary>
+    public static StringComparer FileNameComparer { get; } =
+      OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>
+    /// Returns the appropriate StringComparison for file and path names on the current operating system
+    /// (Ordinal on Linux, OrdinalIgnoreCase on Windows and macOS).
+    /// </summary>
+    public static StringComparison FileNameComparison { get; } =
+      OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
     /// <summary>
     /// Return <code>true</code> if <paramref name="path"/> is an absolute path.
