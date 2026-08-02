@@ -211,35 +211,64 @@ namespace mtsuite.CoreFileSystem {
       return ComparePaths(this, other);
     }
 
+    /// <summary>
+    /// Compares two <see cref="FullPath"/> instances hierarchically segment-by-segment from root to leaf.
+    /// Performance note: Rather than allocating List or array objects on the heap, this method aligns
+    /// both paths by depth and compares their segments recursively from root down to the common depth.
+    /// This achieves zero heap allocations and eliminates GC pressure during sorting and comparisons
+    /// by using the CPU call stack (typically only 3 to 10 frames deep) instead of heap memory.
+    /// </summary>
     public static int ComparePaths(FullPath x, FullPath y) {
-      //TODO: Find a way to make this more efficient (i.e. no memory allocation)
-      var xNames = GetNames(x);
-      var yNames = GetNames(y);
-      var maxNames = Math.Max(xNames.Count, yNames.Count);
-      for (var i = 0; i < maxNames; i++) {
-        if (i >= xNames.Count) {
-          return -1; // x has fewer names than y
-        } else if (i >= yNames.Count) {
-          return 1; // x has more names than y
-        }
-        int result = string.Compare(xNames[i], yNames[i], PathHelpers.FileNameComparison);
-        if (result != 0)
-          return result;
+      // Fast path: if both paths share the exact same parent reference (e.g. sibling files in the same directory)
+      // or are both root paths, we can directly compare their names in O(1) without computing depth or recursing.
+      if (ReferenceEquals(x._parent, y._parent)) {
+        return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
       }
-      return 0;
+
+      int depthX = GetDepth(x);
+      int depthY = GetDepth(y);
+
+      // Walk back any excess depth on the deeper path so xAligned and yAligned have equal depths.
+      FullPath xAligned = x;
+      for (int i = depthX; i > depthY; i--) {
+        // ReSharper disable once PossibleInvalidOperationException
+        xAligned = xAligned.Parent.Value;
+      }
+
+      FullPath yAligned = y;
+      for (int i = depthY; i > depthX; i--) {
+        // ReSharper disable once PossibleInvalidOperationException
+        yAligned = yAligned.Parent.Value;
+      }
+
+      // Compare segments from root down to the aligned depth.
+      int cmp = CompareEqualDepth(xAligned, yAligned);
+      if (cmp != 0)
+        return cmp;
+
+      // If the common prefix is identical, the path with fewer segments comes first.
+      return depthX.CompareTo(depthY);
     }
 
-    private static List<string> GetNames(FullPath path) {
-      var result = new List<string>();
-      while (true) {
-        result.Add(path._name);
-        var parent = path.Parent;
-        if (parent == null)
-          break;
-        path = parent.Value;
+    private static int CompareEqualDepth(FullPath x, FullPath y) {
+      if (ReferenceEquals(x._parent, y._parent)) {
+        return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
       }
-      result.Reverse();
-      return result;
+
+      // ReSharper disable twice PossibleInvalidOperationException
+      int parentCmp = CompareEqualDepth(x.Parent.Value, y.Parent.Value);
+      if (parentCmp != 0)
+        return parentCmp;
+
+      return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
+    }
+
+    private static int GetDepth(FullPath path) {
+      int depth = 0;
+      for (FullPath? cur = path; cur != null; cur = cur.Value.Parent) {
+        depth++;
+      }
+      return depth;
     }
 
     class FullPathReference : IEquatable<FullPathReference> {

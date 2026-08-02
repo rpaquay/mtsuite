@@ -88,9 +88,6 @@ namespace mtsuite.CoreFileSystem {
       var result = path.Substring(0, lastIndex + 1);
       if (result == LongDiskPathPrefix || result == UncPathPrefix || result == LongUncPathPrefix)
         return null;
-      var prefixInfo = GetPathRootPrefixInfo(result);
-      if (prefixInfo.RootPrefixKind == RootPrefixKind.UnixPath && result == DirectorySeparatorString)
-        return null;
       return result;
     }
 
