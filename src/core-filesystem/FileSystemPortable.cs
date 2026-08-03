@@ -96,22 +96,33 @@ public class FileSystemPortable : IFileSystemExtended {
       };
     }
 
+    private sealed class DirectoryEntriesEnumerator(FullPath basePath, EnumerationOptions options)
+      : FileSystemEnumerator<FileSystemEntry>(basePath.FullName, options) {
+      protected override bool ShouldIncludeEntry(ref System.IO.Enumeration.FileSystemEntry entry) {
+        return true;
+      }
+
+      protected override bool ShouldRecurseIntoEntry(ref System.IO.Enumeration.FileSystemEntry entry) {
+        return false;
+      }
+
+      protected override FileSystemEntry TransformEntry(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
+        var entryPath = basePath.Combine(fsEntry.FileName.ToString());
+        var isDir = fsEntry.IsDirectory;
+        var isReparse = (fsEntry.Attributes & FileAttributes.ReparsePoint) != 0;
+        var length = (isDir || isReparse) ? 0 : fsEntry.Length;
+        var data = new FileSystemEntryData(fsEntry.Attributes, length, fsEntry.LastWriteTimeUtc.UtcDateTime.ToFileTimeUtc());
+        return new FileSystemEntry(entryPath, data);
+      }
+    }
+
     public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
       var list = _entryListPool.AllocateFrom();
       try {
-        var entries = new FileSystemEnumerable<FileSystemEntry>(
-          directory: path.FullName,
-          transform: (ref System.IO.Enumeration.FileSystemEntry fsEntry) => {
-            var entryPath = path.Combine(fsEntry.FileName.ToString());
-            var isDir = fsEntry.IsDirectory;
-            var isReparse = (fsEntry.Attributes & FileAttributes.ReparsePoint) != 0;
-            var length = (isDir || isReparse) ? 0 : fsEntry.Length;
-            var data = new FileSystemEntryData(fsEntry.Attributes, length, fsEntry.LastWriteTimeUtc.UtcDateTime.ToFileTimeUtc());
-            return new FileSystemEntry(entryPath, data);
-          },
-          options: _enumerationOptions
-        );
-        list.Item.AddRange(entries);
+        using var enumerator = new DirectoryEntriesEnumerator(path, _enumerationOptions);
+        while (enumerator.MoveNext()) {
+          list.Item.Add(enumerator.Current);
+        }
       } catch {
         list.Dispose();
         throw;

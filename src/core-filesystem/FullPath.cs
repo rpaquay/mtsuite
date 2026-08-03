@@ -112,7 +112,7 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
-    public FullPath Combine(string name) {
+    public readonly FullPath Combine(string name) {
       if (string.IsNullOrEmpty(name)) {
         ThrowArgumentNullException("name");
       }
