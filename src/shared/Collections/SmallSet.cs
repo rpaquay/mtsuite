@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace mtsuite.shared.Collections {
   /// <summary>
@@ -28,36 +27,41 @@ namespace mtsuite.shared.Collections {
     private readonly IEqualityComparer<T> _comparer;
     private List<T> _itemsList;
     private Dictionary<T, T> _itemsDic;
-    private Func<T, bool> _contains;
-    private Func<T, KeyValuePair<bool, T>> _tryGet;
 
     public SmallSet()
       : this(EqualityComparer<T>.Default) {
     }
 
     public SmallSet(IEqualityComparer<T> comparer) {
-      _comparer = comparer;
+      _comparer = comparer ?? EqualityComparer<T>.Default;
     }
 
     public SmallSet(List<T> items) : this(items, EqualityComparer<T>.Default) {
     }
 
-    public SmallSet(List<T> items, IEqualityComparer<T> comparer): this(comparer) {
+    public SmallSet(List<T> items, IEqualityComparer<T> comparer) : this(comparer) {
       SetList(items);
     }
 
     public void SetList(List<T> items) {
-      if ((items.Count > Threshold)) {
-        if (_itemsDic == null)
-          _itemsDic = new Dictionary<T, T>(_comparer);
-        foreach(var x in items)
-          _itemsDic.Add(x, x);
-        _contains = x => _itemsDic.ContainsKey(x);
-        _tryGet = DictionaryTryGet;
+      if (items == null) {
+        Clear();
+        return;
+      }
+
+      if (items.Count > Threshold) {
+        if (_itemsDic == null) {
+          _itemsDic = new Dictionary<T, T>(items.Count, _comparer);
+        } else {
+          _itemsDic.Clear();
+        }
+        foreach (var x in items) {
+          _itemsDic.TryAdd(x, x);
+        }
+        _itemsList = null;
       } else {
         _itemsList = items;
-        _contains = t => _itemsList.Contains(t, _comparer);
-        _tryGet = ListTryGet;
+        _itemsDic?.Clear();
       }
     }
 
@@ -65,38 +69,42 @@ namespace mtsuite.shared.Collections {
       if (_itemsDic != null)
         _itemsDic.Clear();
       _itemsList = null;
-      _contains = null;
-      _tryGet = null;
     }
 
     public bool Contains(T item) {
-      return _contains(item);
+      if (_itemsDic != null && _itemsDic.Count > 0) {
+        return _itemsDic.ContainsKey(item);
+      }
+      if (_itemsList != null) {
+        for (var i = 0; i < _itemsList.Count; i++) {
+          if (_comparer.Equals(item, _itemsList[i])) {
+            return true;
+          }
+        }
+      }
+      return false;
     }
 
     public bool TryGet(T key, out T value) {
-      var result = TryGet(key);
-      value = result.Value;
-      return result.Key;
+      if (_itemsDic != null && _itemsDic.Count > 0) {
+        return _itemsDic.TryGetValue(key, out value);
+      }
+      if (_itemsList != null) {
+        for (var i = 0; i < _itemsList.Count; i++) {
+          var item = _itemsList[i];
+          if (_comparer.Equals(key, item)) {
+            value = item;
+            return true;
+          }
+        }
+      }
+      value = default(T);
+      return false;
     }
 
     public KeyValuePair<bool, T> TryGet(T key) {
-      return _tryGet(key);
-    }
-
-    private KeyValuePair<bool, T> DictionaryTryGet(T key) {
-      T value;
-      var found = _itemsDic.TryGetValue(key, out value);
+      var found = TryGet(key, out var value);
       return new KeyValuePair<bool, T>(found, value);
-    }
-
-    private KeyValuePair<bool, T> ListTryGet(T key) {
-      for (var i = 0; i < _itemsList.Count; i++) {
-        var item = _itemsList[i];
-        if (_comparer.Equals(key, item)) {
-          return new KeyValuePair<bool, T>(true, item);
-        }
-      }
-      return new KeyValuePair<bool, T>(false, default(T));
     }
   }
 }

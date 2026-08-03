@@ -22,9 +22,33 @@ using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.Tasks;
 
 namespace mtsuite.shared {
+  public interface INoAllocStopwatchFactory {
+    NoAllocStopwatch Create();
+    
+    TimeSpan GetElapsed(long startingTimestamp);
+  }
+
+  public class NoAllocStopwatchFactory : INoAllocStopwatchFactory {
+    
+    public TimeSpan GetElapsed(long startingTimestamp) {
+      return Stopwatch.GetElapsedTime(startingTimestamp);
+    }
+
+    public NoAllocStopwatch Create() {
+      return new NoAllocStopwatch(this, Stopwatch.GetTimestamp());
+    }
+  }
+
+  public readonly struct NoAllocStopwatch(INoAllocStopwatchFactory factory, long startingTimestamp) {
+    TimeSpan Elapsed => factory.GetElapsed(startingTimestamp);
+  }
+}
+
+namespace mtsuite.shared {
+  
   public class ParallelFileSystem : IParallelFileSystem {
     private readonly IFileSystem _fileSystem;
-    private readonly ITaskFactory _taskFactory = new DefaultTaskFactory();
+    private readonly ITaskFactory _taskFactory;
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
 
     private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool =
@@ -32,8 +56,13 @@ namespace mtsuite.shared {
         () => new SmallSet<FileSystemEntry>(FileSystemEntryNameComparer.Instance),
         x => x.Clear());
 
-    public ParallelFileSystem(IFileSystem fileSystem) {
+    public ParallelFileSystem(IFileSystem fileSystem)
+      : this(fileSystem, null) {
+    }
+
+    public ParallelFileSystem(IFileSystem fileSystem, ITaskFactory taskFactory) {
       _fileSystem = fileSystem;
+      _taskFactory = taskFactory ?? new DefaultTaskFactory();
     }
 
     public event Action<FullPath, Exception> Error;
@@ -54,12 +83,19 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry> DirectoryCreated;
 
     private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
+      TryGetDirectoryEntries(directoryPath, out var entries);
+      return entries;
+    }
+
+    private bool TryGetDirectoryEntries(FullPath directoryPath, out FromPool<List<FileSystemEntry>> entries) {
       try {
-        return _fileSystem.GetDirectoryFiles(directoryPath);
+        entries = _fileSystem.GetDirectoryFiles(directoryPath);
+        return true;
       } catch (Exception e) {
         OnError(directoryPath, e);
-        // Assume no entries available on error, so we can continue processing
-        return _entryListPool.AllocateFrom();
+        // Assume no entries available on error, so we can continue processing safely
+        entries = _entryListPool.AllocateFrom();
+        return false;
       }
     }
 
@@ -189,39 +225,73 @@ namespace mtsuite.shared {
       var destinationDirectory = destinationDirectoryOpt.Value;
 
       OnEntriesDiscovering(sourceDirectory);
-      var sourceEntries = GetDirectoryEntries(sourceDirectory.Path);
+      var sourceReadSuccess = TryGetDirectoryEntries(sourceDirectory.Path, out var sourceEntries);
       OnEntriesDiscovered(sourceDirectory, sourceEntries.Item);
 
-      // Figure out what the destination contains in terms of files to skip.
-      var destinationEntries = destinationDirectoryIsNew
-        ? _entryListPool.AllocateFrom()
-        : GetDirectoryEntries(destinationPath);
-      var destinationSet = _entrySetPool.AllocateFrom();
-      destinationSet.Item.SetList(destinationEntries.Item);
+      // If source directory could not be read, do NOT proceed with deleting destination files.
+      if (!sourceReadSuccess) {
+        sourceEntries.Dispose();
+        return _taskFactory.CompletedTask;
+      }
 
-      OnEntriesToDeleteDiscovering(destinationDirectory);
-      var entriesToDelete = ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
-      OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete);
+      FromPool<List<FileSystemEntry>> destinationEntries;
+      FromPool<SmallSet<FileSystemEntry>> destinationSet;
 
-      var deleteTasks = _taskFactory.CreateCollection(entriesToDelete.Select(entry => DeleteEntryAsync(entry)));
-      return deleteTasks
-        .Then(t => {
-          var copySubDirectoriesTasks = _taskFactory.CreateCollection(sourceEntries.Item
-            .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
-            .Select(sourceEntry => {
-              var destinationEntryPath = destinationDirectory.Path.Combine(sourceEntry.Name);
-              var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
-              return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
-            }));
+      try {
+        destinationEntries = destinationDirectoryIsNew
+          ? _entryListPool.AllocateFrom()
+          : GetDirectoryEntries(destinationPath);
+        destinationSet = _entrySetPool.AllocateFrom();
+        destinationSet.Item.SetList(destinationEntries.Item);
+      } catch {
+        sourceEntries.Dispose();
+        throw;
+      }
 
-          return copySubDirectoriesTasks
-            .ContinueWith(_ => {
-              CopyFileEntries(sourceEntries.Item, destinationDirectory, fileComparer, destinationSet.Item);
-              sourceEntries.Dispose();
-              destinationEntries.Dispose();
-              destinationSet.Dispose();
-            });
-        });
+      try {
+        OnEntriesToDeleteDiscovering(destinationDirectory);
+        var entriesToDelete = ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
+        OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete);
+
+        var deleteTasks = _taskFactory.CreateCollection(entriesToDelete.Select(entry => DeleteEntryAsync(entry)));
+        return deleteTasks
+          .Then(t => {
+            var subDirEntries = new List<FileSystemEntry>();
+            var fileEntries = new List<FileSystemEntry>();
+            foreach (var entry in sourceEntries.Item) {
+              if (entry.IsDirectory && !entry.IsReparsePoint) {
+                subDirEntries.Add(entry);
+              } else if (entry.IsFile || entry.IsReparsePoint) {
+                fileEntries.Add(entry);
+              }
+            }
+
+            var copySubDirectoriesTasks = _taskFactory.CreateCollection(subDirEntries
+              .Select(sourceEntry => {
+                var destinationEntryPath = destinationDirectory.Path.Combine(sourceEntry.Name);
+                var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
+                return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
+              }));
+
+            // Parallelize file copying (one task per file)
+            var fileTasks = _taskFactory.CreateCollection(fileEntries
+              .Select(fileEntry => _taskFactory.StartNew(() => {
+                CopyFileEntry(new Stopwatch(), fileEntry, destinationDirectory, fileComparer, destinationSet.Item);
+              })));
+
+            return copySubDirectoriesTasks
+              .Then(_ => fileTasks.ContinueWith(__ => {
+                sourceEntries.Dispose();
+                destinationEntries.Dispose();
+                destinationSet.Dispose();
+              }));
+          });
+      } catch {
+        sourceEntries.Dispose();
+        destinationEntries.Dispose();
+        destinationSet.Dispose();
+        throw;
+      }
     }
 
     private FileSystemEntry? GetOrCreateDirectory(FullPath destinationPath, bool destinationDirectoryIsNew) {
@@ -241,7 +311,7 @@ namespace mtsuite.shared {
         destinationDirectory = _fileSystem.GetEntry(destinationPath);
       } catch (Exception e) {
         OnError(destinationPath,  e);
-        // If we can find the destination entry, give up this directory.
+        // If we can't find the destination entry, give up this directory.
         return null;
       }
 
@@ -260,45 +330,31 @@ namespace mtsuite.shared {
 
       var entriesToDelete = new List<FileSystemEntry>();
 
-      // Note: DeleteExtraFiles is a strict supeset of DeleteMismatchedFiles
+      // Note: DeleteExtraFiles is a strict superset of DeleteMismatchedFiles
       if ((options & CopyOptions.DeleteExtraFiles) != 0) {
         // Delete files in destination that are either not present in source, or
         // present in source but with a different kind (e.g. file vs directory).
         var extraEntries = destinationEntries.Except(sourceEntries, FileSystemEntryNameComparer.Instance);
         entriesToDelete.AddRange(extraEntries);
       } else if ((options & CopyOptions.DeleteMismatchedFiles) != 0) {
-        // Delete files in destination that are present in source (i.e. same
-        // name) _and_ with a different kind (e.g. file vs directory).
-        var mismatchedEntries = destinationEntries
-          .Where(dst => {
-            // TODO: Perf: Need a hashset?
-            foreach (var src in sourceEntries) {
-              // Same name, different "kind"?
-              if (PathHelpers.FileNameComparer.Equals(dst.Name, src.Name)) {
-                if (dst.IsFile != src.IsFile ||
-                    dst.IsDirectory != src.IsDirectory ||
-                    dst.IsReparsePoint != src.IsReparsePoint) {
-                  return true;
-                }
-              }
+        // Fast O(N) lookup instead of O(N*M) nested loop
+        var sourceDict = new Dictionary<string, FileSystemEntry>(sourceEntries.Count, PathHelpers.FileNameComparer);
+        foreach (var src in sourceEntries) {
+          sourceDict.TryAdd(src.Name, src);
+        }
+
+        foreach (var dst in destinationEntries) {
+          if (sourceDict.TryGetValue(dst.Name, out var src)) {
+            // Same name, different "kind"?
+            if (dst.IsFile != src.IsFile ||
+                dst.IsDirectory != src.IsDirectory ||
+                dst.IsReparsePoint != src.IsReparsePoint) {
+              entriesToDelete.Add(dst);
             }
-            return false;
-          });
-        entriesToDelete.AddRange(mismatchedEntries);
+          }
+        }
       }
       return entriesToDelete;
-    }
-
-    private void CopyFileEntries(
-      List<FileSystemEntry> sourceEntries,
-      FileSystemEntry destinationDirectory,
-      IFileComparer fileComparer,
-      SmallSet<FileSystemEntry> destinationSet) {
-
-      var sw = new Stopwatch();
-      foreach (var entry in sourceEntries) {
-        CopyFileEntry(sw, entry, destinationDirectory, fileComparer, destinationSet);
-      }
     }
 
     private void CopyFileEntry(
@@ -373,7 +429,10 @@ namespace mtsuite.shared {
 
     private ITask DeleteDirectoryEntriesAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
       OnEntriesToDeleteDiscovering(directoryEntry);
-      var entries = GetDirectoryEntries(directoryEntry.Path);
+      if (!TryGetDirectoryEntries(directoryEntry.Path, out var entries)) {
+        return _taskFactory.CompletedTask;
+      }
+
       OnEntriesToDeleteDiscovered(directoryEntry, entries.Item);
       var tasks = _taskFactory.CreateCollection(entries.Item
         .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
