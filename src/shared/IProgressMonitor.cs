@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared {
@@ -35,16 +34,16 @@ namespace mtsuite.shared {
     void OnDirectoryTraversing(FileSystemEntry directory);
     void OnDirectoryTraversed(FileSystemEntry directory);
 
-    void OnEntryDeleting(Stopwatch stopwatch, FileSystemEntry entry);
-    void OnEntryDeleted(Stopwatch stopwatch, FileSystemEntry entry);
+    void OnEntryDeleting(FileSystemEntry entry);
+    void OnEntryDeleted(FileSystemEntry entry, TimeSpan elapsed);
 
     void OnDirectoryCreated(FileSystemEntry entry);
 
     void OnFileSkipped(FileSystemEntry sourceEntry, long size);
 
-    void OnFileCopying(Stopwatch stopwatch, FileSystemEntry entry);
-    void OnFileCopyingProgress(Stopwatch stopwatch, FileSystemEntry entry, long size);
-    void OnFileCopied(Stopwatch stopwatch, FileSystemEntry entry);
+    void OnFileCopying(FileSystemEntry entry);
+    void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk);
+    void OnFileCopied(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal);
 
     void OnError(FullPath path, Exception e);
     #endregion

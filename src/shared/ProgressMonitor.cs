@@ -72,11 +72,11 @@ namespace mtsuite.shared {
 
     public TStatistics GetStatistics() {
       var stats = new TStatistics();
-      SetStatistics(stats);
+      FillInStatistics(stats);
       return stats;
     }
 
-    protected virtual void SetStatistics(TStatistics statistics) {
+    protected virtual void FillInStatistics(TStatistics statistics) {
       statistics.ElapsedTime = _stopWatch.Elapsed;
       statistics.TotalProcessorTime = Process.GetCurrentProcess().TotalProcessorTime;
       statistics.DirectoryEnumeratedCount = _directoryEnumeratedCount;
@@ -152,13 +152,10 @@ namespace mtsuite.shared {
       Interlocked.Increment(ref _directoryCreatedCount);
     }
 
-    public virtual void OnEntryDeleting(Stopwatch stopwatch, FileSystemEntry entry) {
-      stopwatch.Restart();
+    public virtual void OnEntryDeleting(FileSystemEntry entry) {
     }
 
-    public virtual void OnEntryDeleted(Stopwatch stopwatch, FileSystemEntry entry) {
-      stopwatch.Stop();
-
+    public virtual void OnEntryDeleted(FileSystemEntry entry, TimeSpan elapsed) {
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkDeletedCount);
       } else if (entry.IsFile) {
@@ -178,18 +175,15 @@ namespace mtsuite.shared {
       }
     }
 
-    public virtual void OnFileCopying(Stopwatch stopwatch, FileSystemEntry entry) {
-      stopwatch.Restart();
+    public virtual void OnFileCopying(FileSystemEntry entry) {
     }
 
-    public virtual void OnFileCopyingProgress(Stopwatch stopwatch, FileSystemEntry entry, long size) {
-      Interlocked.Add(ref _fileCopiedTotalSize, size);
+    public virtual void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk) {
+      Interlocked.Add(ref _fileCopiedTotalSize, bytesThisChunk);
       Pulse();
     }
 
-    public virtual void OnFileCopied(Stopwatch stopwatch, FileSystemEntry entry) {
-      stopwatch.Stop();
-
+    public virtual void OnFileCopied(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkCopiedCount);
       } else if (entry.IsFile) {

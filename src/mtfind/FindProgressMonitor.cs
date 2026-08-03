@@ -26,8 +26,8 @@ namespace mtfind {
 
     public bool QuietMode { get; set; }
 
-    protected override void SetStatistics(FindStatistics statistics) {
-      base.SetStatistics(statistics);
+    protected override void FillInStatistics(FindStatistics statistics) {
+      base.FillInStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;
     }
 

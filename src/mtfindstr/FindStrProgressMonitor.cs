@@ -27,8 +27,8 @@ namespace mtfindstr {
 
     public bool QuietMode { get; set; }
 
-    protected override void SetStatistics(FindStrStatistics statistics) {
-      base.SetStatistics(statistics);
+    protected override void FillInStatistics(FindStrStatistics statistics) {
+      base.FillInStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;
       statistics.FileSearchedCount = _fileSearchedCount;
     }

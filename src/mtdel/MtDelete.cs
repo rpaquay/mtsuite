@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@ namespace mtdel {
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
       //_parallelFileSystem.EntriesToDeleteDiscovering += entry => _progressMonitor.OnEntriesToDeleteDiscovering(entry);
       _parallelFileSystem.EntriesToDeleteDiscovered += (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
-      _parallelFileSystem.EntryDeleting += (stopwatch, entry) => _progressMonitor.OnEntryDeleting(stopwatch, entry);
-      _parallelFileSystem.EntryDeleted += (stopwatch, entry) => _progressMonitor.OnEntryDeleted(stopwatch, entry);
+      _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
+      _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
     }
 
     public void Run(string[] args) {

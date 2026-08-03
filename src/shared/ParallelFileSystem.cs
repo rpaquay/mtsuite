@@ -29,7 +29,8 @@ namespace mtsuite.shared {
   }
 
   public class NoAllocStopwatchFactory : INoAllocStopwatchFactory {
-    
+    public static readonly NoAllocStopwatchFactory Instance = new NoAllocStopwatchFactory();
+
     public TimeSpan GetElapsed(long startingTimestamp) {
       return Stopwatch.GetElapsedTime(startingTimestamp);
     }
@@ -40,15 +41,13 @@ namespace mtsuite.shared {
   }
 
   public readonly struct NoAllocStopwatch(INoAllocStopwatchFactory factory, long startingTimestamp) {
-    TimeSpan Elapsed => factory.GetElapsed(startingTimestamp);
+    public TimeSpan Elapsed => factory.GetElapsed(startingTimestamp);
   }
-}
 
-namespace mtsuite.shared {
-  
   public class ParallelFileSystem : IParallelFileSystem {
     private readonly IFileSystem _fileSystem;
     private readonly ITaskFactory _taskFactory;
+    private readonly INoAllocStopwatchFactory _stopwatchFactory;
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
 
     private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool =
@@ -57,12 +56,17 @@ namespace mtsuite.shared {
         x => x.Clear());
 
     public ParallelFileSystem(IFileSystem fileSystem)
-      : this(fileSystem, null) {
+      : this(fileSystem, null, null) {
     }
 
-    public ParallelFileSystem(IFileSystem fileSystem, ITaskFactory taskFactory) {
+    public ParallelFileSystem(IFileSystem fileSystem, ITaskFactory taskFactory)
+      : this(fileSystem, taskFactory, null) {
+    }
+
+    public ParallelFileSystem(IFileSystem fileSystem, ITaskFactory taskFactory, INoAllocStopwatchFactory stopwatchFactory) {
       _fileSystem = fileSystem;
       _taskFactory = taskFactory ?? new DefaultTaskFactory();
+      _stopwatchFactory = stopwatchFactory ?? NoAllocStopwatchFactory.Instance;
     }
 
     public event Action<FullPath, Exception> Error;
@@ -72,12 +76,12 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry> EntriesToDeleteDiscovering;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
     public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;
-    public event Action<Stopwatch, FileSystemEntry> EntryDeleting;
-    public event Action<Stopwatch, FileSystemEntry> EntryDeleted;
+    public event Action<FileSystemEntry> EntryDeleting;
+    public event Action<FileSystemEntry, TimeSpan> EntryDeleted;
     public event Action<FileSystemEntry> FileCopySkipped;
-    public event Action<Stopwatch, FileSystemEntry> FileCopying;
-    public event Action<Stopwatch, FileSystemEntry, long> FileCopyingProgress;
-    public event Action<Stopwatch, FileSystemEntry> FileCopied;
+    public event Action<FileSystemEntry> FileCopying;
+    public event Action<FileSystemEntry, TimeSpan, long> FileCopyingProgress;
+    public event Action<FileSystemEntry, TimeSpan, long> FileCopied;
     public event Action<FileSystemEntry> DirectoryTraversing;
     public event Action<FileSystemEntry> DirectoryTraversed;
     public event Action<FileSystemEntry> DirectoryCreated;
@@ -276,7 +280,7 @@ namespace mtsuite.shared {
             // Parallelize file copying (one task per file)
             var fileTasks = _taskFactory.CreateCollection(fileEntries
               .Select(fileEntry => _taskFactory.StartNew(() => {
-                CopyFileEntry(new Stopwatch(), fileEntry, destinationDirectory, fileComparer, destinationSet.Item);
+                CopyFileEntry(_stopwatchFactory.Create(), fileEntry, destinationDirectory, fileComparer, destinationSet.Item);
               })));
 
             return copySubDirectoriesTasks
@@ -358,7 +362,7 @@ namespace mtsuite.shared {
     }
 
     private void CopyFileEntry(
-      Stopwatch sw,
+      NoAllocStopwatch sw,
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationDirectory,
       IFileComparer fileComparer,
@@ -383,14 +387,12 @@ namespace mtsuite.shared {
           }
         }
 
-        sw.Restart();
-        OnFileCopying(sw, sourceEntry);
+        OnFileCopying(sourceEntry);
+        long lastTransferred = 0;
         try {
-          long lastTransferred = 0;
           CopyFileCallback callback = (copiedBytes, totalBytes) => {
-            var additionalTransferred = copiedBytes - lastTransferred;
-            OnFileCopyingProgress(sw, sourceEntry, additionalTransferred);
             lastTransferred = copiedBytes;
+            OnFileCopyingProgress(sourceEntry, sw.Elapsed, copiedBytes);
           };
           if (destinationExists) {
             _fileSystem.CopyFile(sourceEntry, destinationEntry, CopyFileOptions.Default, callback);
@@ -400,7 +402,7 @@ namespace mtsuite.shared {
         } catch (Exception e) {
           OnError(sourceEntry.Path, e);
         }
-        OnFileCopied(sw, sourceEntry);
+        OnFileCopied(sourceEntry, sw.Elapsed, lastTransferred);
       }
     }
 
@@ -418,13 +420,13 @@ namespace mtsuite.shared {
     /// </summary>
     public ITask DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
       if (entry.IsFile || entry.IsReparsePoint)
-        return _taskFactory.StartNew(() => DeleteSingleEntry(new Stopwatch(), entry, includeFilter));
+        return _taskFactory.StartNew(() => DeleteSingleEntry(_stopwatchFactory.Create(), entry, includeFilter));
       return DeleteDirectoryAsync(entry, includeFilter);
     }
 
     private ITask DeleteDirectoryAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
       return DeleteDirectoryEntriesAsync(directoryEntry, includeFilter)
-        .ContinueWith(t => DeleteSingleEntry(new Stopwatch(), directoryEntry, includeFilter));
+        .ContinueWith(t => DeleteSingleEntry(_stopwatchFactory.Create(), directoryEntry, includeFilter));
     }
 
     private ITask DeleteDirectoryEntriesAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
@@ -446,25 +448,23 @@ namespace mtsuite.shared {
     }
 
     private void DeleteEntries(List<FileSystemEntry> entries, Func<FileSystemEntry, bool> includeFilter) {
-      var sw = new Stopwatch();
       // Delete all entries
       foreach (var entry in entries) {
-        DeleteSingleEntry(sw, entry, includeFilter);
+        DeleteSingleEntry(_stopwatchFactory.Create(), entry, includeFilter);
       }
     }
 
-    private void DeleteSingleEntry(Stopwatch sw, FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
+    private void DeleteSingleEntry(NoAllocStopwatch sw, FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
       if (!includeFilter(entry))
         return;
 
-      sw.Restart();
-      OnEntryDeleting(sw, entry);
+      OnEntryDeleting(entry);
       try {
         _fileSystem.DeleteEntry(entry);
       } catch (Exception e) {
         OnError(entry.Path, e);
       }
-      OnEntryDeleted(sw, entry);
+      OnEntryDeleted(entry, sw.Elapsed);
     }
 
     protected virtual void OnError(FullPath path, Exception obj) {
@@ -492,12 +492,12 @@ namespace mtsuite.shared {
       if (handler != null) handler(directoryEntry, obj);
     }
 
-    protected virtual void OnEntryDeleting(Stopwatch arg1, FileSystemEntry arg2) {
+    protected virtual void OnEntryDeleting(FileSystemEntry arg1) {
       var handler = EntryDeleting;
-      if (handler != null) handler(arg1, arg2);
+      if (handler != null) handler(arg1);
     }
 
-    protected virtual void OnEntryDeleted(Stopwatch arg1, FileSystemEntry arg2) {
+    protected virtual void OnEntryDeleted(FileSystemEntry arg1, TimeSpan arg2) {
       var handler = EntryDeleted;
       if (handler != null) handler(arg1, arg2);
     }
@@ -507,19 +507,19 @@ namespace mtsuite.shared {
       if (handler != null) handler(obj);
     }
 
-    protected virtual void OnFileCopying(Stopwatch arg1, FileSystemEntry arg2) {
+    protected virtual void OnFileCopying(FileSystemEntry arg1) {
       var handler = FileCopying;
-      if (handler != null) handler(arg1, arg2);
+      if (handler != null) handler(arg1);
     }
 
-    protected virtual void OnFileCopyingProgress(Stopwatch arg1, FileSystemEntry arg2, long arg3) {
+    protected virtual void OnFileCopyingProgress(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
       var handler = FileCopyingProgress;
       if (handler != null) handler(arg1, arg2, arg3);
     }
 
-    protected virtual void OnFileCopied(Stopwatch arg1, FileSystemEntry arg2) {
+    protected virtual void OnFileCopied(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
       var handler = FileCopied;
-      if (handler != null) handler(arg1, arg2);
+      if (handler != null) handler(arg1, arg2, arg3);
     }
 
     protected virtual void OnDirectoryTraversing(FileSystemEntry obj) {

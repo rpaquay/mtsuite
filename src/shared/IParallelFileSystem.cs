@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.Tasks;
 
@@ -26,12 +25,12 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> EntriesToDeleteDiscovering;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;
-    event Action<Stopwatch, FileSystemEntry> EntryDeleting;
-    event Action<Stopwatch, FileSystemEntry> EntryDeleted;
+    event Action<FileSystemEntry> EntryDeleting;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/> EntryDeleted;
     event Action<FileSystemEntry> FileCopySkipped;
-    event Action<Stopwatch, FileSystemEntry> FileCopying;
-    event Action<Stopwatch, FileSystemEntry, long> FileCopyingProgress;
-    event Action<Stopwatch, FileSystemEntry> FileCopied;
+    event Action<FileSystemEntry> FileCopying;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesThisChunk*/> FileCopyingProgress;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCopied;
     event Action<FileSystemEntry> DirectoryTraversing;
     event Action<FileSystemEntry> DirectoryTraversed;
     event Action<FileSystemEntry> DirectoryCreated;

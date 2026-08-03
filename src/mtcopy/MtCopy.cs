@@ -37,13 +37,13 @@ namespace mtcopy {
       _parallelFileSystem.EntriesDiscovered += (entry, list) => _progressMonitor.OnEntriesDiscovered(entry, list);
       _parallelFileSystem.EntriesToDeleteDiscovered +=
         (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
-      _parallelFileSystem.EntryDeleting += (stopwatch, entry) => _progressMonitor.OnEntryDeleting(stopwatch, entry);
-      _parallelFileSystem.EntryDeleted += (stopwatch, entry) => _progressMonitor.OnEntryDeleted(stopwatch, entry);
+      _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
+      _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
 
-      _parallelFileSystem.FileCopying += (stopwatch, entry) => _progressMonitor.OnFileCopying(stopwatch, entry);
+      _parallelFileSystem.FileCopying += (entry) => _progressMonitor.OnFileCopying(entry);
       _parallelFileSystem.FileCopyingProgress +=
-        (stopwatch, entry, bytes) => _progressMonitor.OnFileCopyingProgress(stopwatch, entry, bytes);
-      _parallelFileSystem.FileCopied += (stopwatch, entry) => _progressMonitor.OnFileCopied(stopwatch, entry);
+        (entry, elapsed, bytes) => _progressMonitor.OnFileCopyingProgress(entry, elapsed, bytes);
+      _parallelFileSystem.FileCopied += (entry, elapsed, bytes) => _progressMonitor.OnFileCopied(entry, elapsed, bytes);
 
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);
       _parallelFileSystem.DirectoryTraversed += (entry) => _progressMonitor.OnDirectoryTraversed(entry);
