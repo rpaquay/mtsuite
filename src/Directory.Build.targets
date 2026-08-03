@@ -1,0 +1,15 @@
+<Project>
+  <!-- Automatically configure single-file self-contained trimmed publish for CLI tools when a RuntimeIdentifier is specified -->
+  <PropertyGroup Condition="'$(OutputType)' == 'Exe' and '$(IsTestProject)' != 'true' and '$(RuntimeIdentifier)' != ''">
+    <!-- Single-file bundling: embed all managed assemblies and native runtime libraries into one executable -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- IL Trimming: tree-shake and strip unused types, methods, and framework assemblies -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+  </PropertyGroup>
+</Project>
