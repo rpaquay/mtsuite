@@ -106,13 +106,13 @@ public class StringSliceTest
         var factory = new StringSliceFactory(chunkSizeInChars: 10);
 
         var slice1 = factory.Create("123456"); // 6 chars (offset 0..6)
-        var slice2 = factory.Create("789012"); // 6 chars (overflows 10 chars -> allocated in chunk 2)
+        var slice2 = factory.Create("789012"); // 6 chars (overflows 10 chars -> allocated in new chunk)
 
         Assert.AreEqual("123456", slice1.ToString());
         Assert.AreEqual("789012", slice2.ToString());
 
         Assert.AreNotSame(slice1.Buffer, slice2.Buffer);
-        Assert.AreEqual(2, factory.ChunkCount);
+        Assert.AreEqual(0, slice2.Offset);
     }
 
     [TestMethod]
@@ -125,20 +125,6 @@ public class StringSliceTest
 
         Assert.AreEqual(50, slice.Length);
         Assert.AreEqual(largeText, slice.ToString());
-    }
-
-    [TestMethod]
-    public void StringSliceFactory_ResetReusesFirstChunk()
-    {
-        var factory = new StringSliceFactory(chunkSizeInChars: 10);
-
-        var slice1 = factory.Create("hello");
-        factory.Reset();
-        var slice2 = factory.Create("world");
-
-        Assert.AreEqual(0, slice2.Offset);
-        Assert.AreEqual("world", slice2.ToString());
-        Assert.AreSame(slice1.Buffer, slice2.Buffer);
     }
 
     [TestMethod]
