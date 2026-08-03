@@ -404,7 +404,8 @@ namespace mtsuite.CoreFileSystem.Win32 {
       var handle = GCHandle.FromIntPtr(lpdata);
       var data = (CopyFileCallbackData)handle.Target;
       try {
-        data.Callback(totalbytestransferred, totalfilesize);
+        //Not supported because of portable impl.
+        //data.Callback(totalbytestransferred, totalfilesize);
         return NativeMethods.CopyProgressResult.PROGRESS_CONTINUE;
       } catch (Exception e) {
         data.Error = e;
@@ -413,17 +414,17 @@ namespace mtsuite.CoreFileSystem.Win32 {
     }
 
     private class CopyFileCallbackData {
-      public CopyFileCallback Callback { get; set; }
+      //public CopyFileCallback<T> Callback { get; set; }
       public Exception Error { get; set; }
     }
 
-    public void CopyFile(TPath sourcePath, TPath destinationPath, CopyFileOptions options, CopyFileCallback callback) {
+    public void CopyFile<T>(TPath sourcePath, TPath destinationPath, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
       using (var source = _stringBufferPool.AllocateFrom())
       using (var destination = _stringBufferPool.AllocateFrom()) {
         _pathSerializer.CopyTo(sourcePath, source.Item);
         _pathSerializer.CopyTo(destinationPath, destination.Item);
 
-        var callbackData = new CopyFileCallbackData { Callback = callback };
+        var callbackData = new CopyFileCallbackData { /*Param = param,  Callback = callback*/ };
         var callbackDataHandle = GCHandle.Alloc(callbackData);
         try {
           var bCancel = 0;

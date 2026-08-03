@@ -16,12 +16,18 @@ using mtsuite.CoreFileSystem.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtsuite.CoreFileSystem {
   /// <summary>
   /// Represents a fully qualified path.
   /// </summary>
   public struct FullPath : IEquatable<FullPath>, IComparable<FullPath> {
+    private static readonly IPool<StringBuffer> FullNameBufferPool = new ConcurrentFixedSizeArrayPool<StringBuffer>(
+      () => new StringBuffer(),
+      sb => sb.Clear()
+    );
+      
     /// <summary>
     /// If there is a parent path, <see cref="_parent"/> the boxed instance of the parent <see cref="FullPath"/>.
     /// If there is no parent path, <see cref="_parent"/> is <code>null</code>, and <see cref="_name"/> is a root path.
@@ -86,9 +92,9 @@ namespace mtsuite.CoreFileSystem {
 
     public string FullName {
       get {
-        var sb = new StringBuffer(256);
-        BuildPath(sb);
-        return sb.ToString();
+        using var sb = FullNameBufferPool.AllocateFrom();
+        BuildPath(sb.Item);
+        return sb.Item.ToString();
       }
     }
 

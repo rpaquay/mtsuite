@@ -102,20 +102,20 @@ public class FileSystemWin32 : IFileSystemExtended {
         }
     }
 
-    public void CopyFile(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
-        CopyFileWorker(sourceEntry, destinationEntry.Path, destinationEntry, options, callback);
+    public void CopyFile<T>(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
+        CopyFileWorker(sourceEntry, destinationEntry.Path, destinationEntry, options, param, callback);
     }
 
-    public void CopyFile(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions options, CopyFileCallback callback) {
+    public void CopyFile<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
         FileSystemEntry destinationEntry;
         if (TryGetEntry(destinationPath, out destinationEntry)) {
-            CopyFileWorker(sourceEntry, destinationPath, destinationEntry, options, callback);
+            CopyFileWorker(sourceEntry, destinationPath, destinationEntry, options, param, callback);
         } else {
-            CopyFileWorker(sourceEntry, destinationPath, null, options, callback);
+            CopyFileWorker(sourceEntry, destinationPath, null, options, param, callback);
         }
     }
 
-    private void CopyFileWorker(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
+    private void CopyFileWorker<T>(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
         // If the source is a reparse point, delete the destination and
         // copy the reparse point.
         if (sourceEntry.IsReparsePoint) {
@@ -140,7 +140,7 @@ public class FileSystemWin32 : IFileSystemExtended {
                     // Nothing to do here, as CopyFile will report an exception below.
                 }
             }
-            _win32.CopyFile(sourceEntry.Path, destinationPath, options, callback);
+            _win32.CopyFile(sourceEntry.Path, destinationPath, options, param, callback);
         }
     }
 

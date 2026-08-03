@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,13 @@ namespace mtsuite.CoreFileSystem.ObjectPool {
     private readonly Action<T> _recycler;
 
     /// <summary>
-    /// Slots used to store the available instances. We use the <see
+    /// Storage for the pool objects. The first item is stored in a dedicated field
+    /// as a fast path for uncontended access without array lookup or loop overhead.
+    /// </summary>
+    private T _firstItem;
+
+    /// <summary>
+    /// Slots used to store the remaining instances. We use the <see
     /// cref="Entry"/> class to wrap instances so that we can use <see
     /// cref="Interlocked.CompareExchange{T}(ref T,T,T)"/> to obtain/release
     /// instances in a thread safe way.
@@ -60,16 +66,22 @@ namespace mtsuite.CoreFileSystem.ObjectPool {
         throw new ArgumentException("Size must be >= 1", "size");
       _creator = creator;
       _recycler = recycler;
-      _entries = new Entry[size];
+      _entries = new Entry[size - 1];
     }
 
     public T Allocate() {
+      // Fast path: try to allocate from the dedicated first item field
+      var item = _firstItem;
+      if (item != null && item == Interlocked.CompareExchange(ref _firstItem, null, item)) {
+        return item;
+      }
+
       for (var i = 0; i < _entries.Length; i++) {
         var current = _entries[i].Value;
         if (current != null) {
-          // Item looks available: Take owership of it in a thread-safe manner,
+          // Item looks available: Take ownership of it in a thread-safe manner,
           // keep going if another thread was faster than us.
-          var item = Interlocked.CompareExchange(ref _entries[i].Value, null, current);
+          item = Interlocked.CompareExchange(ref _entries[i].Value, null, current);
           if (item == current) {
             // We won: leave now!
             return item;
@@ -80,12 +92,20 @@ namespace mtsuite.CoreFileSystem.ObjectPool {
     }
 
     public void Recycle(T item) {
+      if (item == null)
+        return;
+
       _recycler(item);
+
+      // Fast path: try to recycle into the dedicated first item field
+      if (_firstItem == null && Interlocked.CompareExchange(ref _firstItem, item, null) == null) {
+        return;
+      }
 
       for (var i = 0; i < _entries.Length; i++) {
         var current = _entries[i].Value;
         if (current == null) {
-          // Free slot looks available: Take owership of it in a thread-safe
+          // Free slot looks available: Take ownership of it in a thread-safe
           // manner, keep going if another thread was faster than us.
           if (Interlocked.CompareExchange(ref _entries[i].Value, item, null) == null) {
             // We won: leave now!

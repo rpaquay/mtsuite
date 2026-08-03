@@ -133,19 +133,19 @@ public class FileSystemPortable : IFileSystemExtended {
       }
     }
 
-    public void CopyFile(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
-      CopyFileWorker(sourceEntry, destinationEntry.Path, destinationEntry, options, callback);
+    public void CopyFile<T>(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
+      CopyFileWorker(sourceEntry, destinationEntry.Path, destinationEntry, options, param, callback);
     }
 
-    public void CopyFile(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions options, CopyFileCallback callback) {
+    public void CopyFile<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
       if (TryGetEntry(destinationPath, out var destinationEntry)) {
-        CopyFileWorker(sourceEntry, destinationPath, destinationEntry, options, callback);
+        CopyFileWorker(sourceEntry, destinationPath, destinationEntry, options, param, callback);
       } else {
-        CopyFileWorker(sourceEntry, destinationPath, null, options, callback);
+        CopyFileWorker(sourceEntry, destinationPath, null, options, param, callback);
       }
     }
 
-    private void CopyFileWorker(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileOptions options, CopyFileCallback callback) {
+    private void CopyFileWorker<T>(FileSystemEntry sourceEntry, FullPath destinationPath, FileSystemEntry? destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback) {
       // If the source is a reparse point, delete the destination and copy the reparse point.
       if (sourceEntry.IsReparsePoint) {
         if (destinationEntry.HasValue) {
@@ -170,11 +170,11 @@ public class FileSystemPortable : IFileSystemExtended {
           }
         }
         
-        CopyFileImpl(sourceEntry, destinationPath, options, callback);
+        CopyFileImpl(sourceEntry, destinationPath, options, param, callback);
       }
     }
 
-    private void CopyFileImpl(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, CopyFileCallback callback) {
+    private void CopyFileImpl<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, T param, CopyFileCallback<T> callback) {
       using (var buffer = _copyFileBufferPool.AllocateFrom())
       using (var sourceStream = new FileStream(sourceEntry.Path.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.SequentialScan))
       using (var destinationStream = new FileStream(destinationPath.FullName, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.SequentialScan)) {
@@ -188,20 +188,22 @@ public class FileSystemPortable : IFileSystemExtended {
           }
         }
 
-        long totalBytes = 0;
+        long totalBytesRead = 0;
         int bytesRead;
         while ((bytesRead = sourceStream.Read(buffer.Item, 0, buffer.Item.Length)) > 0) {
           destinationStream.Write(buffer.Item, 0, bytesRead);
-          totalBytes += bytesRead;
-          callback?.Invoke(totalBytes, sourceEntry.FileSize);
+          totalBytesRead += bytesRead;
+          callback(ref sourceEntry, totalBytesRead, sourceEntry.FileSize, ref param);
         }
 
-        if (sourceEntry.FileSize == 0) {
-          callback?.Invoke(0, 0);
+        // If file was empty, invoke callback at least once
+        if (totalBytesRead == 0) {
+          callback(ref sourceEntry, 0, 0, ref param);
         }
 
-        if (totalBytes != sourceEntry.FileSize) {
-          throw new IOException($"Size of source file has changed during copy ({totalBytes} != {sourceEntry.FileSize})");
+        // File may have changed size during copy, this is an error
+        if (totalBytesRead != sourceEntry.FileSize) {
+          throw new IOException($"Size of source file has changed during copy ({totalBytesRead} != {sourceEntry.FileSize})");
         }
       }
 

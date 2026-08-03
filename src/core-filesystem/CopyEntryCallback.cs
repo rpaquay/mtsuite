@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 namespace mtsuite.CoreFileSystem {
-  public delegate void CopyFileCallback(long copiedBytes, long totalBytes);
+  public delegate void CopyFileCallback<T>(ref FileSystemEntry sourceEntry, long bytesSoFar, long totalBytes, ref T param);
 }
