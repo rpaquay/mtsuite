@@ -1,26 +1,11 @@
-﻿using System;
+using System;
 using System.IO;
-using mtsuite.CoreFileSystem.Win32;
 
 namespace mtsuite.CoreFileSystem {
   public struct FileSystemEntryData {
     private readonly FileAttributes _attributes;
     private readonly long _fileSize;
     private readonly long _lastWriteTimeUtc;
-
-    public FileSystemEntryData(WIN32_FIND_DATA data)
-      : this(data.dwFileAttributes, data.nFileSizeHigh, data.nFileSizeLow,
-        data.ftLastWriteTime_dwHighDateTime, data.ftLastWriteTime_dwHighDateTime) {
-    }
-
-    public FileSystemEntryData(WIN32_FILE_ATTRIBUTE_DATA data)
-      : this(data.fileAttributes, data.fileSizeHigh, data.fileSizeLow,
-        data.ftLastWriteTimeHigh, data.ftLastWriteTimeLow) {
-    }
-
-    public FileSystemEntryData(FileIdFullInformation data)
-      : this(data.Attributes, data.FileSize, data.ftLastWritTime) {
-    }
 
     public FileSystemEntryData(uint attributes, uint fileSizeHigh, uint fileSizeLow,
       uint ftLastWriteTimeHigh, uint ftLastWriteTimeLow)

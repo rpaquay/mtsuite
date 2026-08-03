@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ using System.ComponentModel;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtsuite.CoreFileSystem;
-using mtsuite.CoreFileSystem.Win32;
 
 namespace tests.FileSystemHelpers;
 
@@ -82,8 +81,8 @@ public class FileSystemSetup : IDisposable {
     try {
       f2 = Root.CreateFileLink("b", "a");
     }
-    catch (Win32Exception e) {
-      if (e.NativeErrorCode == (int)Win32Errors.ERROR_PRIVILEGE_NOT_HELD)
+    catch (Exception e) {
+      if (e is UnauthorizedAccessException || (e is Win32Exception w && w.NativeErrorCode == 1314 /* ERROR_PRIVILEGE_NOT_HELD */))
         return false;
       throw;
     }

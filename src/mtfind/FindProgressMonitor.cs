@@ -13,10 +13,9 @@
 // limitations under the License.
 
 using System;
-using System.ComponentModel;
+using System.IO;
 using System.Threading;
 using mtsuite.CoreFileSystem;
-using mtsuite.CoreFileSystem.Win32;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
@@ -68,18 +67,8 @@ namespace mtfind {
       return IsIgnorableError(e);
     }
 
-    private bool IsIgnorableError(Exception e) {
-      var win32Error = e as Win32Exception;
-      if (win32Error == null) {
-        return false;
-      }
-
-      switch (win32Error.NativeErrorCode) {
-        case (int)Win32Errors.ERROR_PATH_NOT_FOUND:
-          return true;
-        default:
-          return false;
-      }
+    private static bool IsIgnorableError(Exception e) {
+      return e is DirectoryNotFoundException || e is FileNotFoundException;
     }
   }
 }
