@@ -63,11 +63,18 @@ namespace mtsuite.shared {
       data.Instance.OnFileCopyingProgress(sourceEntry, data.Stopwatch.Elapsed, copiedBytes);
     };
 
-    public ParallelFileSystem(IFileSystem fileSystem, ITaskFactory taskFactory = null, INoAllocStopwatchFactory stopwatchFactory = null) {
+    public ParallelFileSystem(
+      IFileSystem fileSystem,
+      ITaskFactory taskFactory = null,
+      INoAllocStopwatchFactory stopwatchFactory = null,
+      bool parallelFileCopy = false) {
       _fileSystem = fileSystem;
       _taskFactory = taskFactory ?? new DefaultTaskFactory();
       _stopwatchFactory = stopwatchFactory ?? NoAllocStopwatchFactory.Instance;
+      ParallelFileCopy = parallelFileCopy;
     }
+
+    public bool ParallelFileCopy { get; set; }
 
     public event Action<FullPath, Exception> Error;
     public event Action Pulse;
@@ -260,40 +267,61 @@ namespace mtsuite.shared {
         var deleteTasks = _taskFactory.CreateCollection(entriesToDelete.Select(entry => DeleteEntryAsync(entry)));
         return deleteTasks
           .Then(t => {
-            var subDirEntries = new List<FileSystemEntry>();
-            var fileEntries = new List<FileSystemEntry>();
-            foreach (var entry in sourceEntries.Item) {
-              if (entry.IsDirectory && !entry.IsReparsePoint) {
-                subDirEntries.Add(entry);
-              } else if (entry.IsFile || entry.IsReparsePoint) {
-                fileEntries.Add(entry);
-              }
-            }
+                var copySubDirectoriesTasks = _taskFactory.CreateCollection(sourceEntries.Item
+                  .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
+                  .Select(sourceEntry => {
+                    var destinationEntryPath = destinationDirectory.Path.Combine(sourceEntry.Name);
+                    var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
+                    return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
+                  }));
 
-            var copySubDirectoriesTasks = _taskFactory.CreateCollection(subDirEntries
-              .Select(sourceEntry => {
-                var destinationEntryPath = destinationDirectory.Path.Combine(sourceEntry.Name);
-                var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
-                return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
-              }));
-
-            // Parallelize file copying (one task per file)
-            var fileTasks = _taskFactory.CreateCollection(fileEntries
-              .Select(fileEntry => _taskFactory.StartNew(() => {
-                CopyFileEntry(fileEntry, destinationDirectory, fileComparer, destinationSet.Item);
-              })));
-
-            return copySubDirectoriesTasks
-              .Then(_ => fileTasks.ContinueWith(__ => {
-                sourceEntries.Dispose();
-                destinationEntries.Dispose();
-                destinationSet.Dispose();
-              }));
+                return copySubDirectoriesTasks
+                  .ContinueWith(_ => {
+                    CopyFileEntries(sourceEntries.Item, destinationDirectory, fileComparer, destinationSet.Item);
+                    sourceEntries.Dispose();
+                    destinationEntries.Dispose();
+                    destinationSet.Dispose();
+                  });
+            
+            // var subDirEntries = new List<FileSystemEntry>();
+            // var fileEntries = new List<FileSystemEntry>();
+            // foreach (var entry in sourceEntries.Item) {
+            //   if (entry.IsDirectory && !entry.IsReparsePoint) {
+            //     subDirEntries.Add(entry);
+            //   } else if (entry.IsFile || entry.IsReparsePoint) {
+            //     fileEntries.Add(entry);
+            //   }
+            // }
+            //
+            // var copySubDirectoriesTasks = _taskFactory.CreateCollection(subDirEntries
+            //   .Select(sourceEntry => {
+            //     var destinationEntryPath = destinationDirectory.Path.Combine(sourceEntry.Name);
+            //     var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
+            //     return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
+            //   }));
+            //
+            // ITask copyFilesTask = ParallelFileCopy
+            //   ? _taskFactory.CreateCollection(fileEntries
+            //       .Select(fileEntry => _taskFactory.StartNew(() => {
+            //         CopyFileEntry(fileEntry, destinationDirectory, fileComparer, destinationSet.Item);
+            //       }))).ContinueWith(_ => { })
+            //   : _taskFactory.StartNew(() => {
+            //       foreach (var fileEntry in fileEntries) {
+            //         CopyFileEntry(fileEntry, destinationDirectory, fileComparer, destinationSet.Item);
+            //       }
+            //     });
+            //
+            // return copySubDirectoriesTasks
+            //   .Then(_ => copyFilesTask.ContinueWith(__ => {
+            //     sourceEntries.Dispose();
+            //     destinationEntries.Dispose();
+            //     destinationSet.Dispose();
+            //   }));
           });
       } catch {
-        sourceEntries.Dispose();
-        destinationEntries.Dispose();
-        destinationSet.Dispose();
+        // sourceEntries.Dispose();
+        // destinationEntries.Dispose();
+        // destinationSet.Dispose();
         throw;
       }
     }
@@ -366,6 +394,16 @@ namespace mtsuite.shared {
       public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     }
 
+    private void CopyFileEntries(
+      List<FileSystemEntry> sourceEntries,
+      FileSystemEntry destinationDirectory,
+      IFileComparer fileComparer,
+      SmallSet<FileSystemEntry> destinationSet) {
+      foreach (var entry in sourceEntries) {
+        CopyFileEntry(entry, destinationDirectory, fileComparer, destinationSet);
+      }
+    }
+    
     private void CopyFileEntry(
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationDirectory,
