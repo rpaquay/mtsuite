@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,28 +140,17 @@ namespace mtsuite.shared.CommandLine {
       var sb = new StringBuilder();
       sb.AppendFormat("GC Memory: {0:n0} KB", GC.GetTotalMemory(false) / 1024);
       for (var i = 0; i <= GC.MaxGeneration; i++) {
-        sb.AppendFormat(", Gen{0} collections: {1:n0}", i, GC.CollectionCount(i));
+        sb.AppendFormat(", Gen{0}: {1:n0}", i, GC.CollectionCount(i));
       }
-      Console.WriteLine(sb.ToString());
-#if false
-      var process = Process.GetCurrentProcess();
-      DisplayCounter(process, ".NET CLR Memory", "% Time in GC", s => string.Format("{0}", s));
-      DisplayCounter(process, ".NET CLR Memory", "Gen 0 heap size", s => string.Format("{0:n0} KB", s / 1024));
-      DisplayCounter(process, ".NET CLR Memory", "Gen 1 heap size", s => string.Format("{0:n0} KB", s / 1024));
-      DisplayCounter(process, ".NET CLR Memory", "Gen 2 heap size", s => string.Format("{0:n0} KB", s / 0124));
-      DisplayCounter(process, ".NET CLR Memory", "Large Object Heap size", s => string.Format("{0:n0} KB", s / 1024));
-      DisplayCounter(process, ".NET CLR Memory", "# Bytes in all heaps", s => string.Format("{0:n0} KB", s / 1024));
-      Console.ReadLine();
-#endif
-    }
 
-    private static void DisplayCounter(Process process, string categoryName, string counterName, Func<float, string> formatSample) {
-      try {
-        var c1 = new PerformanceCounter(categoryName, counterName, process.ProcessName);
-        Console.WriteLine("{0}-{1}: {2}", categoryName, counterName, formatSample(c1.NextValue()));
-      } catch (Exception e) {
-        Console.WriteLine(e.Message);
-      }
+      var gcInfo = GC.GetGCMemoryInfo();
+      sb.AppendFormat(", GC Pause: {0:N2} ms ({1:F2}%)",
+        GC.GetTotalPauseDuration().TotalMilliseconds,
+        gcInfo.PauseTimePercentage);
+      sb.AppendFormat(", Total Allocated: {0:N2} MB",
+        GC.GetTotalAllocatedBytes() / (1024.0 * 1024.0));
+
+      Console.WriteLine(sb.ToString());
     }
   }
 }
