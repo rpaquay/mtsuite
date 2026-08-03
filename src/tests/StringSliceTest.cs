@@ -161,4 +161,22 @@ public class StringSliceTest
             Assert.AreEqual(words[i], slices[i].ToString());
         }
     }
+
+    [TestMethod]
+    public void FullPath_CombineSpanAndSlice()
+    {
+        var root = new mtsuite.CoreFileSystem.FullPath(OperatingSystem.IsWindows() ? @"C:\root" : "/root");
+        var childSpan = root.Combine("subdir".AsSpan());
+        Assert.AreEqual("subdir", childSpan.Name);
+
+        var factory = new StringSliceFactory();
+        var fileSlice = factory.Create("file.txt");
+        var fileCombined = childSpan.Combine(fileSlice);
+        Assert.AreEqual("file.txt", fileCombined.Name);
+        Assert.IsTrue(fileCombined.NameSpan.SequenceEqual("file.txt".AsSpan()));
+
+        var multiSegmentSpan = root.Combine("a/b/c".AsSpan());
+        Assert.AreEqual("c", multiSegmentSpan.Name);
+        Assert.AreEqual("b", multiSegmentSpan.Parent?.Name);
+    }
 }

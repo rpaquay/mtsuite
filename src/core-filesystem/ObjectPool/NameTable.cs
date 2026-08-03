@@ -187,61 +187,58 @@ public class NameTable : INameTable
 
     private void TryGrow(BucketTable currentTable)
     {
-        if (currentTable.Entries.Length >= MaxCapacity)
-            return;
-
         if (Monitor.TryEnter(_resizeLock))
         {
             try
             {
-                // If another thread already resized it, exit
-                if (_table != currentTable)
-                    return;
-
-                int newSize = currentTable.Entries.Length * 2;
-                if (newSize > MaxCapacity || newSize < currentTable.Entries.Length)
-                    return;
-
-                var newTable = new BucketTable(newSize);
-
-                // Initial rehash of all entries from currentTable into newTable
-                for (int i = 0; i < currentTable.Entries.Length; i++)
+                while (_count > _table.GrowthThreshold && _table.Entries.Length < MaxCapacity)
                 {
-                    for (Entry? e = Volatile.Read(ref currentTable.Entries[i]); e != null; e = e.Next)
-                    {
-                        int newIndex = e.HashCode & newTable.Mask;
-                        newTable.Entries[newIndex] = new Entry(e.Value, e.HashCode, newTable.Entries[newIndex]);
-                    }
-                }
+                    BucketTable oldTable = _table;
+                    int newSize = oldTable.Entries.Length * 2;
+                    if (newSize > MaxCapacity || newSize < oldTable.Entries.Length)
+                        break;
 
-                // Publish new resized table
-                _table = newTable;
+                    var newTable = new BucketTable(newSize);
 
-                // Post-publish rescan: catch any entries inserted into currentTable while copying
-                for (int i = 0; i < currentTable.Entries.Length; i++)
-                {
-                    for (Entry? e = Volatile.Read(ref currentTable.Entries[i]); e != null; e = e.Next)
+                    // Initial rehash of all entries from oldTable into newTable
+                    for (int i = 0; i < oldTable.Entries.Length; i++)
                     {
-                        int newIndex = e.HashCode & newTable.Mask;
-                        bool found = false;
-                        for (Entry? n = Volatile.Read(ref newTable.Entries[newIndex]); n != null; n = n.Next)
+                        for (Entry? e = Volatile.Read(ref oldTable.Entries[i]); e != null; e = e.Next)
                         {
-                            if (ReferenceEquals(n.Value, e.Value) || (n.HashCode == e.HashCode && n.Value.AsSpan().Equals(e.Value.AsSpan(), _comparison)))
-                            {
-                                found = true;
-                                break;
-                            }
+                            int newIndex = e.HashCode & newTable.Mask;
+                            newTable.Entries[newIndex] = new Entry(e.Value, e.HashCode, newTable.Entries[newIndex]);
                         }
+                    }
 
-                        if (!found)
+                    // Publish new resized table
+                    _table = newTable;
+
+                    // Post-publish rescan: catch any entries inserted into oldTable while copying
+                    for (int i = 0; i < oldTable.Entries.Length; i++)
+                    {
+                        for (Entry? e = Volatile.Read(ref oldTable.Entries[i]); e != null; e = e.Next)
                         {
-                            while (true)
+                            int newIndex = e.HashCode & newTable.Mask;
+                            bool found = false;
+                            for (Entry? n = Volatile.Read(ref newTable.Entries[newIndex]); n != null; n = n.Next)
                             {
-                                Entry? head = Volatile.Read(ref newTable.Entries[newIndex]);
-                                var rehashed = new Entry(e.Value, e.HashCode, head);
-                                if (Interlocked.CompareExchange(ref newTable.Entries[newIndex], rehashed, head) == head)
+                                if (ReferenceEquals(n.Value, e.Value) || (n.HashCode == e.HashCode && n.Value.AsSpan().Equals(e.Value.AsSpan(), _comparison)))
                                 {
+                                    found = true;
                                     break;
+                                }
+                            }
+
+                            if (!found)
+                            {
+                                while (true)
+                                {
+                                    Entry? head = Volatile.Read(ref newTable.Entries[newIndex]);
+                                    var rehashed = new Entry(e.Value, e.HashCode, head);
+                                    if (Interlocked.CompareExchange(ref newTable.Entries[newIndex], rehashed, head) == head)
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                         }

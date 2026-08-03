@@ -84,6 +84,17 @@ namespace mtsuite.CoreFileSystem.Utils {
       _items[_length] = '\0';
     }
 
+    public void Append(ReadOnlySpan<char> value) {
+      EnsureCapacity(_length + value.Length + 1);
+      value.CopyTo(_items.AsSpan(_length));
+      _length += value.Length;
+      _items[_length] = '\0';
+    }
+
+    public void Append(StringSlice value) {
+      Append(value.Span);
+    }
+
     public void InsertAt(int index, char value) {
       EnsureCapacity(_length + 2);
       Array.Copy(_items, index, _items, index + 1, _length - index);

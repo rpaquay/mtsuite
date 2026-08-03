@@ -22,11 +22,13 @@ namespace mtsuite.CoreFileSystem {
   /// <summary>
   /// Represents a fully qualified path.
   /// </summary>
-  public struct FullPath : IEquatable<FullPath>, IComparable<FullPath> {
+  public readonly struct FullPath : IEquatable<FullPath>, IComparable<FullPath> {
     private static readonly IPool<StringBuffer> FullNameBufferPool = new ConcurrentFixedSizeArrayPool<StringBuffer>(
       () => new StringBuffer(),
       sb => sb.Clear()
     );
+
+    private static readonly StringSliceFactory NameSliceFactory = new StringSliceFactory();
       
     /// <summary>
     /// If there is a parent path, <see cref="_parent"/> the boxed instance of the parent <see cref="FullPath"/>.
@@ -37,7 +39,7 @@ namespace mtsuite.CoreFileSystem {
     /// <summary>
     /// The "name" part (i.e file name or directory name) of the path, which may be the root path name (e.g. "C:\").
     /// </summary>
-    private readonly string _name;
+    private readonly StringSlice _name;
 
     /// <summary>
     /// Construct a <see cref="FullPath"/> instance from a valid fully qualifed path
@@ -50,7 +52,7 @@ namespace mtsuite.CoreFileSystem {
       if (PathHelpers.HasAltDirectorySeparators(path))
         ThrowArgumentException($"Path '{path}' should only contain valid directory separators", "path");
       _parent = CreatePath(PathHelpers.GetParent(path));
-      _name = _parent == null ? path : PathHelpers.GetName(path);
+      _name = _parent == null ? NameSliceFactory.Create(path) : NameSliceFactory.Create(PathHelpers.GetName(path));
     }
 
     /// <summary>
@@ -58,12 +60,19 @@ namespace mtsuite.CoreFileSystem {
     /// and a relative name.
     /// Throws an exception if the <paramref name="name"/> is not valid.
     /// </summary>
-    public FullPath(FullPath parent, string name) {
-      if (parent._name == null)
+    public FullPath(FullPath parent, string name) : this(parent, NameSliceFactory.Create(name)) {
+    }
+
+    /// <summary>
+    /// Construct a <see cref="FullPath"/> instance from a valid parent <see cref="FullPath"/>
+    /// and a relative name represented as a <see cref="StringSlice"/>.
+    /// </summary>
+    public FullPath(FullPath parent, StringSlice name) {
+      if (parent._name.IsEmpty)
         ThrowArgumentNullException("parent");
-      if (string.IsNullOrEmpty(name))
+      if (name.IsEmpty)
         ThrowArgumentNullException("name");
-      if (PathHelpers.HasAltDirectorySeparators(name) || PathHelpers.HasDirectorySeparators(name))
+      if (PathHelpers.HasAltDirectorySeparators(name.Span) || PathHelpers.HasDirectorySeparators(name.Span))
         ThrowArgumentException("Name should not contain directory separators", "name");
       _parent = new FullPathReference(parent);
       _name = name;
@@ -98,51 +107,59 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
-    public string Name {
-      get {
-        return _name;
-      }
-    }
+    public string Name => _name.ToString();
 
-    public FullPath? Parent {
-      get {
-        if (_parent == null)
-          return null;
-        return _parent.FullPath;
-      }
-    }
+    public StringSlice NameSlice => _name;
 
-    public readonly FullPath Combine(string name) {
+    public ReadOnlySpan<char> NameSpan => _name.Span;
+
+    public FullPath? Parent => _parent?.FullPath;
+
+    public FullPath Combine(string name) {
       if (string.IsNullOrEmpty(name)) {
+        ThrowArgumentNullException("name");
+      }
+      return Combine(name.AsSpan());
+    }
+
+    public FullPath Combine(StringSlice name) {
+      if (name.IsEmpty) {
+        ThrowArgumentNullException("name");
+      }
+
+      if (!PathHelpers.HasDirectorySeparators(name.Span)) {
+        return new FullPath(this, name);
+      }
+      return Combine(name.Span);
+    }
+
+    public FullPath Combine(ReadOnlySpan<char> name) {
+      if (name.IsEmpty) {
         ThrowArgumentNullException("name");
       }
 
       if (!PathHelpers.HasDirectorySeparators(name)) {
-        return new FullPath(this, name);
+        return new FullPath(this, NameSliceFactory.Create(name));
       }
+
       var current = this;
-      foreach (var segment in SplitRelativePath(name)) {
-        current = new FullPath(current, segment);
+      var remaining = name;
+      while (!remaining.IsEmpty) {
+        int nextSep = remaining.IndexOf(Path.DirectorySeparatorChar);
+        if (nextSep < 0) {
+          current = new FullPath(current, NameSliceFactory.Create(remaining));
+          break;
+        } else {
+          var segment = remaining.Slice(0, nextSep);
+          current = new FullPath(current, NameSliceFactory.Create(segment));
+          remaining = remaining.Slice(nextSep + 1);
+        }
       }
       return current;
     }
 
-    private static IEnumerable<string> SplitRelativePath(string name) {
-      var index = 0;
-      while (index < name.Length) {
-        int nextSep = name.IndexOf(Path.DirectorySeparatorChar, index);
-        if (nextSep < 0) {
-          yield return name.Substring(index);
-          index = name.Length;
-        } else {
-          yield return name.Substring(index, nextSep - index);
-          index = nextSep + 1;
-        }
-      }
-    }
-
     public bool HasTrailingSeparator {
-      get { return _name[_name.Length - 1] == Path.DirectorySeparatorChar; }
+      get { return !_name.IsEmpty && _name[_name.Length - 1] == Path.DirectorySeparatorChar; }
     }
 
     public PathHelpers.RootPrefixKind PathKind {
@@ -151,7 +168,7 @@ namespace mtsuite.CoreFileSystem {
           return _parent.FullPath.PathKind;
         }
 
-        return PathHelpers.GetPathRootPrefixInfo(_name).RootPrefixKind;
+        return PathHelpers.GetPathRootPrefixInfo(_name.ToString()).RootPrefixKind;
       }
     }
 
@@ -167,7 +184,7 @@ namespace mtsuite.CoreFileSystem {
         if (!_parent.FullPath.HasTrailingSeparator)
           sb.Append(PathHelpers.DirectorySeparatorString);
       }
-      sb.Append(_name);
+      sb.Append(_name.Span);
     }
 
     public override string ToString() {
@@ -195,7 +212,7 @@ namespace mtsuite.CoreFileSystem {
 
     public bool Equals(FullPath other) {
       return Equals(_parent, other._parent) &&
-             string.Equals(_name, other._name, PathHelpers.FileNameComparison);
+             _name.Equals(other._name.Span, PathHelpers.FileNameComparison);
     }
 
     public override bool Equals(object obj) {
@@ -209,7 +226,7 @@ namespace mtsuite.CoreFileSystem {
     public override int GetHashCode() {
       unchecked {
         return ((_parent?.GetHashCode() ?? 0) * 397) ^
-               PathHelpers.FileNameComparer.GetHashCode(_name);
+               _name.GetHashCode(PathHelpers.FileNameComparison);
       }
     }
 
@@ -217,56 +234,41 @@ namespace mtsuite.CoreFileSystem {
       return ComparePaths(this, other);
     }
 
-    /// <summary>
-    /// Compares two <see cref="FullPath"/> instances hierarchically segment-by-segment from root to leaf.
-    /// Performance note: Rather than allocating List or array objects on the heap, this method aligns
-    /// both paths by depth and compares their segments recursively from root down to the common depth.
-    /// This achieves zero heap allocations and eliminates GC pressure during sorting and comparisons
-    /// by using the CPU call stack (typically only 3 to 10 frames deep) instead of heap memory.
-    /// </summary>
     public static int ComparePaths(FullPath x, FullPath y) {
-      // Fast path: if both paths share the exact same parent reference (e.g. sibling files in the same directory)
-      // or are both root paths, we can directly compare their names in O(1) without computing depth or recursing.
       if (ReferenceEquals(x._parent, y._parent)) {
-        return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
+        return x._name.CompareTo(y._name, PathHelpers.FileNameComparison);
       }
 
       int depthX = GetDepth(x);
       int depthY = GetDepth(y);
 
-      // Walk back any excess depth on the deeper path so xAligned and yAligned have equal depths.
       FullPath xAligned = x;
       for (int i = depthX; i > depthY; i--) {
-        // ReSharper disable once PossibleInvalidOperationException
         xAligned = xAligned.Parent.Value;
       }
 
       FullPath yAligned = y;
       for (int i = depthY; i > depthX; i--) {
-        // ReSharper disable once PossibleInvalidOperationException
         yAligned = yAligned.Parent.Value;
       }
 
-      // Compare segments from root down to the aligned depth.
       int cmp = CompareEqualDepth(xAligned, yAligned);
       if (cmp != 0)
         return cmp;
 
-      // If the common prefix is identical, the path with fewer segments comes first.
       return depthX.CompareTo(depthY);
     }
 
     private static int CompareEqualDepth(FullPath x, FullPath y) {
       if (ReferenceEquals(x._parent, y._parent)) {
-        return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
+        return x._name.CompareTo(y._name, PathHelpers.FileNameComparison);
       }
 
-      // ReSharper disable twice PossibleInvalidOperationException
       int parentCmp = CompareEqualDepth(x.Parent.Value, y.Parent.Value);
       if (parentCmp != 0)
         return parentCmp;
 
-      return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
+      return x._name.CompareTo(y._name, PathHelpers.FileNameComparison);
     }
 
     private static int GetDepth(FullPath path) {

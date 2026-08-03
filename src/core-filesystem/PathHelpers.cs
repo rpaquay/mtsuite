@@ -58,7 +58,16 @@ namespace mtsuite.CoreFileSystem {
       return path.IndexOf(Path.DirectorySeparatorChar) >= 0;
     }
 
+    public static bool HasDirectorySeparators(ReadOnlySpan<char> path) {
+      return path.IndexOf(Path.DirectorySeparatorChar) >= 0;
+    }
+
     public static bool HasAltDirectorySeparators(string path) {
+      if (Path.AltDirectorySeparatorChar == Path.DirectorySeparatorChar) return false;
+      return path.IndexOf(Path.AltDirectorySeparatorChar) >= 0;
+    }
+
+    public static bool HasAltDirectorySeparators(ReadOnlySpan<char> path) {
       if (Path.AltDirectorySeparatorChar == Path.DirectorySeparatorChar) return false;
       return path.IndexOf(Path.AltDirectorySeparatorChar) >= 0;
     }
