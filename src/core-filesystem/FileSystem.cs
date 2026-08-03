@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +22,7 @@ public static class FileSystem {
   public static IFileSystem Default {
     get {
       if (_default == null) {
-        if (OperatingSystem.IsWindows()) {
-          _default = new FileSystemWin32();
-        }
-        else {
-          _default = new FileSystemPortable();
-        }
+        _default = new FileSystemPortable();
       }
 
       return _default;
