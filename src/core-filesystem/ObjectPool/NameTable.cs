@@ -24,10 +24,37 @@ public interface INameTable {
     /// Thread-safe, lock-free on reads and normal inserts, and auto-growing at 80% load factor.
     /// </summary>
     string GetOrAdd(ReadOnlySpan<char> span);
+
+    /// <summary>
+    /// Total number of calls to get/create a string.
+    /// </summary>
+    long CallCount { get; }
+
+    /// <summary>
+    /// Number of unique strings stored, or null if the implementation does not track unique strings.
+    /// </summary>
+    long? UniqueStringCount { get; }
+
+    /// <summary>
+    /// Approximate GC heap memory used in bytes.
+    /// </summary>
+    long ApproximateHeapBytes { get; }
 }
 
 public class NoCacheNameTable : INameTable {
+    private long _callCount;
+    private long _approximateHeapBytes;
+
+    public long CallCount => Volatile.Read(ref _callCount);
+
+    public long? UniqueStringCount => null;
+
+    public long ApproximateHeapBytes => Volatile.Read(ref _approximateHeapBytes);
+
     public string GetOrAdd(ReadOnlySpan<char> span) {
+        Interlocked.Increment(ref _callCount);
+        // Approx string object size: 24 bytes header/alignment + 2 bytes per char
+        Interlocked.Add(ref _approximateHeapBytes, 24L + span.Length * 2L);
         return span.ToString();
     }
 }
@@ -49,6 +76,8 @@ public class NameTable : INameTable
     private readonly StringComparison _comparison;
     private volatile BucketTable _table;
     private int _count;
+    private long _callCount;
+    private long _totalStringChars;
 
     private sealed class Entry
     {
@@ -92,12 +121,30 @@ public class NameTable : INameTable
 
     public int Capacity => _table.Entries.Length;
 
+    public long CallCount => Volatile.Read(ref _callCount);
+
+    public long? UniqueStringCount => Volatile.Read(ref _count);
+
+    public long ApproximateHeapBytes
+    {
+        get
+        {
+            var count = (long)Volatile.Read(ref _count);
+            var table = _table;
+            var bucketBytes = (long)table.Entries.Length * IntPtr.Size + 24;
+            var entryBytes = count * 40L;
+            var stringBytes = count * 24L + Volatile.Read(ref _totalStringChars) * 2L;
+            return bucketBytes + entryBytes + stringBytes;
+        }
+    }
+
     /// <summary>
     /// Gets an existing string matching the span, or adds a new string if not present.
     /// Thread-safe, lock-free on reads and normal inserts, and auto-growing at 80% load factor.
     /// </summary>
     public string GetOrAdd(ReadOnlySpan<char> span)
     {
+        Interlocked.Increment(ref _callCount);
         if (span.IsEmpty) return string.Empty;
 
         // 1. Calculate string hash code directly from Span without allocating
@@ -144,6 +191,7 @@ public class NameTable : INameTable
                     EnsureInActiveTable(newEntry);
                 }
 
+                Interlocked.Add(ref _totalStringChars, newString.Length);
                 int newCount = Interlocked.Increment(ref _count);
                 if (newCount > table.GrowthThreshold)
                 {

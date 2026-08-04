@@ -135,7 +135,7 @@ namespace mtsuite.shared.CommandLine {
       DisplayErrors(statistics.Errors);
     }
 
-    public static void DisplayGcStatistics() {
+    public static void DisplayGcStatistics(IFileSystem fileSystem = null) {
       Console.WriteLine();
       var sb = new StringBuilder();
       sb.AppendFormat("GC Memory: {0:n0} KB", GC.GetTotalMemory(false) / 1024);
@@ -155,6 +155,21 @@ namespace mtsuite.shared.CommandLine {
         FullPathReferenceNoRelease.AllocatedCount,
         FullPathReferenceNoRelease.ChunkCount,
         FullPathReferenceNoRelease.AllocatedBytes / 1024);
+
+      var nameTable = (fileSystem as IFileSystemExtended)?.NameTable
+        ?? (FileSystem.Default as IFileSystemExtended)?.NameTable;
+      if (nameTable != null) {
+        if (nameTable.UniqueStringCount.HasValue) {
+          Console.WriteLine("NameTable: {0:n0} calls, {1:n0} unique strings ({2:n0} KB)",
+            nameTable.CallCount,
+            nameTable.UniqueStringCount.Value,
+            nameTable.ApproximateHeapBytes / 1024);
+        } else {
+          Console.WriteLine("NameTable: {0:n0} calls ({1:n0} KB)",
+            nameTable.CallCount,
+            nameTable.ApproximateHeapBytes / 1024);
+        }
+      }
     }
   }
 }

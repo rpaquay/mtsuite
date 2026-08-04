@@ -99,6 +99,12 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
+    public string GetFullName(INameTable nameTable) {
+      using var sb = FullNameBufferPool.AllocateFrom();
+      BuildPath(sb.Item);
+      return nameTable.GetOrAdd(sb.Item.ToSpan());
+    }
+
     public string Name {
       get {
         return _name;

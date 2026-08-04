@@ -91,7 +91,7 @@ namespace mtcopy {
       var statistics = DoCopy(sourcePath, destinationPath, fileComparer);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics();
+        ProgramHelpers.DisplayGcStatistics(_fileSystem);
       }
 
       // 0 = success, 8 = fail (to match robocopy)

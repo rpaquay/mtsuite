@@ -19,6 +19,11 @@ namespace mtsuite.CoreFileSystem;
 public interface IFileSystemExtended : IFileSystem {
 
     /// <summary>
+    /// Gets the <see cref="mtsuite.CoreFileSystem.ObjectPool.INameTable"/> instance used by this file system for interning file names.
+    /// </summary>
+    mtsuite.CoreFileSystem.ObjectPool.INameTable NameTable { get; }
+
+    /// <summary>
     /// Get the <see cref="FileSystemEntry"/> corresponding to <paramref
     /// name="path"/>. Return false if the entry does not exist or is not
     /// accessible for some other reason.

@@ -79,7 +79,7 @@ I  Not content indexed Files  L  Reparse Points
       var statistics = DoDelete(sourcePath, options);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics();
+        ProgramHelpers.DisplayGcStatistics(_fileSystem);
       }
 
       // 0 = success, 8 = fail (to match robocopy)

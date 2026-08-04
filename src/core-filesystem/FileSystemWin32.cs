@@ -22,7 +22,10 @@ namespace mtsuite.CoreFileSystem;
 
 public class FileSystemWin32 : IFileSystemExtended {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
+    private readonly INameTable _fileNameTable = new NoCacheNameTable();
     private readonly Win32<FullPath> _win32;
+
+    public INameTable NameTable => _fileNameTable;
 
     public FileSystemWin32() : this(new PathSerializers.AsIsSerializer()) {
     }

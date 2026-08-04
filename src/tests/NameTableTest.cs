@@ -147,4 +147,41 @@ public class NameTableTest
             }
         }
     }
+
+    [TestMethod]
+    public void NoCacheNameTable_Statistics_TracksCallCountAndHeapBytes()
+    {
+        INameTable table = new NoCacheNameTable();
+        Assert.AreEqual(0, table.CallCount);
+        Assert.IsNull(table.UniqueStringCount);
+        Assert.AreEqual(0, table.ApproximateHeapBytes);
+
+        table.GetOrAdd("first".AsSpan());
+        table.GetOrAdd("first".AsSpan());
+        table.GetOrAdd("second".AsSpan());
+
+        Assert.AreEqual(3, table.CallCount);
+        Assert.IsNull(table.UniqueStringCount);
+        // "first" (5 chars -> 34 bytes) * 2 + "second" (6 chars -> 36 bytes) = 104 bytes
+        Assert.AreEqual(104, table.ApproximateHeapBytes);
+    }
+
+    [TestMethod]
+    public void NameTable_Statistics_TracksCallCountUniqueStringsAndHeapBytes()
+    {
+        INameTable table = new NameTable(initialCapacity: 16);
+        Assert.AreEqual(0, table.CallCount);
+        Assert.AreEqual(0, table.UniqueStringCount);
+        long initialBytes = table.ApproximateHeapBytes;
+        Assert.IsTrue(initialBytes > 0);
+
+        table.GetOrAdd("alpha".AsSpan());
+        table.GetOrAdd("alpha".AsSpan()); // hit
+        table.GetOrAdd("beta".AsSpan());
+        table.GetOrAdd("gamma".AsSpan());
+
+        Assert.AreEqual(4, table.CallCount);
+        Assert.AreEqual(3, table.UniqueStringCount);
+        Assert.IsTrue(table.ApproximateHeapBytes > initialBytes);
+    }
 }

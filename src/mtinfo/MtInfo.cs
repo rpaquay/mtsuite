@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ namespace mtinfo {
       DisplayDirectoryEntries(summaryRoot, x => x.Stats.FileBytesTotal);
 
       if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics();
+        ProgramHelpers.DisplayGcStatistics(_fileSystem);
       }
 
       // 0 = success, 8 = fail (to match robocopy)

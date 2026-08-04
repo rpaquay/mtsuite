@@ -71,6 +71,10 @@ namespace mtsuite.CoreFileSystem.Utils {
     /// </summary>
     public string Text { get { return ToString(); } }
 
+    public ReadOnlySpan<char> ToSpan() {
+      return new ReadOnlySpan<char>(_items, 0, _length);  
+    }
+    
     public void Append(char value) {
       EnsureCapacity(_length + 2);
       _items[_length++] = value;
