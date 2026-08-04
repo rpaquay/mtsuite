@@ -8,8 +8,4 @@ Release/
 *.suo
 *.user
 .vs/
-/src/publish/linux-x64/mtsuite-*.zip
-/src/publish/osx-arm64/mtsuite-*.zip
-/src/publish/osx-x64/mtsuite-*.zip
-/src/publish/win-arm64/mtsuite-*.zip
-/src/publish/win-x64/mtsuite-*.zip
+/src/publish/*
