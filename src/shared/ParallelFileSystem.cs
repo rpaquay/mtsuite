@@ -201,12 +201,13 @@ namespace mtsuite.shared {
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew) {
-      return CopyDirectoryAsync(sourceDirectory, destinationPath, options, fileComparer, destinationDirectoryIsNew, true);
+      return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, true);
     }
 
     private ITask CopyDirectoryAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
+      FileSystemEntry? destinationDirectoryEntry,
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew,
@@ -219,6 +220,7 @@ namespace mtsuite.shared {
         return CopyDirectoryEntriesAsync(
           sourceDirectory,
           destinationPath,
+          destinationDirectoryEntry,
           options,
           fileComparer,
           destinationDirectoryIsNew);
@@ -234,15 +236,20 @@ namespace mtsuite.shared {
     private ITask CopyDirectoryEntriesAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
+      FileSystemEntry? destinationDirectoryEntry,
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew) {
 
-      // Ensure destination directory is created (or exists)
-      var destinationDirectoryOpt = GetOrCreateDirectory(destinationPath, destinationDirectoryIsNew);
-      if (destinationDirectoryOpt == null)
-        return _taskFactory.CompletedTask;
-      var destinationDirectory = destinationDirectoryOpt.Value;
+      FileSystemEntry destinationDirectory;
+      if (destinationDirectoryEntry.HasValue) {
+        destinationDirectory = destinationDirectoryEntry.Value;
+      } else {
+        var destinationDirectoryOpt = GetOrCreateDirectory(destinationPath, destinationDirectoryIsNew);
+        if (destinationDirectoryOpt == null)
+          return _taskFactory.CompletedTask;
+        destinationDirectory = destinationDirectoryOpt.Value;
+      }
 
       OnEntriesDiscovering(sourceDirectory);
       var sourceReadSuccess = TryGetDirectoryEntries(sourceDirectory.Path, out var sourceEntries);
@@ -292,8 +299,15 @@ namespace mtsuite.shared {
             .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
             .Select(sourceEntry => {
               var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
-              var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
-              return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
+              var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+              return CopyDirectoryAsync(
+                sourceEntry,
+                destinationEntryPath,
+                destinationExists ? childDestEntry : (FileSystemEntry?)null,
+                options,
+                fileComparer,
+                !destinationExists,
+                false/*skipNotification*/);
             }));
 
           // 3. Recycle all pooled collections immediately before recursing into subdirectories
