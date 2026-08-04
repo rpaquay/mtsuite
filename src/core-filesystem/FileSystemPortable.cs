@@ -20,7 +20,7 @@ using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtsuite.CoreFileSystem;
 
-public class FileSystemPortable : IFileSystemExtended {
+public class FileSystemPortable : IFileSystem {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
     private readonly IPool<byte[]> _copyFileBufferPool = PoolFactory<byte[]>.Create(() => new byte[1024 * 1024]);
     //private readonly INameTable _fileNameTable = new NameTable(32 * 1000);

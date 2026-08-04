@@ -156,8 +156,7 @@ namespace mtsuite.shared.CommandLine {
         FullPathReferenceNoRelease.ChunkCount,
         FullPathReferenceNoRelease.AllocatedBytes / 1024);
 
-      var nameTable = (fileSystem as IFileSystemExtended)?.NameTable
-        ?? (FileSystem.Default as IFileSystemExtended)?.NameTable;
+      var nameTable = fileSystem?.NameTable ?? FileSystem.Default?.NameTable;
       if (nameTable != null) {
         if (nameTable.UniqueStringCount.HasValue) {
           Console.WriteLine("NameTable: {0:n0} calls, {1:n0} unique strings ({2:n0} KB)",
