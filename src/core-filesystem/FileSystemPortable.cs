@@ -98,8 +98,16 @@ public class FileSystemPortable : IFileSystemExtended {
       };
     }
 
-    private sealed class DirectoryEntriesEnumerator(FullPath basePath, EnumerationOptions options, INameTable nameTable)
-      : FileSystemEnumerator<FileSystemEntry>(basePath.FullName, options) {
+    private sealed class DirectoryEntriesEnumerator : FileSystemEnumerator<FileSystemEntry> {
+      private readonly FullPathReference _basePathRef;
+      private readonly INameTable _nameTable;
+
+      public DirectoryEntriesEnumerator(FullPath basePath, FullPathReference basePathRef, EnumerationOptions options, INameTable nameTable)
+        : base(basePath.FullName, options) {
+        _basePathRef = basePathRef.IsNull ? basePath.ToFullPathReference() : basePathRef;
+        _nameTable = nameTable;
+      }
+
       protected override bool ShouldIncludeEntry(ref System.IO.Enumeration.FileSystemEntry entry) {
         return true;
       }
@@ -109,8 +117,8 @@ public class FileSystemPortable : IFileSystemExtended {
       }
 
       protected override FileSystemEntry TransformEntry(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
-        var fileName = nameTable.GetOrAdd(fsEntry.FileName);
-        var entryPath = basePath.Combine(fileName);
+        var fileName = _nameTable.GetOrAdd(fsEntry.FileName);
+        var entryPath = new FullPath(_basePathRef, fileName);
         var isDir = fsEntry.IsDirectory;
         var isReparse = (fsEntry.Attributes & FileAttributes.ReparsePoint) != 0;
         var length = (isDir || isReparse) ? 0 : fsEntry.Length;
@@ -119,10 +127,10 @@ public class FileSystemPortable : IFileSystemExtended {
       }
     }
 
-    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
+    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, FullPathReference pathRef = default) {
       var list = _entryListPool.AllocateFrom();
       try {
-        using var enumerator = new DirectoryEntriesEnumerator(path, _enumerationOptions, _fileNameTable);
+        using var enumerator = new DirectoryEntriesEnumerator(path, pathRef, _enumerationOptions, _fileNameTable);
         while (enumerator.MoveNext()) {
           list.Item.Add(enumerator.Current);
         }

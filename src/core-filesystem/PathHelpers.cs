@@ -63,6 +63,19 @@ namespace mtsuite.CoreFileSystem {
       return path.IndexOf(Path.AltDirectorySeparatorChar) >= 0;
     }
 
+    private static bool IsDirectorySeparator(char ch) {
+      return ch == '\\' || ch == '/';
+    }
+
+    private static int LastIndexOfDirectorySeparator(string path, int startIndex, int count) {
+      for (int i = startIndex; i > startIndex - count && i >= 0; i--) {
+        if (IsDirectorySeparator(path[i])) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
     /// <summary>
     /// Return the <paramref name="path"/> with its last last component removed,
     /// or the <code>null</code> string if the path is a "root" path (e.g. "c:\").
@@ -72,15 +85,15 @@ namespace mtsuite.CoreFileSystem {
       if (!IsPathAbsolute(path))
         throw new ArgumentException("Path should be absolute", path);
 
-      // Ignore '\' at the end of path
+      // Ignore '\' or '/' at the end of path
       var startIndex = path.Length - 1;
       var count = path.Length;
-      if (path.Last() == Path.DirectorySeparatorChar) {
+      if (startIndex >= 0 && IsDirectorySeparator(path[startIndex])) {
         startIndex--;
         count--;
       }
       if (startIndex < 0) return null;
-      var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
+      var lastIndex = LastIndexOfDirectorySeparator(path, startIndex, count);
       if (lastIndex < 0)
         return null;
 
@@ -102,12 +115,12 @@ namespace mtsuite.CoreFileSystem {
 
       var startIndex = path.Length - 1;
       var count = path.Length;
-      if (path.Last() == Path.DirectorySeparatorChar) {
+      if (startIndex >= 0 && IsDirectorySeparator(path[startIndex])) {
         startIndex--;
         count--;
       }
       if (startIndex < 0) return null;
-      var lastIndex = path.LastIndexOf(Path.DirectorySeparatorChar, startIndex, count);
+      var lastIndex = LastIndexOfDirectorySeparator(path, startIndex, count);
       if (lastIndex < 0)
         return null;
 
@@ -334,11 +347,11 @@ namespace mtsuite.CoreFileSystem {
         return new PathRootPrefixInfo(localDiskPrefix, RootPrefixKind.DiskPath);
 
       // UNC Format: '\\' prefix
-      if (path.Length >= 2 && path[0] == Path.DirectorySeparatorChar && path[1] == Path.DirectorySeparatorChar)
+      if (path.Length >= 2 && path[0] == '\\' && path[1] == '\\')
         return new PathRootPrefixInfo(2, RootPrefixKind.UncPath);
 
       // Unix Format: '/' prefix
-      if (path.Length >= 1 && path[0] == Path.DirectorySeparatorChar)
+      if (path.Length >= 1 && path[0] == '/')
         return new PathRootPrefixInfo(1, RootPrefixKind.UnixPath);
 
       return default(PathRootPrefixInfo);

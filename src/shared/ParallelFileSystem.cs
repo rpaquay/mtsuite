@@ -93,14 +93,18 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry> DirectoryTraversed;
     public event Action<FileSystemEntry> DirectoryCreated;
 
-    private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
-      TryGetDirectoryEntries(directoryPath, out var entries);
+    private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath, FullPathReference pathRef = default) {
+      TryGetDirectoryEntries(directoryPath, pathRef, out var entries);
       return entries;
     }
 
     private bool TryGetDirectoryEntries(FullPath directoryPath, out FromPool<List<FileSystemEntry>> entries) {
+      return TryGetDirectoryEntries(directoryPath, default, out entries);
+    }
+
+    private bool TryGetDirectoryEntries(FullPath directoryPath, FullPathReference pathRef, out FromPool<List<FileSystemEntry>> entries) {
       try {
-        entries = _fileSystem.GetDirectoryFiles(directoryPath);
+        entries = _fileSystem.GetDirectoryFiles(directoryPath, pathRef);
         return true;
       } catch (Exception e) {
         OnError(directoryPath, e);
@@ -245,13 +249,14 @@ namespace mtsuite.shared {
         return _taskFactory.CompletedTask;
       }
 
+      var destDirRef = destinationDirectory.Path.ToFullPathReference();
       FromPool<List<FileSystemEntry>> destinationEntries;
       FromPool<SmallSet<FileSystemEntry>> destinationSet;
 
       try {
         destinationEntries = destinationDirectoryIsNew
           ? _entryListPool.AllocateFrom()
-          : GetDirectoryEntries(destinationPath);
+          : GetDirectoryEntries(destinationPath, destDirRef);
         destinationSet = _entrySetPool.AllocateFrom();
         destinationSet.Item.SetList(destinationEntries.Item);
       } catch {
@@ -270,14 +275,14 @@ namespace mtsuite.shared {
                 var copySubDirectoriesTasks = _taskFactory.CreateCollection(sourceEntries.Item
                   .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
                   .Select(sourceEntry => {
-                    var destinationEntryPath = destinationDirectory.Path.Combine(sourceEntry.Name);
+                    var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
                     var isNewDestination = !destinationSet.Item.Contains(sourceEntry);
                     return CopyDirectoryAsync(sourceEntry, destinationEntryPath, options, fileComparer, isNewDestination, false/*skipNotification*/);
                   }));
 
                 return copySubDirectoriesTasks
                   .ContinueWith(_ => {
-                    CopyFileEntries(sourceEntries.Item, destinationDirectory, fileComparer, destinationSet.Item);
+                    CopyFileEntries(sourceEntries.Item, destinationDirectory, destDirRef, fileComparer, destinationSet.Item);
                     sourceEntries.Dispose();
                     destinationEntries.Dispose();
                     destinationSet.Dispose();
@@ -397,23 +402,25 @@ namespace mtsuite.shared {
     private void CopyFileEntries(
       List<FileSystemEntry> sourceEntries,
       FileSystemEntry destinationDirectory,
+      FullPathReference destDirRef,
       IFileComparer fileComparer,
       SmallSet<FileSystemEntry> destinationSet) {
       foreach (var entry in sourceEntries) {
-        CopyFileEntry(entry, destinationDirectory, fileComparer, destinationSet);
+        CopyFileEntry(entry, destinationDirectory, destDirRef, fileComparer, destinationSet);
       }
     }
     
     private void CopyFileEntry(
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationDirectory,
+      FullPathReference destDirRef,
       IFileComparer fileComparer,
       SmallSet<FileSystemEntry> destinationSet) {
 
       var destinationExists = destinationSet.TryGet(sourceEntry, out var destinationEntry);
       var destinationPath = destinationExists
         ? destinationEntry.Path
-        : destinationDirectory.Path.Combine(sourceEntry.Name);
+        : new FullPath(destDirRef, sourceEntry.Name);
 
       if (sourceEntry.IsFile || sourceEntry.IsReparsePoint) {
         if (destinationExists) {

@@ -151,6 +151,10 @@ namespace mtsuite.shared.CommandLine {
         GC.GetTotalAllocatedBytes() / (1024.0 * 1024.0));
 
       Console.WriteLine(sb.ToString());
+      Console.WriteLine("FullPathReference: {0:n0} entries, {1:n0} chunks ({2:n0} KB)",
+        FullPathReferenceNoRelease.AllocatedCount,
+        FullPathReferenceNoRelease.ChunkCount,
+        FullPathReferenceNoRelease.AllocatedBytes / 1024);
     }
   }
 }

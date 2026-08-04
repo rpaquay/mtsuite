@@ -70,11 +70,12 @@ public class FileSystemWin32 : IFileSystemExtended {
         }
     }
 
-    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
+    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, FullPathReference pathRef = default) {
+        var parentRef = pathRef.IsNull ? path.ToFullPathReference() : pathRef;
         using (var entries = _win32.GetDirectoryFiles(path)) {
             var result = _entryListPool.AllocateFrom();
             foreach (var x in entries.Item) {
-                result.Item.Add(new FileSystemEntry(path.Combine(x.FileName), new FileSystemEntryData(x)));
+                result.Item.Add(new FileSystemEntry(new FullPath(parentRef, x.FileName), new FileSystemEntryData(x)));
             }
             return result;
         }

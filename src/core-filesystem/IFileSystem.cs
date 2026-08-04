@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ namespace mtsuite.CoreFileSystem {
     /// Throw an exception if <paramref name="path"/> does not exist or is not
     /// accessible for some reason.
     /// </summary>
-    FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path);
+    FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, FullPathReference pathRef = default);
 
     /// <summary>
     /// Create a directory given its path. Throws if the directory already

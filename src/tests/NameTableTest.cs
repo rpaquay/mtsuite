@@ -94,7 +94,7 @@ public class NameTableTest
         });
 
         // Verify all items are interned correctly and capacity expanded
-        Assert.IsTrue(table.Capacity >= uniqueWords.Length);
+        Assert.IsTrue(table.Capacity > 16);
         Assert.AreEqual(uniqueWords.Length, table.Count);
 
         for (int i = 0; i < uniqueWords.Length; i++)

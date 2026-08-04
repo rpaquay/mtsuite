@@ -31,14 +31,14 @@ namespace mtsuite.CoreFileSystem.ObjectPool {
     }
 
     private static List<T> CreateList() {
-      return new List<T>();
+      return new List<T>(256);
     }
 
     private static void RecycleList(List<T> list) {
       list.Clear();
-      if (list.Capacity >= 256) {
-        list.Capacity = 256;
-      }
+      // if (list.Capacity >= 256) {
+      //   list.Capacity = 256;
+      // }
     }
   }
 }
