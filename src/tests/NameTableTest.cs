@@ -50,64 +50,31 @@ public class NameTableTest
     }
 
     [TestMethod]
-    public void GetOrAdd_AutoGrowsAt80PercentLoadFactor()
+    public void GetOrAdd_DirectMapped_CollisionHandling()
     {
-        // Start with small capacity = 16 (threshold = 12 items)
-        var table = new NameTable(initialCapacity: 16);
+        // Table with capacity 16 per thread
+        var table = new NameTable(capacityPerThread: 16);
         Assert.AreEqual(16, table.Capacity);
 
-        // Add 12 items (75% load factor)
-        for (int i = 0; i < 12; i++)
+        // Add items and verify lookups
+        string a1 = table.GetOrAdd("alpha".AsSpan());
+        string a2 = table.GetOrAdd("alpha".AsSpan());
+        Assert.AreSame(a1, a2);
+
+        // Populate multiple items
+        for (int i = 0; i < 20; i++)
         {
             table.GetOrAdd($"item_{i}".AsSpan());
         }
-        Assert.AreEqual(16, table.Capacity);
 
-        // Add 13th item (exceeds 80% threshold -> grows to 32)
-        table.GetOrAdd("item_12".AsSpan());
-        Assert.AreEqual(32, table.Capacity);
-        Assert.AreEqual(13, table.Count);
-
-        // Verify all 13 items are still present and return same references
-        for (int i = 0; i < 13; i++)
-        {
-            string expected = $"item_{i}";
-            string actual = table.GetOrAdd(expected.AsSpan());
-            Assert.AreEqual(expected, actual);
-        }
+        Assert.IsTrue(table.UniqueStringCount <= 16);
+        Assert.AreEqual(22, table.CallCount);
     }
 
     [TestMethod]
-    public void GetOrAdd_ConcurrentAccess_WithDynamicResizing()
+    public void GetOrAdd_ConcurrentAccess_ThreadSafe()
     {
-        // Start small (capacity = 16) and add thousands of unique items to force multiple concurrent resizes
-        var table = new NameTable(initialCapacity: 16);
-        const int threadCount = 16;
-        const int itemsPerThread = 500;
-        var uniqueWords = Enumerable.Range(0, threadCount * itemsPerThread).Select(i => $"unique_word_{i}").ToArray();
-
-        var results = new string[uniqueWords.Length];
-
-        Parallel.For(0, uniqueWords.Length, i =>
-        {
-            results[i] = table.GetOrAdd(uniqueWords[i].AsSpan());
-        });
-
-        // Verify all items are interned correctly and capacity expanded
-        Assert.IsTrue(table.Capacity > 16);
-        Assert.AreEqual(uniqueWords.Length, table.Count);
-
-        for (int i = 0; i < uniqueWords.Length; i++)
-        {
-            string internedAgain = table.GetOrAdd(uniqueWords[i].AsSpan());
-            Assert.AreSame(results[i], internedAgain);
-        }
-    }
-
-    [TestMethod]
-    public void GetOrAdd_ConcurrentAccess_ThreadSafeAndUniqueReferences()
-    {
-        var table = new NameTable(initialCapacity: 256);
+        var table = new NameTable(capacityPerThread: 256);
         const int threadCount = 16;
         const int itemsPerThread = 1000;
         var sampleWords = Enumerable.Range(0, 100).Select(i => $"filename_{i}.txt").ToArray();
@@ -123,29 +90,18 @@ public class NameTableTest
             }
         });
 
-        // Verify that all threads received the exact same reference for each word
-        for (int w = 0; w < sampleWords.Length; w++)
+        // Verify that all returned strings match the expected words
+        for (int t = 0; t < threadCount; t++)
         {
-            string expectedWord = sampleWords[w];
-            string? firstRef = null;
-
-            for (int t = 0; t < threadCount; t++)
+            for (int i = 0; i < itemsPerThread; i++)
             {
-                for (int i = w; i < itemsPerThread; i += sampleWords.Length)
-                {
-                    string actual = results[t, i];
-                    Assert.AreEqual(expectedWord, actual);
-                    if (firstRef == null)
-                    {
-                        firstRef = actual;
-                    }
-                    else
-                    {
-                        Assert.AreSame(firstRef, actual);
-                    }
-                }
+                var expected = sampleWords[i % sampleWords.Length];
+                Assert.AreEqual(expected, results[t, i]);
             }
         }
+
+        Assert.AreEqual(threadCount * itemsPerThread, table.CallCount);
+        Assert.IsTrue(table.UniqueStringCount > 0);
     }
 
     [TestMethod]
@@ -169,19 +125,21 @@ public class NameTableTest
     [TestMethod]
     public void NameTable_Statistics_TracksCallCountUniqueStringsAndHeapBytes()
     {
-        INameTable table = new NameTable(initialCapacity: 16);
+        INameTable table = new NameTable(capacityPerThread: 16);
         Assert.AreEqual(0, table.CallCount);
         Assert.AreEqual(0, table.UniqueStringCount);
-        long initialBytes = table.ApproximateHeapBytes;
-        Assert.IsTrue(initialBytes > 0);
+        Assert.AreEqual(0, table.ApproximateHeapBytes);
 
         table.GetOrAdd("alpha".AsSpan());
+        long firstBytes = table.ApproximateHeapBytes;
+        Assert.IsTrue(firstBytes > 0);
+
         table.GetOrAdd("alpha".AsSpan()); // hit
         table.GetOrAdd("beta".AsSpan());
         table.GetOrAdd("gamma".AsSpan());
 
         Assert.AreEqual(4, table.CallCount);
         Assert.AreEqual(3, table.UniqueStringCount);
-        Assert.IsTrue(table.ApproximateHeapBytes > initialBytes);
+        Assert.IsTrue(table.ApproximateHeapBytes > firstBytes);
     }
 }
