@@ -31,13 +31,40 @@ namespace mtsuite.CoreFileSystem {
     private static readonly StringSliceFactory NameSliceFactory = new StringSliceFactory();
       
     /// <summary>
-    /// If there is a parent path, <see cref="_parent"/> the boxed instance of the parent <see cref="FullPath"/>.
-    /// If there is no parent path, <see cref="_parent"/> is <code>null</code>, and <see cref="_name"/> is a root path.
+    /// Reference to the parent directory path:
+    /// <list type="bullet">
+    ///   <item>
+    ///     <term>Root Path (e.g. <c>"C:\"</c>, <c>"/"</c>, <c>@"\\server\share\"</c>):</term>
+    ///     <description><c>null</c>, indicating this path is a root segment with no parent.</description>
+    ///   </item>
+    ///   <item>
+    ///     <term>Subpath / Child Path (e.g. <c>"C:\foo\bar"</c>, <c>"/usr/local/bin"</c>):</term>
+    ///     <description>A non-null <see cref="FullPathReference"/> pointing to the parent directory (<c>"C:\foo"</c> or <c>"/usr/local"</c>).</description>
+    ///   </item>
+    ///   <item>
+    ///     <term>Default / Uninitialized struct (<c>default(FullPath)</c>):</term>
+    ///     <description><c>null</c>.</description>
+    ///   </item>
+    /// </list>
     /// </summary>
     private readonly FullPathReference _parent;
 
     /// <summary>
-    /// The "name" part (i.e file name or directory name) of the path, which may be the root path name (e.g. "C:\").
+    /// The segment name or root path of this entry:
+    /// <list type="bullet">
+    ///   <item>
+    ///     <term>Root Path (e.g. <c>"C:\"</c>, <c>"/"</c>, <c>@"\\server\share\"</c>):</term>
+    ///     <description>Contains the full root path prefix including trailing separator (e.g. <c>"C:\"</c>, <c>"/"</c>, <c>@"\\?\C:\"</c>).</description>
+    ///   </item>
+    ///   <item>
+    ///     <term>Subpath / Child Path (e.g. <c>"C:\foo\bar"</c>, <c>"/usr/local/bin"</c>):</term>
+    ///     <description>Contains strictly the single relative name segment without any directory separators (e.g. <c>"bar"</c>, <c>"bin"</c>).</description>
+    ///   </item>
+    ///   <item>
+    ///     <term>Default / Uninitialized struct (<c>default(FullPath)</c>):</term>
+    ///     <description><see cref="StringSlice.Empty"/> (<c>Length == 0</c>).</description>
+    ///   </item>
+    /// </list>
     /// </summary>
     private readonly StringSlice _name;
 
