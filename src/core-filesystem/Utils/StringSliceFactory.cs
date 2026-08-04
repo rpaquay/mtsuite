@@ -15,25 +15,45 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace mtsuite.CoreFileSystem.Utils;
 
 /// <summary>
-/// A high-performance arena allocator for creating <see cref="StringSlice"/> instances
-/// by packing characters into large contiguous char buffer chunks (default 256 KB = 128K chars).
+/// A high-performance, thread-safe, lock-free arena allocator for creating <see cref="StringSlice"/> instances
+/// by packing characters into contiguous char buffer chunks (default 256 KB = 128K chars) per thread.
 /// </summary>
-public class StringSliceFactory
+public class StringSliceFactory : IDisposable
 {
     /// <summary>
     /// Default buffer chunk size in chars: 128 * 1024 chars = 256 KB.
     /// </summary>
     public const int DefaultBufferSizeChars = 128 * 1024;
 
-    private readonly object _lock = new object();
+    /// <summary>
+    /// Default shared <see cref="StringSliceFactory"/> instance.
+    /// </summary>
+    public static StringSliceFactory Default { get; } = new StringSliceFactory();
+
     private readonly int _chunkSize;
-    private readonly List<char[]> _chunks = new List<char[]>();
-    private char[] _currentChunk;
-    private int _currentOffset;
+    private readonly ThreadLocal<ThreadState> _threadState;
+
+    private sealed class ThreadState
+    {
+        public readonly List<char[]> Chunks = new List<char[]>();
+        public char[] CurrentChunk;
+        public int CurrentOffset;
+        public long SliceCount;
+        public long TotalCapacityChars;
+
+        public ThreadState(int chunkSize)
+        {
+            CurrentChunk = new char[chunkSize];
+            Chunks.Add(CurrentChunk);
+            CurrentOffset = 0;
+            TotalCapacityChars = chunkSize;
+        }
+    }
 
     public StringSliceFactory(int chunkSizeInChars = DefaultBufferSizeChars)
     {
@@ -41,75 +61,99 @@ public class StringSliceFactory
             throw new ArgumentOutOfRangeException(nameof(chunkSizeInChars), "Chunk size must be >= 1");
 
         _chunkSize = chunkSizeInChars;
-        _currentChunk = new char[_chunkSize];
-        _chunks.Add(_currentChunk);
-        _currentOffset = 0;
+        _threadState = new ThreadLocal<ThreadState>(() => new ThreadState(_chunkSize), trackAllValues: true);
     }
 
     /// <summary>
-    /// Number of large buffer chunks allocated by this factory.
+    /// Total number of slices allocated across all active threads.
+    /// </summary>
+    public long SliceCount
+    {
+        get
+        {
+            long total = 0;
+            foreach (var state in _threadState.Values)
+            {
+                total += state.SliceCount;
+            }
+            return total;
+        }
+    }
+
+    /// <summary>
+    /// Number of buffer chunks allocated across all active threads.
     /// </summary>
     public int ChunkCount
     {
         get
         {
-            lock (_lock)
+            int total = 0;
+            foreach (var state in _threadState.Values)
             {
-                return _chunks.Count;
+                total += state.Chunks.Count;
             }
+            return total;
         }
     }
 
     /// <summary>
-    /// Total characters allocated across all chunks.
+    /// Total characters allocated across all chunks in all threads.
     /// </summary>
     public long TotalCapacityChars
     {
         get
         {
-            lock (_lock)
+            long total = 0;
+            foreach (var state in _threadState.Values)
             {
-                return (long)_chunks.Count * _chunkSize;
+                total += state.TotalCapacityChars;
             }
+            return total;
         }
     }
 
     /// <summary>
+    /// Total memory allocated across all chunks in bytes.
+    /// </summary>
+    public long AllocatedBytes => TotalCapacityChars * sizeof(char);
+
+    /// <summary>
     /// Creates a <see cref="StringSlice"/> from a <see cref="ReadOnlySpan{char}"/>.
-    /// Copies the span into the current large buffer chunk without creating a new string.
+    /// Copies the span into the current thread's buffer chunk without creating a new string or acquiring locks.
     /// </summary>
     public StringSlice Create(ReadOnlySpan<char> span)
     {
         if (span.IsEmpty)
             return StringSlice.Empty;
 
-        lock (_lock)
+        var state = _threadState.Value!;
+        state.SliceCount++;
+        int length = span.Length;
+
+        // If string is larger than standard chunk size, allocate a dedicated buffer
+        if (length > _chunkSize)
         {
-            int length = span.Length;
-
-            // If string is larger than standard chunk size, allocate a dedicated buffer
-            if (length > _chunkSize)
-            {
-                var dedicated = new char[length];
-                span.CopyTo(dedicated);
-                _chunks.Add(dedicated);
-                return new StringSlice(dedicated, 0, length);
-            }
-
-            // If current chunk does not have enough remaining space, allocate a new chunk
-            if (_currentOffset + length > _currentChunk.Length)
-            {
-                _currentChunk = new char[_chunkSize];
-                _chunks.Add(_currentChunk);
-                _currentOffset = 0;
-            }
-
-            int offset = _currentOffset;
-            span.CopyTo(_currentChunk.AsSpan(offset, length));
-            _currentOffset += length;
-
-            return new StringSlice(_currentChunk, offset, length);
+            var dedicated = new char[length];
+            span.CopyTo(dedicated);
+            state.Chunks.Add(dedicated);
+            state.TotalCapacityChars += length;
+            return new StringSlice(dedicated, 0, length);
         }
+
+        // If current chunk does not have enough remaining space, allocate a new chunk
+        if (state.CurrentOffset + length > state.CurrentChunk.Length)
+        {
+            state.CurrentChunk = new char[_chunkSize];
+            state.Chunks.Add(state.CurrentChunk);
+            state.CurrentOffset = 0;
+            state.TotalCapacityChars += _chunkSize;
+        }
+
+        int offset = state.CurrentOffset;
+        span.CopyTo(state.CurrentChunk.AsSpan(offset, length));
+        state.CurrentOffset += length;
+
+        return new StringSlice(state.CurrentChunk, offset, length);
     }
 
     /// <summary>
@@ -123,21 +167,8 @@ public class StringSliceFactory
         return Create(text.AsSpan());
     }
 
-    /// <summary>
-    /// Resets the allocator offset so previous memory can be overwritten, avoiding re-allocation.
-    /// </summary>
-    public void Reset()
+    public void Dispose()
     {
-        lock (_lock)
-        {
-            if (_chunks.Count > 1)
-            {
-                var first = _chunks[0];
-                _chunks.Clear();
-                _chunks.Add(first);
-                _currentChunk = first;
-            }
-            _currentOffset = 0;
-        }
+        _threadState.Dispose();
     }
 }

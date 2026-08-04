@@ -20,6 +20,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.Utils;
 using mtsuite.shared.Utils;
 
 namespace mtsuite.shared.CommandLine {
@@ -169,6 +170,14 @@ namespace mtsuite.shared.CommandLine {
             nameTable.ApproximateHeapBytes / 1024);
         }
       }
+
+      // var sliceFactory = fileSystem?.StringSliceFactory ?? StringSliceFactory.Default;
+      // if (sliceFactory != null) {
+      //   Console.WriteLine("StringSliceFactory: {0:n0} slices, {1:n0} chunks ({2:n0} KB)",
+      //     sliceFactory.SliceCount,
+      //     sliceFactory.ChunkCount,
+      //     sliceFactory.AllocatedBytes / 1024);
+      // }
     }
   }
 }

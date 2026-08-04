@@ -128,23 +128,24 @@ public class StringSliceTest
     }
 
     [TestMethod]
-    public void StringSliceFactory_ResetReusesFirstChunk()
+    public void StringSliceFactory_TotalCapacityCharsTracksMemory()
     {
-        var factory = new StringSliceFactory(chunkSizeInChars: 10);
+        using var factory = new StringSliceFactory(chunkSizeInChars: 100);
 
         var slice1 = factory.Create("hello");
-        factory.Reset();
-        var slice2 = factory.Create("world");
+        Assert.AreEqual(1, factory.ChunkCount);
+        Assert.AreEqual(100, factory.TotalCapacityChars);
 
-        Assert.AreEqual(0, slice2.Offset);
-        Assert.AreEqual("world", slice2.ToString());
-        Assert.AreSame(slice1.Buffer, slice2.Buffer);
+        // Allocate oversized string (150 chars)
+        var sliceLarge = factory.Create(new string('a', 150));
+        Assert.AreEqual(2, factory.ChunkCount);
+        Assert.AreEqual(250, factory.TotalCapacityChars);
     }
 
     [TestMethod]
     public void StringSliceFactory_ConcurrentCreationsAreThreadSafe()
     {
-        var factory = new StringSliceFactory(chunkSizeInChars: 1024);
+        using var factory = new StringSliceFactory(chunkSizeInChars: 1024);
         const int threadCount = 16;
         const int itemsPerThread = 500;
         var words = Enumerable.Range(0, threadCount * itemsPerThread).Select(i => $"word_{i}").ToArray();
@@ -160,5 +161,8 @@ public class StringSliceTest
         {
             Assert.AreEqual(words[i], slices[i].ToString());
         }
+
+        Assert.IsTrue(factory.ChunkCount >= 16);
+        Assert.IsTrue(factory.TotalCapacityChars >= 16 * 1024);
     }
 }

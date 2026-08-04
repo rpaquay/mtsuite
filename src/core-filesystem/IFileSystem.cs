@@ -15,6 +15,7 @@
 using System.Collections.Generic;
 using System.IO;
 using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem {
   
@@ -27,6 +28,11 @@ namespace mtsuite.CoreFileSystem {
     /// Gets the <see cref="mtsuite.CoreFileSystem.ObjectPool.INameTable"/> instance used by this file system for interning file names.
     /// </summary>
     INameTable NameTable { get; }
+
+    /// <summary>
+    /// Gets the <see cref="mtsuite.CoreFileSystem.Utils.StringSliceFactory"/> instance used by this file system.
+    /// </summary>
+    StringSliceFactory StringSliceFactory { get; }
 
     /// <summary>
     /// Returns the <see cref="FileSystemEntry"/> corresponding to the <paramref

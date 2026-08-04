@@ -17,6 +17,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.IO.Enumeration;
 using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem;
 
@@ -27,6 +28,7 @@ public class FileSystemPortable : IFileSystem {
     private readonly INameTable _fileNameTable = new NoCacheNameTable();
 
     public INameTable NameTable => _fileNameTable;
+    public StringSliceFactory StringSliceFactory => StringSliceFactory.Default;
 
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions {
       RecurseSubdirectories = false,
