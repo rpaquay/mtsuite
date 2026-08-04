@@ -49,6 +49,7 @@ namespace mtsuite.shared {
     private readonly ITaskFactory _taskFactory;
     private readonly INoAllocStopwatchFactory _stopwatchFactory;
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
+    private readonly IPool<List<ITask>> _taskListPool = new ListPool<ITask>();
 
     private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool =
       PoolFactory<SmallSet<FileSystemEntry>>.Create(
@@ -288,27 +289,38 @@ namespace mtsuite.shared {
         throw;
       }
 
-      var deleteTasks = _taskFactory.CreateCollection(entriesToDelete.Item.Select(entry => DeleteEntryAsync(entry)));
+      ITaskCollection deleteTasks;
+      using (var deleteTaskList = _taskListPool.AllocateFrom()) {
+        foreach (var entry in entriesToDelete.Item) {
+          deleteTaskList.Item.Add(DeleteEntryAsync(entry));
+        }
+        deleteTasks = _taskFactory.CreateCollection(deleteTaskList.Item);
+      }
+
       return deleteTasks
         .Then(t => {
           // 1. Process and copy files in current directory immediately
           CopyFileEntries(sourceEntries.Item, destinationDirectory, destDirRef, fileComparer, destinationSet.Item);
 
-          // 2. Prepare subdirectories tasks
-          var copySubDirectoriesTasks = _taskFactory.CreateCollection(sourceEntries.Item
-            .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
-            .Select(sourceEntry => {
-              var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
-              var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
-              return CopyDirectoryAsync(
-                sourceEntry,
-                destinationEntryPath,
-                destinationExists ? childDestEntry : (FileSystemEntry?)null,
-                options,
-                fileComparer,
-                !destinationExists,
-                false/*skipNotification*/);
-            }));
+          // 2. Prepare subdirectories tasks without LINQ lambda allocations
+          ITaskCollection copySubDirectoriesTasks;
+          using (var subDirTaskList = _taskListPool.AllocateFrom()) {
+            foreach (var sourceEntry in sourceEntries.Item) {
+              if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+                var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
+                var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+                subDirTaskList.Item.Add(CopyDirectoryAsync(
+                  sourceEntry,
+                  destinationEntryPath,
+                  destinationExists ? childDestEntry : (FileSystemEntry?)null,
+                  options,
+                  fileComparer,
+                  !destinationExists,
+                  false/*skipNotification*/));
+              }
+            }
+            copySubDirectoriesTasks = _taskFactory.CreateCollection(subDirTaskList.Item);
+          }
 
           // 3. Recycle all pooled collections immediately before recursing into subdirectories
           entriesToDelete.Dispose();
@@ -487,9 +499,15 @@ namespace mtsuite.shared {
       }
 
       OnEntriesToDeleteDiscovered(directoryEntry, entries.Item);
-      var tasks = _taskFactory.CreateCollection(entries.Item
-        .Where(entry => entry.IsDirectory && !entry.IsReparsePoint)
-        .Select(entry => DeleteDirectoryEntriesAsync(entry, includeFilter)));
+      ITaskCollection tasks;
+      using (var deleteSubDirTaskList = _taskListPool.AllocateFrom()) {
+        foreach (var entry in entries.Item) {
+          if (entry.IsDirectory && !entry.IsReparsePoint) {
+            deleteSubDirTaskList.Item.Add(DeleteDirectoryEntriesAsync(entry, includeFilter));
+          }
+        }
+        tasks = _taskFactory.CreateCollection(deleteSubDirTaskList.Item);
+      }
 
       return tasks.ContinueWith(_ => {
         DeleteEntries(entries.Item, includeFilter);
