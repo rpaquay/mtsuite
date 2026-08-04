@@ -40,7 +40,7 @@ namespace mtsuite.CoreFileSystem {
 
       // We only need to compare the names, as we know the parent directory
       // are equivalent (although not same paths).
-      if (!file1.Name.Equals(file2.Name.Span, PathHelpers.FileNameComparison)) {
+      if (!file1.Name.Equals(file2.Name, PathHelpers.FileNameComparison)) {
         return false;
       }
 

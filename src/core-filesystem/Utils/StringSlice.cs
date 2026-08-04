@@ -23,7 +23,7 @@ namespace mtsuite.CoreFileSystem.Utils;
 /// Can be stored in standard collections (<see cref="System.Collections.Generic.List{T}"/>)
 /// and converted to <see cref="ReadOnlySpan{char}"/> without heap allocation.
 /// </summary>
-public readonly struct StringSlice : IEquatable<StringSlice>, IComparable<StringSlice>
+public readonly struct StringSlice : IEquatable<StringSlice>, IComparable<StringSlice>, IEquatable<string>
 {
     public static readonly StringSlice Empty = new StringSlice(Array.Empty<char>(), 0, 0);
 
@@ -114,8 +114,14 @@ public readonly struct StringSlice : IEquatable<StringSlice>, IComparable<String
         return _buffer != null && _length > 0 ? new string(_buffer, _offset, _length) : string.Empty;
     }
 
+    public bool Equals(string? other) => Equals(other, StringComparison.Ordinal);
+
     public static bool operator ==(StringSlice left, StringSlice right) => left.Equals(right);
     public static bool operator !=(StringSlice left, StringSlice right) => !left.Equals(right);
+    public static bool operator ==(StringSlice left, string? right) => left.Equals(right);
+    public static bool operator !=(StringSlice left, string? right) => !left.Equals(right);
+    public static bool operator ==(string? left, StringSlice right) => right.Equals(left);
+    public static bool operator !=(string? left, StringSlice right) => !right.Equals(left);
 }
 
 /// <summary>

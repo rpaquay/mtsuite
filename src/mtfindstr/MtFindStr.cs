@@ -141,7 +141,7 @@ namespace mtfindstr {
     private static IList<FileNameMatcher> CreateFileNameMatchers(IList<string> fileNamePatterns) {
       return fileNamePatterns.Select(pattern => {
         var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
-        return (FileNameMatcher)(entry => matcher.MatchString(entry.Path.Name));
+        return (FileNameMatcher)(entry => matcher.MatchString(entry.Name.ToString()));
       }).ToList();
     }
 

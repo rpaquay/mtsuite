@@ -461,4 +461,4 @@ public class MtCopyTest {
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("FILE.txt").FullName));
   }
-}
+}

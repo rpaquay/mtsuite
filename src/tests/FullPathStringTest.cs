@@ -27,11 +27,11 @@ public class FullPathStringTest
     public void FullPathString_BasicProperties()
     {
         string rootPath = OperatingSystem.IsWindows() ? @"C:\root\sub" : "/root/sub";
-        var path = new FullPathString(rootPath);
+        var path = new FullPath(rootPath);
 
         Assert.AreEqual(rootPath, path.FullName);
         Assert.AreEqual("sub", path.Name);
-        Assert.IsTrue(path.NameSpan.SequenceEqual("sub".AsSpan()));
+        Assert.IsTrue(path.Name.SequenceEqual("sub".AsSpan()));
         Assert.AreEqual(rootPath.Length, path.Length);
         Assert.IsFalse(path.IsEmpty);
         Assert.IsFalse(path.HasTrailingSeparator);
@@ -43,7 +43,7 @@ public class FullPathStringTest
     public void FullPathString_CombineOverloads()
     {
         string rootPath = OperatingSystem.IsWindows() ? @"C:\root" : "/root";
-        var root = new FullPathString(rootPath);
+        var root = new FullPath(rootPath);
 
         // String overload
         var child1 = root.Combine("dir1");
@@ -54,9 +54,8 @@ public class FullPathStringTest
         var child2 = root.Combine("dir2".AsSpan());
         Assert.AreEqual(OperatingSystem.IsWindows() ? @"C:\root\dir2" : "/root/dir2", child2.FullName);
         Assert.AreEqual("dir2", child2.Name);
-        Assert.IsNotNull(child2.ParentReference);
-        Assert.AreEqual(root, child2.ParentReference.FullPath);
-        Assert.AreEqual(root, child2.Parent!.Value);
+        Assert.IsNotNull(child2.Parent);
+        Assert.AreEqual(root, child2.Parent.Value);
 
         // StringSlice overload
         var factory = new StringSliceFactory();
@@ -74,9 +73,9 @@ public class FullPathStringTest
         string p2 = OperatingSystem.IsWindows() ? @"C:\a\b" : "/a/b";
         string p3 = OperatingSystem.IsWindows() ? @"C:\a\c" : "/a/c";
 
-        var path1 = new FullPathString(p1);
-        var path2 = new FullPathString(p2);
-        var path3 = new FullPathString(p3);
+        var path1 = new FullPath(p1);
+        var path2 = new FullPath(p2);
+        var path3 = new FullPath(p3);
 
         Assert.IsTrue(path1.Equals(path2));
         Assert.IsTrue(path1 == path2);
@@ -93,7 +92,7 @@ public class FullPathStringTest
     {
         string rootPath = OperatingSystem.IsWindows() ? @"C:\root\sub" : "/root/sub";
         var fullPath = new FullPath(rootPath);
-        var fullPathString = (FullPathString)fullPath;
+        var fullPathString = (FullPath)fullPath;
 
         Assert.AreEqual(fullPath.FullName, fullPathString.FullName);
         Assert.AreEqual(fullPath.Name, fullPathString.Name);

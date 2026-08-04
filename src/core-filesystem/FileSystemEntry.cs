@@ -17,7 +17,7 @@ using System.IO;
 using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem {
-  public struct FileSystemEntry {
+  public readonly struct FileSystemEntry {
     private readonly FullPath _path;
     private readonly FileSystemEntryData _data;
 
@@ -27,8 +27,7 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public FullPath Path => _path;
-    public StringSlice Name => _path.NameSlice;
-    public ReadOnlySpan<char> NameSpan => _path.NameSpan;
+    public string Name => _path.Name;
     public long FileSize => _data.FileSize;
     public DateTime LastWriteTimeUtc => _data.LastWriteTimeUtc;
     public FileAttributes FileAttributes => _data.FileAttributes;

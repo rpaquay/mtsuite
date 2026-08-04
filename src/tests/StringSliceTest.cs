@@ -159,7 +159,7 @@ public class StringSliceTest
         var fileSlice = factory.Create("file.txt");
         var fileCombined = childSpan.Combine(fileSlice);
         Assert.AreEqual("file.txt", fileCombined.Name);
-        Assert.IsTrue(fileCombined.NameSpan.SequenceEqual("file.txt".AsSpan()));
+        Assert.IsTrue(fileCombined.Name.SequenceEqual("file.txt".AsSpan()));
 
         var multiSegmentSpan = root.Combine("a/b/c".AsSpan());
         Assert.AreEqual("c", multiSegmentSpan.Name);

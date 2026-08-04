@@ -356,7 +356,7 @@ namespace mtinfo {
 
         var isLast = (i == childDirectories.Count - 1);
         isLastList.Add(isLast); // push
-        DisplayDirectoryEntries(displayInfo, entry, entry.DirectoryEntry.Name.ToString(), sortingFunc, isLastList);
+        DisplayDirectoryEntries(displayInfo, entry, entry.DirectoryEntry.Name, sortingFunc, isLastList);
         isLastList.RemoveAt(isLastList.Count - 1); // pop
       }
     }

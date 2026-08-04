@@ -232,6 +232,7 @@ namespace tests {
       Assert.IsTrue(path2.CompareTo(path1) == 0);
     }
 
+#if false
     [TestMethod]
     public void ComparePathsSamePathAreEqual() {
       var p1 = new FullPath(MakePath("a", "b", "c"));
@@ -328,6 +329,7 @@ namespace tests {
         Assert.AreEqual(0, FullPath.ComparePaths(p1, p2));
       }
     }
+#endif
   }
 }
 

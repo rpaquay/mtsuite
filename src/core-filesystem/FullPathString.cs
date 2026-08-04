@@ -21,12 +21,12 @@ namespace mtsuite.CoreFileSystem;
 
 /// <summary>
 /// Represents a fully qualified path stored as a single contiguous <see cref="string"/>,
-/// with a <see cref="FullPathStringReference"/> reference to its parent <see cref="FullPathString"/>.
+/// with a parent path string and a file/directory name string.
 /// </summary>
-public readonly struct FullPathString : IEquatable<FullPathString>, IComparable<FullPathString>
+public readonly struct FullPath : IEquatable<FullPath>, IComparable<FullPath>
 {
     /// <summary>
-    /// Reference to the parent directory path:
+    /// Parent directory path string:
     /// <list type="bullet">
     ///   <item>
     ///     <term>Root Path (e.g. <c>"C:\"</c>, <c>"/"</c>):</term>
@@ -34,27 +34,33 @@ public readonly struct FullPathString : IEquatable<FullPathString>, IComparable<
     ///   </item>
     ///   <item>
     ///     <term>Subpath / Child Path (e.g. <c>"C:\foo\bar"</c>, <c>"/usr/local/bin"</c>):</term>
-    ///     <description>A non-null <see cref="FullPathStringReference"/> pointing to the parent directory.</description>
+    ///     <description>The parent path string (<c>"C:\foo"</c> or <c>"/usr/local"</c>).</description>
     ///   </item>
     ///   <item>
-    ///     <term>Default / Uninitialized struct (<c>default(FullPathString)</c>):</term>
+    ///     <term>Default / Uninitialized struct (<c>default(FullPath)</c>):</term>
     ///     <description><c>null</c>.</description>
     ///   </item>
     /// </list>
     /// </summary>
-    private readonly FullPathStringReference? _parent;
+    private readonly string? _parent;
 
     /// <summary>
     /// The full, fully-qualified path string (e.g. <c>"C:\foo\bar"</c> or <c>"/usr/local/bin"</c>).
-    /// Is <c>null</c> for uninitialized <c>default(FullPathString)</c>.
+    /// Is <c>null</c> for uninitialized <c>default(FullPath)</c>.
     /// </summary>
     private readonly string _path;
 
     /// <summary>
-    /// Construct a <see cref="FullPathString"/> instance from a valid fully qualified path.
+    /// The last segment (i.e. file name or directory name) of the full path,
+    /// or <c>null</c> for root paths (e.g. <c>"C:\"</c> or <c>"/"</c>).
+    /// </summary>
+    private readonly string? _name;
+
+    /// <summary>
+    /// Construct a <see cref="FullPath"/> instance from a valid fully qualified path.
     /// Throws an exception if the <paramref name="path"/> is not valid.
     /// </summary>
-    public FullPathString(string path)
+    public FullPath(string path)
     {
         if (path == null)
             throw new ArgumentNullException(nameof(path));
@@ -71,58 +77,57 @@ public readonly struct FullPathString : IEquatable<FullPathString>, IComparable<
             {
                 parentPath = parentPath.Substring(0, parentPath.Length - 1);
             }
-            _parent = new FullPathStringReference(new FullPathString(parentPath));
+            _parent = parentPath;
+            _name = PathHelpers.GetName(path);
         }
         else
         {
             _parent = null;
+            _name = null;
         }
 
         _path = path;
     }
 
     /// <summary>
-    /// Construct a <see cref="FullPathString"/> from a parent path and a relative name.
+    /// Construct a <see cref="FullPath"/> from a parent path and a relative name.
     /// </summary>
-    public FullPathString(FullPathString parent, string name)
-        : this(new FullPathStringReference(parent), CombinePaths(parent.FullName, name.AsSpan()))
+    public FullPath(FullPath parent, string name)
+        : this(parent.FullName, CombinePaths(parent.FullName, name.AsSpan()), name)
     {
     }
 
     /// <summary>
-    /// Construct a <see cref="FullPathString"/> from a parent path and a relative name slice.
+    /// Construct a <see cref="FullPath"/> from a parent path and a relative name slice.
     /// </summary>
-    public FullPathString(FullPathString parent, StringSlice name)
-        : this(new FullPathStringReference(parent), CombinePaths(parent.FullName, name.Span))
+    public FullPath(FullPath parent, StringSlice name)
+        : this(parent.FullName, CombinePaths(parent.FullName, name.Span), name.ToString())
     {
     }
 
     /// <summary>
-    /// Construct a <see cref="FullPathString"/> from a parent path and a relative name span.
+    /// Construct a <see cref="FullPath"/> from a parent path and a relative name span.
     /// </summary>
-    public FullPathString(FullPathString parent, ReadOnlySpan<char> name)
-        : this(new FullPathStringReference(parent), CombinePaths(parent.FullName, name))
+    public FullPath(FullPath parent, ReadOnlySpan<char> name)
+        : this(parent.FullName, CombinePaths(parent.FullName, name), name.ToString())
     {
     }
 
     /// <summary>
-    /// Construct a <see cref="FullPathString"/> directly with a parent reference and path string.
+    /// Construct a <see cref="FullPath"/> directly with a parent path string, path string, and name string.
     /// </summary>
-    public FullPathString(FullPathStringReference? parent, string path)
+    public FullPath(string? parent, string path, string? name)
     {
         _parent = parent;
         _path = path;
+        _name = name;
     }
-
-    public FullPathStringReference? ParentReference => _parent;
 
     public string FullName => _path ?? string.Empty;
 
-    public string Name => string.IsNullOrEmpty(_path) ? string.Empty : (PathHelpers.GetName(_path) ?? _path);
+    public string Name => _name ?? _path ?? string.Empty;
 
-    public ReadOnlySpan<char> NameSpan => Name.AsSpan();
-
-    public FullPathString? Parent => _parent?.FullPath;
+    public FullPath? Parent => _parent != null ? new FullPath(_parent) : null;
 
     public int Length => _path?.Length ?? 0;
 
@@ -134,7 +139,7 @@ public readonly struct FullPathString : IEquatable<FullPathString>, IComparable<
         ? PathHelpers.RootPrefixKind.None
         : PathHelpers.GetPathRootPrefixInfo(_path).RootPrefixKind;
 
-    public FullPathString Combine(string name)
+    public FullPath Combine(string name)
     {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentNullException(nameof(name));
@@ -142,20 +147,46 @@ public readonly struct FullPathString : IEquatable<FullPathString>, IComparable<
         return Combine(name.AsSpan());
     }
 
-    public FullPathString Combine(StringSlice name)
+    public FullPath Combine(StringSlice name)
     {
         if (name.IsEmpty)
             throw new ArgumentNullException(nameof(name));
 
+        if (!PathHelpers.HasDirectorySeparators(name.Span))
+        {
+            return new FullPath(this, name);
+        }
         return Combine(name.Span);
     }
 
-    public FullPathString Combine(ReadOnlySpan<char> name)
+    public FullPath Combine(ReadOnlySpan<char> name)
     {
         if (name.IsEmpty)
             throw new ArgumentNullException(nameof(name));
 
-        return new FullPathString(this, name);
+        if (!PathHelpers.HasDirectorySeparators(name))
+        {
+            return new FullPath(this, name);
+        }
+
+        var current = this;
+        var remaining = name;
+        while (!remaining.IsEmpty)
+        {
+            int nextSep = remaining.IndexOf(Path.DirectorySeparatorChar);
+            if (nextSep < 0)
+            {
+                current = new FullPath(current, remaining);
+                break;
+            }
+            else
+            {
+                var segment = remaining.Slice(0, nextSep);
+                current = new FullPath(current, segment);
+                remaining = remaining.Slice(nextSep + 1);
+            }
+        }
+        return current;
     }
 
     private static string CombinePaths(string basePath, ReadOnlySpan<char> relative)
@@ -186,44 +217,18 @@ public readonly struct FullPathString : IEquatable<FullPathString>, IComparable<
 
     public override string ToString() => FullName;
 
-    public bool Equals(FullPathString other) =>
+    public bool Equals(FullPath other) =>
         string.Equals(_path, other._path, PathHelpers.FileNameComparison);
 
     public override bool Equals(object? obj) =>
-        obj is FullPathString other && Equals(other);
+        obj is FullPath other && Equals(other);
 
     public override int GetHashCode() =>
         _path != null ? PathHelpers.FileNameComparer.GetHashCode(_path) : 0;
 
-    public int CompareTo(FullPathString other) =>
+    public int CompareTo(FullPath other) =>
         string.Compare(_path, other._path, PathHelpers.FileNameComparison);
 
-    public static bool operator ==(FullPathString left, FullPathString right) => left.Equals(right);
-    public static bool operator !=(FullPathString left, FullPathString right) => !left.Equals(right);
-
-    public static explicit operator FullPathString(FullPath path) => new FullPathString(path.FullName);
-    public static explicit operator FullPath(FullPathString path) => new FullPath(path.FullName);
-
-    public sealed class FullPathStringReference : IEquatable<FullPathStringReference>
-    {
-        public readonly FullPathString FullPath;
-
-        public FullPathStringReference(FullPathString fullPath)
-        {
-            FullPath = fullPath;
-        }
-
-        public override bool Equals(object? obj) =>
-            Equals(obj as FullPathStringReference);
-
-        public bool Equals(FullPathStringReference? other)
-        {
-            if (other == null)
-                return false;
-            return FullPath.Equals(other.FullPath);
-        }
-
-        public override int GetHashCode() =>
-            FullPath.GetHashCode();
-    }
+    public static bool operator ==(FullPath left, FullPath right) => left.Equals(right);
+    public static bool operator !=(FullPath left, FullPath right) => !left.Equals(right);
 }

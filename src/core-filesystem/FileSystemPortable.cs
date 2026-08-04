@@ -101,7 +101,7 @@ public class FileSystemPortable : IFileSystemExtended {
     private sealed class DirectoryEntriesEnumerator(FullPath basePath, EnumerationOptions options)
       : FileSystemEnumerator<FileSystemEntry>(basePath.FullName, options) {
 
-      private readonly FullPath.FullPathReference pathRef = basePath.ToFullPathReference();
+      //private readonly FullPath.FullPathReference pathRef = basePath.ToFullPathReference();
       
       protected override bool ShouldIncludeEntry(ref System.IO.Enumeration.FileSystemEntry entry) {
         return true;
@@ -112,7 +112,7 @@ public class FileSystemPortable : IFileSystemExtended {
       }
 
       protected override FileSystemEntry TransformEntry(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
-        var entryPath = pathRef.Combine(fsEntry.FileName);
+        var entryPath = basePath.Combine(fsEntry.FileName);
         var isDir = fsEntry.IsDirectory;
         var isReparse = (fsEntry.Attributes & FileAttributes.ReparsePoint) != 0;
         var length = (isDir || isReparse) ? 0 : fsEntry.Length;

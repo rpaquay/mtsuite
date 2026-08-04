@@ -122,7 +122,7 @@ namespace mtfind {
       var matcher = new SearchPatternParser().ParsePattern(pattern, SearchPatternParser.Options.Optimize);
       return entry => {
         if (includeDir || !entry.IsDirectory) {
-          return matcher.MatchString(entry.Path.Name);
+          return matcher.MatchString(entry.Name.ToString());
         }
         return false;
       };
