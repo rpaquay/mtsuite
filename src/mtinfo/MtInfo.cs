@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -356,7 +356,7 @@ namespace mtinfo {
 
         var isLast = (i == childDirectories.Count - 1);
         isLastList.Add(isLast); // push
-        DisplayDirectoryEntries(displayInfo, entry, entry.DirectoryEntry.Name, sortingFunc, isLastList);
+        DisplayDirectoryEntries(displayInfo, entry, entry.DirectoryEntry.Name.ToString(), sortingFunc, isLastList);
         isLastList.RemoveAt(isLastList.Count - 1); // pop
       }
     }

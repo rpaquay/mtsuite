@@ -19,6 +19,7 @@ using System.Linq;
 using mtsuite.shared.Collections;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.CoreFileSystem.Utils;
 using mtsuite.shared.Tasks;
 
 namespace mtsuite.shared {
@@ -370,7 +371,7 @@ namespace mtsuite.shared {
         entriesToDelete.AddRange(extraEntries);
       } else if ((options & CopyOptions.DeleteMismatchedFiles) != 0) {
         // Fast O(N) lookup instead of O(N*M) nested loop
-        var sourceDict = new Dictionary<string, FileSystemEntry>(sourceEntries.Count, PathHelpers.FileNameComparer);
+        var sourceDict = new Dictionary<StringSlice, FileSystemEntry>(sourceEntries.Count, StringSliceComparer.Instance);
         foreach (var src in sourceEntries) {
           sourceDict.TryAdd(src.Name, src);
         }

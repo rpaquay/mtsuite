@@ -23,11 +23,11 @@ namespace mtsuite.CoreFileSystem {
       return
         (x.IsFile == y.IsFile) &&
         (x.IsReparsePoint == y.IsReparsePoint) &&
-        PathHelpers.FileNameComparer.Equals(x.Name, y.Name);
+        x.Name.Equals(y.Name.Span, PathHelpers.FileNameComparison);
     }
 
     public int GetHashCode(FileSystemEntry obj) {
-      return PathHelpers.FileNameComparer.GetHashCode(obj.Name);
+      return obj.Name.GetHashCode(PathHelpers.FileNameComparison);
     }
   }
 }

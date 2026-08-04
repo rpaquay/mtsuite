@@ -78,6 +78,19 @@ namespace mtsuite.CoreFileSystem {
       _name = name;
     }
 
+    public FullPath(FullPathReference parent, ReadOnlySpan<char> name) :
+      this(parent, NameSliceFactory.Create(name)) {
+    }
+
+    public FullPath(FullPathReference parent, StringSlice name) {
+      if (name.IsEmpty)
+        ThrowArgumentNullException("name");
+      // if (PathHelpers.HasAltDirectorySeparators(name.Span) || PathHelpers.HasDirectorySeparators(name.Span))
+      //   ThrowArgumentException("Name should not contain directory separators", "name");
+      _parent = parent;
+      _name = name;
+    }
+
     private static FullPathReference CreatePath(string path) {
       if (path == null) {
         return null;
@@ -184,7 +197,7 @@ namespace mtsuite.CoreFileSystem {
         if (!_parent.FullPath.HasTrailingSeparator)
           sb.Append(PathHelpers.DirectorySeparatorString);
       }
-      sb.Append(_name.Span);
+      sb.Append(_name);
     }
 
     public override string ToString() {
@@ -279,13 +292,25 @@ namespace mtsuite.CoreFileSystem {
       return depth;
     }
 
-    class FullPathReference : IEquatable<FullPathReference> {
+    public FullPathReference ToFullPathReference() {
+      return new FullPathReference(this);
+    }
+    
+    public class FullPathReference : IEquatable<FullPathReference> {
       public readonly FullPath FullPath;
 
       public FullPathReference(FullPath fullPath) {
         FullPath = fullPath;
       }
 
+      public FullPath Combine(StringSlice name) {
+        return new FullPath(this, name);
+      }
+      
+      public FullPath Combine(ReadOnlySpan<char> name) {
+        return new FullPath(this, name);
+      }
+      
       public override bool Equals(object obj) {
         return Equals(obj as FullPathReference);
       }

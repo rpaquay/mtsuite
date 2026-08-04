@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 using System;
 using System.IO;
+using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem {
   public struct FileSystemEntry {
@@ -26,7 +27,8 @@ namespace mtsuite.CoreFileSystem {
     }
 
     public FullPath Path => _path;
-    public string Name => _path.Name;
+    public StringSlice Name => _path.NameSlice;
+    public ReadOnlySpan<char> NameSpan => _path.NameSpan;
     public long FileSize => _data.FileSize;
     public DateTime LastWriteTimeUtc => _data.LastWriteTimeUtc;
     public FileAttributes FileAttributes => _data.FileAttributes;

@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -100,20 +100,20 @@ namespace tests.FileSystemHelpers {
         }
       } else {
         if (entry.IsFile && !entry.IsReparsePoint) {
-          return new FileSetup(parent, entry.Name);
+          return new FileSetup(parent, entry.Name.ToString());
         }
         if (entry.IsFile && entry.IsReparsePoint) {
-          return new FileLinkSetup(parent, entry.Name);
+          return new FileLinkSetup(parent, entry.Name.ToString());
         }
         if (entry.IsDirectory && !entry.IsReparsePoint) {
-          return new DirectorySetup(parent, entry.Name);
+          return new DirectorySetup(parent, entry.Name.ToString());
         }
         if (entry.IsDirectory && entry.IsReparsePoint) {
           var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(entry.Path);
           if (info.IsJunctionPoint) {
-            return new JunctionPointSetup(parent, entry.Name);
+            return new JunctionPointSetup(parent, entry.Name.ToString());
           } else {
-            return new DirectoryLinkSetup(parent, entry.Name);
+            return new DirectoryLinkSetup(parent, entry.Name.ToString());
           }
         }
       }

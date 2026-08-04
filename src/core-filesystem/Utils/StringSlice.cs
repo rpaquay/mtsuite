@@ -14,6 +14,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 
 namespace mtsuite.CoreFileSystem.Utils;
 
@@ -115,4 +116,28 @@ public readonly struct StringSlice : IEquatable<StringSlice>, IComparable<String
 
     public static bool operator ==(StringSlice left, StringSlice right) => left.Equals(right);
     public static bool operator !=(StringSlice left, StringSlice right) => !left.Equals(right);
+}
+
+/// <summary>
+/// An <see cref="IEqualityComparer{StringSlice}"/> comparing <see cref="StringSlice"/>
+/// using OS-specific filename comparison semantics (or configurable comparison).
+/// </summary>
+public sealed class StringSliceComparer : IEqualityComparer<StringSlice>
+{
+    public static readonly StringSliceComparer Instance = new StringSliceComparer(PathHelpers.FileNameComparison);
+    public static readonly StringSliceComparer Ordinal = new StringSliceComparer(StringComparison.Ordinal);
+    public static readonly StringSliceComparer OrdinalIgnoreCase = new StringSliceComparer(StringComparison.OrdinalIgnoreCase);
+
+    private readonly StringComparison _comparison;
+
+    public StringSliceComparer(StringComparison comparison)
+    {
+        _comparison = comparison;
+    }
+
+    public bool Equals(StringSlice x, StringSlice y) =>
+        x.Equals(y.Span, _comparison);
+
+    public int GetHashCode(StringSlice obj) =>
+        obj.GetHashCode(_comparison);
 }
