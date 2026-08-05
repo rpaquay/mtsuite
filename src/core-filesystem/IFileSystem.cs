@@ -25,11 +25,6 @@ namespace mtsuite.CoreFileSystem {
   /// </summary>
   public interface IFileSystem {
     /// <summary>
-    /// Gets the <see cref="mtsuite.CoreFileSystem.ObjectPool.INameTable"/> instance used by this file system for interning file names.
-    /// </summary>
-    INameTable NameTable { get; }
-
-    /// <summary>
     /// Gets the <see cref="mtsuite.CoreFileSystem.Utils.StringSliceFactory"/> instance used by this file system.
     /// </summary>
     StringSliceFactory StringSliceFactory { get; }

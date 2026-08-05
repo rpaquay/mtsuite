@@ -24,10 +24,7 @@ namespace mtsuite.CoreFileSystem;
 public class FileSystemPortable : IFileSystem {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
     private readonly IPool<byte[]> _copyFileBufferPool = PoolFactory<byte[]>.Create(() => new byte[1024 * 1024]);
-    //private readonly INameTable _fileNameTable = new NameTable(32 * 1000);
-    private readonly INameTable _fileNameTable = new NoCacheNameTable();
 
-    public INameTable NameTable => _fileNameTable;
     public StringSliceFactory StringSliceFactory => StringSliceFactory.Default;
 
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions {
@@ -45,7 +42,7 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public bool TryGetEntry(FullPath path, out FileSystemEntry entry) {
-      var fullName = path.GetFullName(NameTable);
+      var fullName = path.FullName;
       var fileInfo = new FileInfo(fullName);
       var attributes = fileInfo.Attributes;
 
@@ -76,7 +73,7 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public ReparsePointInfo GetReparsePointInfo(FullPath path) {
-      var fullName = path.GetFullName(NameTable);
+      var fullName = path.FullName;
       var info = new FileInfo(fullName);
 
       // On .NET 6+, LinkTarget retrieves the link target even for broken symlinks
@@ -104,12 +101,10 @@ public class FileSystemPortable : IFileSystem {
 
     private sealed class DirectoryEntriesEnumerator : FileSystemEnumerator<FileSystemEntry> {
       private readonly FullPathReference _basePathRef;
-      private readonly INameTable _nameTable;
 
-      public DirectoryEntriesEnumerator(FullPath basePath, FullPathReference basePathRef, EnumerationOptions options, INameTable nameTable)
-        : base(basePath.GetFullName(nameTable), options) {
+      public DirectoryEntriesEnumerator(FullPath basePath, FullPathReference basePathRef, EnumerationOptions options)
+        : base(basePath.FullName, options) {
         _basePathRef = basePathRef.IsNull ? basePath.ToFullPathReference() : basePathRef;
-        _nameTable = nameTable;
       }
 
       protected override bool ShouldIncludeEntry(ref System.IO.Enumeration.FileSystemEntry entry) {
@@ -121,7 +116,7 @@ public class FileSystemPortable : IFileSystem {
       }
 
       protected override FileSystemEntry TransformEntry(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
-        var fileName = _nameTable.GetOrAdd(fsEntry.FileName);
+        var fileName = fsEntry.FileName.ToString();
         var entryPath = new FullPath(_basePathRef, fileName);
         var isDir = fsEntry.IsDirectory;
         var isReparse = (fsEntry.Attributes & FileAttributes.ReparsePoint) != 0;
@@ -134,7 +129,7 @@ public class FileSystemPortable : IFileSystem {
     public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, FullPathReference pathRef = default) {
       var list = _entryListPool.AllocateFrom();
       try {
-        using var enumerator = new DirectoryEntriesEnumerator(path, pathRef, _enumerationOptions, _fileNameTable);
+        using var enumerator = new DirectoryEntriesEnumerator(path, pathRef, _enumerationOptions);
         while (enumerator.MoveNext()) {
           list.Item.Add(enumerator.Current);
         }
@@ -147,15 +142,15 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public void CreateDirectory(FullPath path) {
-      Directory.CreateDirectory(path.GetFullName(NameTable));
+      Directory.CreateDirectory(path.FullName);
     }
 
     public void DeleteEntry(FileSystemEntry entry) {
       RemoveAccessDeniedAttributes(entry);
       if (entry.IsDirectory) {
-        Directory.Delete(entry.Path.GetFullName(NameTable), recursive: false);
+        Directory.Delete(entry.Path.FullName, recursive: false);
       } else {
-        File.Delete(entry.Path.GetFullName(NameTable));
+        File.Delete(entry.Path.FullName);
       }
     }
 
@@ -202,8 +197,8 @@ public class FileSystemPortable : IFileSystem {
 
     private void CopyFileImpl<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, T param, CopyFileCallback<T> callback) {
       using (var buffer = _copyFileBufferPool.AllocateFrom())
-      using (var sourceStream = new FileStream(sourceEntry.Path.GetFullName(NameTable), FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.SequentialScan))
-      using (var destinationStream = new FileStream(destinationPath.GetFullName(NameTable), FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.SequentialScan)) {
+      using (var sourceStream = new FileStream(sourceEntry.Path.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.SequentialScan))
+      using (var destinationStream = new FileStream(destinationPath.FullName, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.SequentialScan)) {
         
         // Pre-allocate destination file size on SSD / filesystem
         if (sourceEntry.FileSize > 0) {
@@ -235,7 +230,7 @@ public class FileSystemPortable : IFileSystem {
 
       // Preserve timestamps
       try {
-        File.SetLastWriteTimeUtc(destinationPath.GetFullName(NameTable), sourceEntry.LastWriteTimeUtc);
+        File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
       } catch {
         // Best effort
       }
@@ -243,8 +238,8 @@ public class FileSystemPortable : IFileSystem {
       // Preserve Unix file modes (POSIX permissions)
       if (!OperatingSystem.IsWindows()) {
         try {
-          var mode = File.GetUnixFileMode(sourceEntry.Path.GetFullName(NameTable));
-          File.SetUnixFileMode(destinationPath.GetFullName(NameTable), mode);
+          var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
+          File.SetUnixFileMode(destinationPath.FullName, mode);
         } catch {
           // Best effort
         }
@@ -253,7 +248,7 @@ public class FileSystemPortable : IFileSystem {
       // Preserve FileAttributes (ReadOnly applied last so write streams aren't blocked)
       try {
         if (sourceEntry.FileAttributes != FileAttributes.Normal) {
-          File.SetAttributes(destinationPath.GetFullName(NameTable), sourceEntry.FileAttributes);
+          File.SetAttributes(destinationPath.FullName, sourceEntry.FileAttributes);
         }
       } catch {
         // Best effort
@@ -261,34 +256,34 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public FileStream OpenFile(FullPath path, FileAccess access) {
-      return File.Open(path.GetFullName(NameTable), FileMode.Open, access, FileShare.Read);
+      return File.Open(path.FullName, FileMode.Open, access, FileShare.Read);
     }
 
     public FileStream CreateFile(FullPath path) {
-      return new FileStream(path.GetFullName(NameTable), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+      return new FileStream(path.FullName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
     }
 
     public void CreateFileSymbolicLink(FullPath path, string target) {
-      File.CreateSymbolicLink(path.GetFullName(NameTable), target);
+      File.CreateSymbolicLink(path.FullName, target);
     }
 
     public void CreateDirectorySymbolicLink(FullPath path, string target) {
-      Directory.CreateSymbolicLink(path.GetFullName(NameTable), target);
+      Directory.CreateSymbolicLink(path.FullName, target);
     }
 
     public void CreateJunctionPoint(FullPath path, string target) {
-      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent?.Combine(target).GetFullName(NameTable);
+      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent?.Combine(target).FullName;
       targetPath = PathHelpers.NormalizePath(targetPath);
-      Directory.CreateSymbolicLink(path.GetFullName(NameTable), targetPath);
+      Directory.CreateSymbolicLink(path.FullName, targetPath);
     }
     
     private void CopyDirectoryReparsePoint(FullPath sourcePath, FullPath destinationPath) {
       var info = GetReparsePointInfo(sourcePath);
 
       if (info.IsSymbolicLink) {
-        Directory.CreateSymbolicLink(destinationPath.GetFullName(NameTable), info.Target);
+        Directory.CreateSymbolicLink(destinationPath.FullName, info.Target);
         try {
-          Directory.SetLastWriteTimeUtc(destinationPath.GetFullName(NameTable), info.LastWriteTimeUtc);
+          Directory.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
         } catch {
           // Best effort
         }
@@ -302,9 +297,9 @@ public class FileSystemPortable : IFileSystem {
       var info = GetReparsePointInfo(sourcePath);
 
       if (info.IsSymbolicLink) {
-        File.CreateSymbolicLink(destinationPath.GetFullName(NameTable), info.Target);
+        File.CreateSymbolicLink(destinationPath.FullName, info.Target);
         try {
-          File.SetLastWriteTimeUtc(destinationPath.GetFullName(NameTable), info.LastWriteTimeUtc);
+          File.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
         } catch {
           // Best effort
         }
@@ -318,7 +313,7 @@ public class FileSystemPortable : IFileSystem {
       if (entry.IsReadOnly || entry.IsSystem) {
         try {
           var attrs = entry.FileAttributes & ~(FileAttributes.ReadOnly | FileAttributes.System);
-          File.SetAttributes(entry.Path.GetFullName(NameTable), attrs);
+          File.SetAttributes(entry.Path.FullName, attrs);
         } catch {
           // Best effort
         }

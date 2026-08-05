@@ -156,28 +156,6 @@ namespace mtsuite.shared.CommandLine {
         FullPathReferenceNoRelease.AllocatedCount,
         FullPathReferenceNoRelease.ChunkCount,
         FullPathReferenceNoRelease.AllocatedBytes / 1024);
-
-      var nameTable = fileSystem?.NameTable ?? FileSystem.Default?.NameTable;
-      if (nameTable != null) {
-        if (nameTable.UniqueStringCount.HasValue) {
-          Console.WriteLine("NameTable: {0:n0} calls, {1:n0} unique strings ({2:n0} KB)",
-            nameTable.CallCount,
-            nameTable.UniqueStringCount.Value,
-            nameTable.ApproximateHeapBytes / 1024);
-        } else {
-          Console.WriteLine("NameTable: {0:n0} calls ({1:n0} KB)",
-            nameTable.CallCount,
-            nameTable.ApproximateHeapBytes / 1024);
-        }
-      }
-
-      // var sliceFactory = fileSystem?.StringSliceFactory ?? StringSliceFactory.Default;
-      // if (sliceFactory != null) {
-      //   Console.WriteLine("StringSliceFactory: {0:n0} slices, {1:n0} chunks ({2:n0} KB)",
-      //     sliceFactory.SliceCount,
-      //     sliceFactory.ChunkCount,
-      //     sliceFactory.AllocatedBytes / 1024);
-      // }
     }
   }
 }
