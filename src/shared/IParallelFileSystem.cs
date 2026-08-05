@@ -14,8 +14,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using mtsuite.CoreFileSystem;
-using mtsuite.shared.Tasks;
 
 namespace mtsuite.shared {
   public interface IParallelFileSystem {
@@ -36,22 +36,22 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> DirectoryCreated;
     event Action<FullPath, Exception> Error;
 
-    void WaitForTask(ITask task);
+    void WaitForTask(Task task);
 
-    ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false);
+    Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false);
 
-    ITask CopyDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options, IFileComparer fileComparer, bool destinationDirectoryIsNew);
+    Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options, IFileComparer fileComparer, bool destinationDirectoryIsNew);
 
     /// <summary>
     /// Delete a file system entry. Recurse through directories if
     /// the entry is a directory.
     /// </summary>
-    ITask DeleteEntryAsync(FileSystemEntry entry);
+    Task DeleteEntryAsync(FileSystemEntry entry);
   }
 
 
   /// <summary>
-  /// Interface impleted by callers of <see
+  /// Interface implemented by callers of <see
   /// cref="IParallelFileSystem.TraverseDirectoryAsync{T}"/>
   /// </summary>
   /// <typeparam name="T">The implementation specific element used to track
@@ -66,7 +66,7 @@ namespace mtsuite.shared {
     /// Called when children entries of the directory corresponding to <paramref
     /// name="item"/> have been enumerated.
     /// </summary>
-    ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, T item, FileSystemEntry directory, List<FileSystemEntry> children, ITaskFactory taskFactory);
+    Task OnDirectoryEntriesEnumerated(IFileSystem fileSystem, T item, FileSystemEntry directory, List<FileSystemEntry> children);
 
     /// <summary>
     /// Called after a sub-directory <paramref name="childItem"/> of the

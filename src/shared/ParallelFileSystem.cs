@@ -11,15 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using mtsuite.shared.Collections;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.ObjectPool;
-using mtsuite.shared.Tasks;
 
 namespace mtsuite.shared {
   public interface INoAllocStopwatchFactory {
@@ -46,10 +47,9 @@ namespace mtsuite.shared {
 
   public class ParallelFileSystem : IParallelFileSystem {
     private readonly IFileSystem _fileSystem;
-    private readonly ITaskFactory _taskFactory;
     private readonly INoAllocStopwatchFactory _stopwatchFactory;
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
-    private readonly IPool<List<ITask>> _taskListPool = new ListPool<ITask>();
+    private readonly IPool<List<Task>> _taskListPool = new ListPool<Task>();
 
     private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool =
       PoolFactory<SmallSet<FileSystemEntry>>.Create(
@@ -71,33 +71,31 @@ namespace mtsuite.shared {
 
     public ParallelFileSystem(
       IFileSystem fileSystem,
-      ITaskFactory taskFactory = null,
-      INoAllocStopwatchFactory stopwatchFactory = null,
+      INoAllocStopwatchFactory? stopwatchFactory = null,
       bool parallelFileCopy = false) {
       _fileSystem = fileSystem;
-      _taskFactory = taskFactory ?? new DefaultTaskFactory();
       _stopwatchFactory = stopwatchFactory ?? NoAllocStopwatchFactory.Instance;
       ParallelFileCopy = parallelFileCopy;
     }
 
     public bool ParallelFileCopy { get; set; }
 
-    public event Action<FullPath, Exception> Error;
-    public event Action Pulse;
-    public event Action<FileSystemEntry> EntriesDiscovering;
-    public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
-    public event Action<FileSystemEntry> EntriesToDeleteDiscovering;
-    public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
-    public event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;
-    public event Action<FileSystemEntry> EntryDeleting;
-    public event Action<FileSystemEntry, TimeSpan> EntryDeleted;
-    public event Action<FileSystemEntry> FileCopySkipped;
-    public event Action<FileSystemEntry> FileCopying;
-    public event Action<FileSystemEntry, TimeSpan, long> FileCopyingProgress;
-    public event Action<FileSystemEntry, TimeSpan, long> FileCopied;
-    public event Action<FileSystemEntry> DirectoryTraversing;
-    public event Action<FileSystemEntry> DirectoryTraversed;
-    public event Action<FileSystemEntry> DirectoryCreated;
+    public event Action<FullPath, Exception>? Error;
+    public event Action? Pulse;
+    public event Action<FileSystemEntry>? EntriesDiscovering;
+    public event Action<FileSystemEntry, List<FileSystemEntry>>? EntriesDiscovered;
+    public event Action<FileSystemEntry>? EntriesToDeleteDiscovering;
+    public event Action<FileSystemEntry, List<FileSystemEntry>>? EntriesToDeleteDiscovered;
+    public event Action<FileSystemEntry, List<FileSystemEntry>>? EntriesToDeleteProcessed;
+    public event Action<FileSystemEntry>? EntryDeleting;
+    public event Action<FileSystemEntry, TimeSpan>? EntryDeleted;
+    public event Action<FileSystemEntry>? FileCopySkipped;
+    public event Action<FileSystemEntry>? FileCopying;
+    public event Action<FileSystemEntry, TimeSpan, long>? FileCopyingProgress;
+    public event Action<FileSystemEntry, TimeSpan, long>? FileCopied;
+    public event Action<FileSystemEntry>? DirectoryTraversing;
+    public event Action<FileSystemEntry>? DirectoryTraversed;
+    public event Action<FileSystemEntry>? DirectoryCreated;
 
     private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath, FullPathReference pathRef = default) {
       TryGetDirectoryEntries(directoryPath, pathRef, out var entries);
@@ -120,7 +118,7 @@ namespace mtsuite.shared {
       }
     }
 
-    public void WaitForTask(ITask task) {
+    public void WaitForTask(Task task) {
       while (true) {
         var completed = task.Wait(TimeSpan.FromMilliseconds(50));
         if (completed)
@@ -129,34 +127,34 @@ namespace mtsuite.shared {
       }
     }
 
-    public ITask<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false) {
+    public Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false) {
       return TraverseDirectoryAsync<T>(directoryEntry, collector, followLinks, 0, true);
     }
 
-    private ITask<T> TraverseDirectoryAsync<T>(
+    private async Task<T> TraverseDirectoryAsync<T>(
       FileSystemEntry directoryEntry,
       IDirectorCollector<T> collector,
       bool followLinks,
       int depth,
       bool skipNotification) {
 
-      return _taskFactory.StartNew(() => {
+      return await Task.Run(async () => {
         if (!skipNotification) {
           OnDirectoryTraversing(directoryEntry);
         }
-        return TraverseDirectoryEntriesAsync(
+        var result = await TraverseDirectoryEntriesAsync(
           directoryEntry,
           collector,
           followLinks,
-          depth);
-      }).Then(t => {
-        if (!skipNotification)
+          depth).ConfigureAwait(false);
+        if (!skipNotification) {
           OnDirectoryTraversed(directoryEntry);
-        return t.Result;
-      });
+        }
+        return result;
+      }).ConfigureAwait(false);
     }
 
-    private ITask<T> TraverseDirectoryEntriesAsync<T>(
+    private async Task<T> TraverseDirectoryEntriesAsync<T>(
       FileSystemEntry directoryEntry,
       IDirectorCollector<T> collector,
       bool followLinks,
@@ -168,35 +166,38 @@ namespace mtsuite.shared {
 
       // Notify collector
       var collectorItem = collector.CreateItemForDirectory(_fileSystem, directoryEntry, depth);
-      var additionalTasks = collector.OnDirectoryEntriesEnumerated(_fileSystem, collectorItem, directoryEntry, entries.Item, _taskFactory);
+      var additionalTask = collector.OnDirectoryEntriesEnumerated(_fileSystem, collectorItem, directoryEntry, entries.Item);
 
       // Create tasks for children directories
-      var childDirectoriesTasks = _taskFactory.CreateCollection<T>();
+      List<Task<T>>? childDirectoriesTasks = null;
       foreach (var entry in entries.Item) {
         if (entry.IsDirectory) {
           bool isRealDirectory = !entry.IsReparsePoint;
           bool followDirectoryLink = entry.IsReparsePoint && followLinks;
           if (isRealDirectory || followDirectoryLink) {
-            var directoryTask = TraverseDirectoryAsync(entry, collector, followLinks, depth + 1, false);
-            childDirectoriesTasks.Add(directoryTask);
+            childDirectoriesTasks ??= new List<Task<T>>();
+            childDirectoriesTasks.Add(TraverseDirectoryAsync(entry, collector, followLinks, depth + 1, false));
           }
         }
       }
 
       entries.Dispose();
 
-      // Run "additionalTasks", then run "childDirectoryTasks" then return "collectorItem"
-      return additionalTasks.Then(tasks => {
-        return childDirectoriesTasks.ContinueWith(tasks2 => {
-          foreach (var task in tasks2) {
-            collector.OnDirectoryTraversed(_fileSystem, collectorItem, task.Result);
-          }
-          return collectorItem;
-        });
-      });
+      if (additionalTask != null && !additionalTask.IsCompleted) {
+        await additionalTask.ConfigureAwait(false);
+      }
+
+      if (childDirectoriesTasks != null && childDirectoriesTasks.Count > 0) {
+        var childResults = await Task.WhenAll(childDirectoriesTasks).ConfigureAwait(false);
+        foreach (var childResult in childResults) {
+          collector.OnDirectoryTraversed(_fileSystem, collectorItem, childResult);
+        }
+      }
+
+      return collectorItem;
     }
 
-    public ITask CopyDirectoryAsync(
+    public Task CopyDirectoryAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
       CopyOptions options,
@@ -205,7 +206,7 @@ namespace mtsuite.shared {
       return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, true);
     }
 
-    private ITask CopyDirectoryAsync(
+    private async Task CopyDirectoryAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
       FileSystemEntry? destinationDirectoryEntry,
@@ -214,27 +215,24 @@ namespace mtsuite.shared {
       bool destinationDirectoryIsNew,
       bool skipNotification) {
 
-      var t = _taskFactory.StartNew(() => {
+      await Task.Run(async () => {
         if (!skipNotification)
           OnDirectoryTraversing(sourceDirectory);
-        // This happens if destination directory can't be created.
-        return CopyDirectoryEntriesAsync(
+
+        await CopyDirectoryEntriesAsync(
           sourceDirectory,
           destinationPath,
           destinationDirectoryEntry,
           options,
           fileComparer,
-          destinationDirectoryIsNew);
-      }).Then(task => {
+          destinationDirectoryIsNew).ConfigureAwait(false);
+
         if (!skipNotification)
           OnDirectoryTraversed(sourceDirectory);
-        return task.Result;
-      });
-
-      return t;
+      }).ConfigureAwait(false);
     }
 
-    private ITask CopyDirectoryEntriesAsync(
+    private async Task CopyDirectoryEntriesAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
       FileSystemEntry? destinationDirectoryEntry,
@@ -248,7 +246,7 @@ namespace mtsuite.shared {
       } else {
         var destinationDirectoryOpt = GetOrCreateDirectory(destinationPath, destinationDirectoryIsNew);
         if (destinationDirectoryOpt == null)
-          return _taskFactory.CompletedTask;
+          return;
         destinationDirectory = destinationDirectoryOpt.Value;
       }
 
@@ -259,7 +257,7 @@ namespace mtsuite.shared {
       // If source directory could not be read, do NOT proceed with deleting destination files.
       if (!sourceReadSuccess) {
         sourceEntries.Dispose();
-        return _taskFactory.CompletedTask;
+        return;
       }
 
       var destDirRef = destinationDirectory.Path.ToFullPathReference();
@@ -289,48 +287,44 @@ namespace mtsuite.shared {
         throw;
       }
 
-      ITaskCollection deleteTasks;
-      using (var deleteTaskList = _taskListPool.AllocateFrom()) {
+      if (entriesToDelete.Item.Count > 0) {
+        using var deleteTaskList = _taskListPool.AllocateFrom();
         foreach (var entry in entriesToDelete.Item) {
           deleteTaskList.Item.Add(DeleteEntryAsync(entry));
         }
-        deleteTasks = _taskFactory.CreateCollection(deleteTaskList.Item);
+        await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
       }
 
-      return deleteTasks
-        .Then(t => {
-          // 1. Process and copy files in current directory immediately
-          CopyFileEntries(sourceEntries.Item, destinationDirectory, destDirRef, fileComparer, destinationSet.Item);
+      // 1. Process and copy files in current directory immediately
+      CopyFileEntries(sourceEntries.Item, destinationDirectory, destDirRef, fileComparer, destinationSet.Item);
 
-          // 2. Prepare subdirectories tasks without LINQ lambda allocations
-          ITaskCollection copySubDirectoriesTasks;
-          using (var subDirTaskList = _taskListPool.AllocateFrom()) {
-            foreach (var sourceEntry in sourceEntries.Item) {
-              if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-                var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
-                var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
-                subDirTaskList.Item.Add(CopyDirectoryAsync(
-                  sourceEntry,
-                  destinationEntryPath,
-                  destinationExists ? childDestEntry : (FileSystemEntry?)null,
-                  options,
-                  fileComparer,
-                  !destinationExists,
-                  false/*skipNotification*/));
-              }
-            }
-            copySubDirectoriesTasks = _taskFactory.CreateCollection(subDirTaskList.Item);
+      // 2. Prepare subdirectories tasks without LINQ lambda allocations
+      using (var subDirTaskList = _taskListPool.AllocateFrom()) {
+        foreach (var sourceEntry in sourceEntries.Item) {
+          if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+            var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
+            var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+            subDirTaskList.Item.Add(CopyDirectoryAsync(
+              sourceEntry,
+              destinationEntryPath,
+              destinationExists ? childDestEntry : (FileSystemEntry?)null,
+              options,
+              fileComparer,
+              !destinationExists,
+              false/*skipNotification*/));
           }
+        }
 
-          // 3. Recycle all pooled collections immediately before recursing into subdirectories
-          entriesToDelete.Dispose();
-          sourceEntries.Dispose();
-          destinationEntries.Dispose();
-          destinationSet.Dispose();
+        // 3. Recycle all pooled collections immediately before waiting for subdirectories
+        entriesToDelete.Dispose();
+        sourceEntries.Dispose();
+        destinationEntries.Dispose();
+        destinationSet.Dispose();
 
-          // 4. Return subdirectories task collection as ITask
-          return copySubDirectoriesTasks.ContinueWith(static _ => { });
-        });
+        if (subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
+        }
+      }
     }
 
     private FileSystemEntry? GetOrCreateDirectory(FullPath destinationPath, bool destinationDirectoryIsNew) {
@@ -349,7 +343,7 @@ namespace mtsuite.shared {
       try {
         destinationDirectory = _fileSystem.GetEntry(destinationPath);
       } catch (Exception e) {
-        OnError(destinationPath,  e);
+        OnError(destinationPath, e);
         // If we can't find the destination entry, give up this directory.
         return null;
       }
@@ -457,7 +451,6 @@ namespace mtsuite.shared {
         try {
           var copyData = new CopyFileData(this, sw); 
           if (destinationExists) {
-            //_fileSystem.CopyFile(sourceEntry, destinationEntry, CopyFileOptions.Default, copyData, CallbackDelegate);
             _fileSystem.CopyFile(sourceEntry, destinationEntry, CopyFileOptions.Default, copyData, _copyFileCallback);
           } else {
             _fileSystem.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, copyData, _copyFileCallback);
@@ -473,47 +466,46 @@ namespace mtsuite.shared {
     /// Delete a file system entry. Recurse through directories if
     /// the entry is a directory.
     /// </summary>
-    public ITask DeleteEntryAsync(FileSystemEntry entry) {
-      return DeleteEntryAsync(entry, _ => true);
+    public Task DeleteEntryAsync(FileSystemEntry entry) {
+      return DeleteEntryAsync(entry, static _ => true);
     }
 
     /// <summary>
     /// Delete a file system entry. Recurse through directories if
     /// the entry is a directory.
     /// </summary>
-    public ITask DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
+    public Task DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
       if (entry.IsFile || entry.IsReparsePoint)
-        return _taskFactory.StartNew(() => DeleteSingleEntry(entry, includeFilter));
+        return Task.Run(() => DeleteSingleEntry(entry, includeFilter));
       return DeleteDirectoryAsync(entry, includeFilter);
     }
 
-    private ITask DeleteDirectoryAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
-      return DeleteDirectoryEntriesAsync(directoryEntry, includeFilter)
-        .ContinueWith(t => DeleteSingleEntry(directoryEntry, includeFilter));
+    private async Task DeleteDirectoryAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
+      await DeleteDirectoryEntriesAsync(directoryEntry, includeFilter).ConfigureAwait(false);
+      DeleteSingleEntry(directoryEntry, includeFilter);
     }
 
-    private ITask DeleteDirectoryEntriesAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
+    private async Task DeleteDirectoryEntriesAsync(FileSystemEntry directoryEntry, Func<FileSystemEntry, bool> includeFilter) {
       OnEntriesToDeleteDiscovering(directoryEntry);
       if (!TryGetDirectoryEntries(directoryEntry.Path, out var entries)) {
-        return _taskFactory.CompletedTask;
+        return;
       }
 
       OnEntriesToDeleteDiscovered(directoryEntry, entries.Item);
-      ITaskCollection tasks;
       using (var deleteSubDirTaskList = _taskListPool.AllocateFrom()) {
         foreach (var entry in entries.Item) {
           if (entry.IsDirectory && !entry.IsReparsePoint) {
             deleteSubDirTaskList.Item.Add(DeleteDirectoryEntriesAsync(entry, includeFilter));
           }
         }
-        tasks = _taskFactory.CreateCollection(deleteSubDirTaskList.Item);
+        if (deleteSubDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(deleteSubDirTaskList.Item).ConfigureAwait(false);
+        }
       }
 
-      return tasks.ContinueWith(_ => {
-        DeleteEntries(entries.Item, includeFilter);
-        OnEntriesToDeleteProcessed(directoryEntry, entries.Item);
-        entries.Dispose();
-      });
+      DeleteEntries(entries.Item, includeFilter);
+      OnEntriesToDeleteProcessed(directoryEntry, entries.Item);
+      entries.Dispose();
     }
 
     private void DeleteEntries(List<FileSystemEntry> entries, Func<FileSystemEntry, bool> includeFilter) {

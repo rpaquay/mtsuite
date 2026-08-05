@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
 // limitations under the License.
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using mtsuite.shared;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.FileNameMatching;
-using mtsuite.shared.Tasks;
 
 namespace mtfind {
   public class DirectorySummaryCollector : IDirectorCollector<VoidValue> {
@@ -35,7 +35,7 @@ namespace mtfind {
       return VoidValue.Instance;
     }
 
-    public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
+    public Task OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries) {
       foreach (var entry in entries) {
         if (_nameMatcher(entry)) {
           lock (_matchedFiles) {
@@ -44,7 +44,7 @@ namespace mtfind {
           }
         }
       }
-      return taskFactory.EmptyCollection();
+      return Task.CompletedTask;
     }
 
     public void OnDirectoryTraversed(IFileSystem fileSystem, VoidValue parentValue, VoidValue childValue) {

@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using System.Threading.Tasks;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared;
 using mtsuite.shared.FileNameMatching;
-using mtsuite.shared.Tasks;
 
 namespace mtfindstr {
   public class FindStrSummaryCollector : IDirectorCollector<VoidValue> {
@@ -40,13 +39,13 @@ namespace mtfindstr {
       return VoidValue.Instance;
     }
 
-    public ITaskCollection OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries, ITaskFactory taskFactory) {
+    public Task OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries) {
       var filesWithMatchingName = entries.Where(entry => MatchesFileName(entry)).ToList();
       if (filesWithMatchingName.Count == 0) {
-        return taskFactory.EmptyCollection();
+        return Task.CompletedTask;
       }
 
-      var tasks = filesWithMatchingName.Select(entry => taskFactory.StartNew(() => {
+      var tasks = filesWithMatchingName.Select(entry => Task.Run(() => {
         try {
           _progressMonitor.OnFileSearched();
           var findStrEntries = _findStrMatcher(fileSystem, entry);
@@ -55,7 +54,7 @@ namespace mtfindstr {
           AddError(entry, e);
         }
       }));
-      return taskFactory.CreateCollection(tasks);
+      return Task.WhenAll(tasks);
     }
 
     private void AddFindStrResult(FileSystemEntry entry, IList<FindStrEntry> entries) {
