@@ -97,18 +97,14 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry>? DirectoryTraversed;
     public event Action<FileSystemEntry>? DirectoryCreated;
 
-    private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath, FullPathReference pathRef = default) {
-      TryGetDirectoryEntries(directoryPath, pathRef, out var entries);
+    private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
+      TryGetDirectoryEntries(directoryPath, out var entries);
       return entries;
     }
 
     private bool TryGetDirectoryEntries(FullPath directoryPath, out FromPool<List<FileSystemEntry>> entries) {
-      return TryGetDirectoryEntries(directoryPath, default, out entries);
-    }
-
-    private bool TryGetDirectoryEntries(FullPath directoryPath, FullPathReference pathRef, out FromPool<List<FileSystemEntry>> entries) {
       try {
-        entries = _fileSystem.GetDirectoryFiles(directoryPath, pathRef);
+        entries = _fileSystem.GetDirectoryFiles(directoryPath);
         return true;
       } catch (Exception e) {
         OnError(directoryPath, e);
@@ -260,14 +256,13 @@ namespace mtsuite.shared {
         return;
       }
 
-      var destDirRef = destinationDirectory.Path.ToFullPathReference();
       FromPool<List<FileSystemEntry>> destinationEntries;
       FromPool<SmallSet<FileSystemEntry>> destinationSet;
 
       try {
         destinationEntries = destinationDirectoryIsNew
           ? _entryListPool.AllocateFrom()
-          : GetDirectoryEntries(destinationPath, destDirRef);
+          : GetDirectoryEntries(destinationPath);
         destinationSet = _entrySetPool.AllocateFrom();
         destinationSet.Item.SetList(destinationEntries.Item);
       } catch {
@@ -296,13 +291,13 @@ namespace mtsuite.shared {
       }
 
       // 1. Process and copy files in current directory immediately
-      CopyFileEntries(sourceEntries.Item, destinationDirectory, destDirRef, fileComparer, destinationSet.Item);
+      CopyFileEntries(sourceEntries.Item, destinationDirectory, fileComparer, destinationSet.Item);
 
       // 2. Prepare subdirectories tasks without LINQ lambda allocations
       using (var subDirTaskList = _taskListPool.AllocateFrom()) {
         foreach (var sourceEntry in sourceEntries.Item) {
           if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-            var destinationEntryPath = new FullPath(destDirRef, sourceEntry.Name);
+            var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
             var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
             subDirTaskList.Item.Add(CopyDirectoryAsync(
               sourceEntry,
@@ -413,25 +408,23 @@ namespace mtsuite.shared {
     private void CopyFileEntries(
       List<FileSystemEntry> sourceEntries,
       FileSystemEntry destinationDirectory,
-      FullPathReference destDirRef,
       IFileComparer fileComparer,
       SmallSet<FileSystemEntry> destinationSet) {
       foreach (var entry in sourceEntries) {
-        CopyFileEntry(entry, destinationDirectory, destDirRef, fileComparer, destinationSet);
+        CopyFileEntry(entry, destinationDirectory, fileComparer, destinationSet);
       }
     }
     
     private void CopyFileEntry(
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationDirectory,
-      FullPathReference destDirRef,
       IFileComparer fileComparer,
       SmallSet<FileSystemEntry> destinationSet) {
 
       var destinationExists = destinationSet.TryGet(sourceEntry, out var destinationEntry);
       var destinationPath = destinationExists
         ? destinationEntry.Path
-        : new FullPath(destDirRef, sourceEntry.Name);
+        : new FullPath(destinationDirectory.Path, sourceEntry.Name);
 
       if (sourceEntry.IsFile || sourceEntry.IsReparsePoint) {
         if (destinationExists) {

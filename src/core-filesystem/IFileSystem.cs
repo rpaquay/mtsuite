@@ -48,7 +48,7 @@ namespace mtsuite.CoreFileSystem {
     /// Throw an exception if <paramref name="path"/> does not exist or is not
     /// accessible for some reason.
     /// </summary>
-    FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, FullPathReference pathRef = default);
+    FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path);
 
     /// <summary>
     /// Create a directory given its path. Throws if the directory already

@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+#nullable enable
 
 using mtsuite.CoreFileSystem.Utils;
 using System;
@@ -22,17 +22,17 @@ namespace mtsuite.CoreFileSystem {
   /// <summary>
   /// Represents a fully qualified path.
   /// </summary>
-  public struct FullPath : IEquatable<FullPath>, IComparable<FullPath> {
+  public sealed class FullPath : IEquatable<FullPath>, IComparable<FullPath> {
     private static readonly IPool<StringBuffer> FullNameBufferPool = new ConcurrentFixedSizeArrayPool<StringBuffer>(
       () => new StringBuffer(),
       sb => sb.Clear()
     );
       
     /// <summary>
-    /// If there is a parent path, <see cref="_parent"/> is a lightweight index reference into
-    /// <see cref="FullPathReferenceNoRelease"/>. If there is no parent path (root), <see cref="_parent.IsNull"/> is true.
+    /// If there is a parent path, <see cref="_parent"/> is a reference to the parent <see cref="FullPath"/>.
+    /// If there is no parent path (root), <see cref="_parent"/> is null.
     /// </summary>
-    private readonly FullPathReference _parent;
+    private readonly FullPath? _parent;
 
     /// <summary>
     /// The "name" part (i.e file name or directory name) of the path, which may be the root path name (e.g. "C:\").
@@ -40,17 +40,20 @@ namespace mtsuite.CoreFileSystem {
     private readonly string _name;
 
     /// <summary>
-    /// Construct a <see cref="FullPath"/> instance from a valid fully qualifed path
+    /// Construct a <see cref="FullPath"/> instance from a valid fully qualified path
     /// represented as the <see cref="string"/> <paramref name="path"/>.
     /// Throws an exception if the <paramref name="path"/> is not valid.
     /// </summary>
     public FullPath(string path) {
+      if (path == null)
+        ThrowArgumentNullException("path");
       if (!PathHelpers.IsPathAbsolute(path))
         ThrowArgumentException($"Path '{path}' should be absolute", "path");
       if (PathHelpers.HasAltDirectorySeparators(path))
         ThrowArgumentException($"Path '{path}' should only contain valid directory separators", "path");
-      _parent = CreatePath(PathHelpers.GetParent(path));
-      _name = _parent.IsNull ? path : PathHelpers.GetName(path);
+      var parentPath = PathHelpers.GetParent(path);
+      _parent = parentPath != null ? new FullPath(parentPath) : null;
+      _name = _parent == null ? path : (PathHelpers.GetName(path) ?? string.Empty);
     }
 
     /// <summary>
@@ -59,34 +62,22 @@ namespace mtsuite.CoreFileSystem {
     /// Throws an exception if the <paramref name="name"/> is not valid.
     /// </summary>
     public FullPath(FullPath parent, string name) {
-      if (parent._name == null)
+      if (parent == null)
         ThrowArgumentNullException("parent");
       if (string.IsNullOrEmpty(name))
         ThrowArgumentNullException("name");
       if (PathHelpers.HasAltDirectorySeparators(name) || PathHelpers.HasDirectorySeparators(name))
         ThrowArgumentException("Name should not contain directory separators", "name");
-      _parent = FullPathReferenceNoRelease.Allocate(parent);
-      _name = name;
-    }
-
-    public FullPath(FullPathReference parent, string name) {
-      if (string.IsNullOrEmpty(name))
-        ThrowArgumentNullException("name");
       _parent = parent;
       _name = name;
     }
 
-    private static FullPathReference CreatePath(string path) {
-      if (path == null) {
-        return default;
-      }
-      return FullPathReferenceNoRelease.Allocate(new FullPath(path));
-    }
-
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
     private static void ThrowArgumentNullException(string paramName) {
       throw new ArgumentNullException(paramName);
     }
 
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
     private static void ThrowArgumentException(string message, string paramName) {
       throw new ArgumentException(message, paramName);
     }
@@ -109,13 +100,11 @@ namespace mtsuite.CoreFileSystem {
 
     public FullPath? Parent {
       get {
-        if (_parent.IsNull)
-          return null;
-        return _parent.FullPath;
+        return _parent;
       }
     }
 
-    public readonly FullPath Combine(string name) {
+    public FullPath Combine(string name) {
       if (string.IsNullOrEmpty(name)) {
         ThrowArgumentNullException("name");
       }
@@ -156,8 +145,8 @@ namespace mtsuite.CoreFileSystem {
 
     public PathHelpers.RootPrefixKind PathKind {
       get {
-        if (!_parent.IsNull) {
-          return _parent.FullPath.PathKind;
+        if (_parent != null) {
+          return _parent.PathKind;
         }
 
         return PathHelpers.GetPathRootPrefixInfo(_name).RootPrefixKind;
@@ -171,10 +160,10 @@ namespace mtsuite.CoreFileSystem {
     }
 
     private void BuildPath(StringBuffer sb) {
-      if (!_parent.IsNull) {
-        _parent.FullPath.BuildPath(sb);
-        if (!_parent.FullPath.HasTrailingSeparator) {
-          char sep = _parent.FullPath.PathKind == PathHelpers.RootPrefixKind.UnixPath ? '/' : '\\';
+      if (_parent != null) {
+        _parent.BuildPath(sb);
+        if (!_parent.HasTrailingSeparator) {
+          char sep = _parent.PathKind == PathHelpers.RootPrefixKind.UnixPath ? '/' : '\\';
           sb.Append(sep);
         }
       }
@@ -195,23 +184,30 @@ namespace mtsuite.CoreFileSystem {
 
     private static int GetLength(FullPath path) {
       var result = path._name.Length;
-      while (!path._parent.IsNull) {
-        path = path._parent.FullPath;
-        result += path._name.Length;
-        if (!path.HasTrailingSeparator)
+      var cur = path._parent;
+      while (cur != null) {
+        result += cur._name.Length;
+        if (!cur.HasTrailingSeparator)
           result++;
+        cur = cur._parent;
       }
       return result;
     }
 
-    public bool Equals(FullPath other) {
-      return _parent == other._parent &&
+    public bool Equals(FullPath? other) {
+      if (ReferenceEquals(this, other))
+        return true;
+      if (other is null)
+        return false;
+      return Equals(_parent, other._parent) &&
              string.Equals(_name, other._name, PathHelpers.FileNameComparison);
     }
 
-    public override bool Equals(object obj) {
-      if (obj is FullPath) {
-        return Equals((FullPath)obj);
+    public override bool Equals(object? obj) {
+      if (ReferenceEquals(this, obj))
+        return true;
+      if (obj is FullPath other) {
+        return Equals(other);
       }
 
       return false;
@@ -219,12 +215,24 @@ namespace mtsuite.CoreFileSystem {
 
     public override int GetHashCode() {
       unchecked {
-        return (_parent.GetHashCode() * 397) ^
+        return ((_parent != null ? _parent.GetHashCode() : 0) * 397) ^
                PathHelpers.FileNameComparer.GetHashCode(_name);
       }
     }
 
-    public int CompareTo(FullPath other) {
+    public static bool operator ==(FullPath? left, FullPath? right) {
+      if (ReferenceEquals(left, right))
+        return true;
+      if (left is null || right is null)
+        return false;
+      return left.Equals(right);
+    }
+
+    public static bool operator !=(FullPath? left, FullPath? right) => !(left == right);
+
+    public int CompareTo(FullPath? other) {
+      if (other is null)
+        return 1;
       return ComparePaths(this, other);
     }
 
@@ -236,9 +244,16 @@ namespace mtsuite.CoreFileSystem {
     /// by using the CPU call stack (typically only 3 to 10 frames deep) instead of heap memory.
     /// </summary>
     public static int ComparePaths(FullPath x, FullPath y) {
+      if (ReferenceEquals(x, y))
+        return 0;
+      if (x is null)
+        return -1;
+      if (y is null)
+        return 1;
+
       // Fast path: if both paths share the exact same parent reference (e.g. sibling files in the same directory)
       // or are both root paths, we can directly compare their names in O(1) without computing depth or recursing.
-      if (x._parent == y._parent) {
+      if (Equals(x._parent, y._parent)) {
         return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
       }
 
@@ -248,14 +263,12 @@ namespace mtsuite.CoreFileSystem {
       // Walk back any excess depth on the deeper path so xAligned and yAligned have equal depths.
       FullPath xAligned = x;
       for (int i = depthX; i > depthY; i--) {
-        // ReSharper disable once PossibleInvalidOperationException
-        xAligned = xAligned.Parent.Value;
+        xAligned = xAligned.Parent!;
       }
 
       FullPath yAligned = y;
       for (int i = depthY; i > depthX; i--) {
-        // ReSharper disable once PossibleInvalidOperationException
-        yAligned = yAligned.Parent.Value;
+        yAligned = yAligned.Parent!;
       }
 
       // Compare segments from root down to the aligned depth.
@@ -268,12 +281,11 @@ namespace mtsuite.CoreFileSystem {
     }
 
     private static int CompareEqualDepth(FullPath x, FullPath y) {
-      if (x._parent == y._parent) {
+      if (Equals(x._parent, y._parent)) {
         return string.Compare(x.Name, y.Name, PathHelpers.FileNameComparison);
       }
 
-      // ReSharper disable twice PossibleInvalidOperationException
-      int parentCmp = CompareEqualDepth(x.Parent.Value, y.Parent.Value);
+      int parentCmp = CompareEqualDepth(x.Parent!, y.Parent!);
       if (parentCmp != 0)
         return parentCmp;
 
@@ -282,14 +294,10 @@ namespace mtsuite.CoreFileSystem {
 
     private static int GetDepth(FullPath path) {
       int depth = 0;
-      for (FullPath? cur = path; cur != null; cur = cur.Value.Parent) {
+      for (FullPath? cur = path; cur != null; cur = cur.Parent) {
         depth++;
       }
       return depth;
-    }
-
-    public FullPathReference ToFullPathReference() {
-      return FullPathReferenceNoRelease.Allocate(this);
     }
   }
 }

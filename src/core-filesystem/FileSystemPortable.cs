@@ -98,11 +98,11 @@ public class FileSystemPortable : IFileSystem {
     }
 
     private sealed class DirectoryEntriesEnumerator : FileSystemEnumerator<FileSystemEntry> {
-      private readonly FullPathReference _basePathRef;
+      private readonly FullPath _basePath;
 
-      public DirectoryEntriesEnumerator(FullPath basePath, FullPathReference basePathRef, EnumerationOptions options)
+      public DirectoryEntriesEnumerator(FullPath basePath, EnumerationOptions options)
         : base(basePath.FullName, options) {
-        _basePathRef = basePathRef.IsNull ? basePath.ToFullPathReference() : basePathRef;
+        _basePath = basePath;
       }
 
       protected override bool ShouldIncludeEntry(ref System.IO.Enumeration.FileSystemEntry entry) {
@@ -115,7 +115,7 @@ public class FileSystemPortable : IFileSystem {
 
       protected override FileSystemEntry TransformEntry(ref System.IO.Enumeration.FileSystemEntry fsEntry) {
         var fileName = fsEntry.FileName.ToString();
-        var entryPath = new FullPath(_basePathRef, fileName);
+        var entryPath = new FullPath(_basePath, fileName);
         var isDir = fsEntry.IsDirectory;
         var isReparse = (fsEntry.Attributes & FileAttributes.ReparsePoint) != 0;
         var length = (isDir || isReparse) ? 0 : fsEntry.Length;
@@ -124,10 +124,10 @@ public class FileSystemPortable : IFileSystem {
       }
     }
 
-    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path, FullPathReference pathRef = default) {
+    public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
       var list = _entryListPool.AllocateFrom();
       try {
-        using var enumerator = new DirectoryEntriesEnumerator(path, pathRef, _enumerationOptions);
+        using var enumerator = new DirectoryEntriesEnumerator(path, _enumerationOptions);
         while (enumerator.MoveNext()) {
           list.Item.Add(enumerator.Current);
         }
