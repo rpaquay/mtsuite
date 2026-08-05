@@ -15,7 +15,6 @@
 using System.Collections.Generic;
 using System.IO;
 using mtsuite.CoreFileSystem.ObjectPool;
-using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem {
   
@@ -24,10 +23,6 @@ namespace mtsuite.CoreFileSystem {
   /// all tools of "mtsuite" to work.
   /// </summary>
   public interface IFileSystem {
-    /// <summary>
-    /// Gets the <see cref="mtsuite.CoreFileSystem.Utils.StringSliceFactory"/> instance used by this file system.
-    /// </summary>
-    StringSliceFactory StringSliceFactory { get; }
 
     /// <summary>
     /// Returns the <see cref="FileSystemEntry"/> corresponding to the <paramref

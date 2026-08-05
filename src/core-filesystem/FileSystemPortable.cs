@@ -25,8 +25,6 @@ public class FileSystemPortable : IFileSystem {
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
     private readonly IPool<byte[]> _copyFileBufferPool = PoolFactory<byte[]>.Create(() => new byte[1024 * 1024]);
 
-    public StringSliceFactory StringSliceFactory => StringSliceFactory.Default;
-
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions {
       RecurseSubdirectories = false,
       AttributesToSkip = FileAttributes.None,
