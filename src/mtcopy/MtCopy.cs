@@ -59,6 +59,7 @@ namespace mtcopy {
         .WithString("destination-path", "The path of the destination directory", true)
         .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
         .WithSwitch("ft", "Compare file modification time (default)", "ft")
+        .WithSwitch("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -88,7 +89,12 @@ namespace mtcopy {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       }
 
-      var statistics = DoCopy(sourcePath, destinationPath, fileComparer);
+      var copyOptions = CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles;
+      if (parser.Contains("noclone")) {
+        copyOptions |= CopyOptions.NoClone;
+      }
+
+      var statistics = DoCopy(sourcePath, destinationPath, fileComparer, copyOptions);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
         ProgramHelpers.DisplayGcStatistics(_fileSystem);
@@ -109,6 +115,10 @@ namespace mtcopy {
     }
 
     public Statistics DoCopy(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer) {
+      return DoCopy(sourcePath, destinationPath, fileComparer, CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles);
+    }
+
+    public Statistics DoCopy(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer, CopyOptions copyOptions) {
       // Check source exists
       FileSystemEntry sourceDirectory;
       try {
@@ -138,7 +148,7 @@ namespace mtcopy {
       var task = _parallelFileSystem.CopyDirectoryAsync(
         sourceDirectory,
         destinationPath,
-        CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles,
+        copyOptions,
         fileComparer,
         destinationIsNew);
       _parallelFileSystem.WaitForTask(task);

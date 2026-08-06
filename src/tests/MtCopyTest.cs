@@ -495,4 +495,19 @@ public class MtCopyTest {
     Assert.AreEqual(1024 * 1024, new FileInfo(_destfs.Root.Path.Combine("large1.dat").FullName).Length);
     Assert.AreEqual(2 * 1024 * 1024, new FileInfo(_destfs.Root.Path.Combine("large2.dat").FullName).Length);
   }
+
+  [TestMethod]
+  public void MtCopyShouldSupportNoCloneFlag() {
+    // Prepare
+    _sourcefs.Root.CreateFile("file.txt", 100);
+
+    // Act - copy with NoClone option explicitly passed
+    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, mtsuite.shared.CopyOptions.SkipIdenticalFiles | mtsuite.shared.CopyOptions.NoClone);
+
+    // Assert
+    Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(0, stats.Errors.Count);
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
+  }
 }

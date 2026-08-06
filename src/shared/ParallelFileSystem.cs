@@ -304,7 +304,7 @@ namespace mtsuite.shared {
       // 1. Process files in current directory (small files synchronously, large files in background tasks)
       using var fileTaskList = _taskListPool.AllocateFrom();
       foreach (var entry in sourceEntries.Item) {
-        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, fileTaskList.Item);
+        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, fileTaskList.Item, options);
       }
 
       // 2. Prepare subdirectories tasks without LINQ lambda allocations
@@ -429,7 +429,8 @@ namespace mtsuite.shared {
       FileSystemEntry destinationDirectory,
       IFileComparer fileComparer,
       SmallSet<FileSystemEntry> destinationSet,
-      List<Task> fileTaskList) {
+      List<Task> fileTaskList,
+      CopyOptions options) {
 
       if (!sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
         return;
@@ -452,11 +453,16 @@ namespace mtsuite.shared {
         }
       }
 
+      var copyFileOptions = CopyFileOptions.Default;
+      if ((options & CopyOptions.NoClone) != 0) {
+        copyFileOptions |= CopyFileOptions.NoClone;
+      }
+
       // If file size is >= threshold, offload copying to a background task
       if (sourceEntry.IsFile && sourceEntry.FileSize >= LargeFileAsyncThreshold) {
-        fileTaskList.Add(Task.Run(() => PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists)));
+        fileTaskList.Add(Task.Run(() => PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions)));
       } else {
-        PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists);
+        PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions);
       }
     }
 
@@ -464,15 +470,16 @@ namespace mtsuite.shared {
       FileSystemEntry sourceEntry,
       FullPath destinationPath,
       FileSystemEntry destinationEntry,
-      bool destinationExists) {
+      bool destinationExists,
+      CopyFileOptions copyFileOptions) {
       var sw = _stopwatchFactory.Create();
       OnFileCopying(sourceEntry);
       try {
         var copyData = new CopyFileData(this, sw);
         if (destinationExists) {
-          _fileSystem.CopyFile(sourceEntry, destinationEntry, CopyFileOptions.Default, copyData, _copyFileCallback);
+          _fileSystem.CopyFile(sourceEntry, destinationEntry, copyFileOptions, copyData, _copyFileCallback);
         } else {
-          _fileSystem.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, copyData, _copyFileCallback);
+          _fileSystem.CopyFile(sourceEntry, destinationPath, copyFileOptions, copyData, _copyFileCallback);
         }
       } catch (Exception e) {
         OnError(sourceEntry.Path, e);

@@ -16,14 +16,20 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.IO.Enumeration;
+using System.Runtime.InteropServices;
 using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem;
 
 public class FileSystemPortable : IFileSystem {
+    [DllImport("libSystem", EntryPoint = "clonefile", SetLastError = true)]
+    private static extern int clonefile(string src, string dst, uint flags);
+
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
     private readonly IPool<byte[]> _copyFileBufferPool = PoolFactory<byte[]>.Create(() => new byte[1024 * 1024]);
+
+    public bool AllowCloning { get; set; } = true;
 
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions {
       RecurseSubdirectories = false,
@@ -189,8 +195,71 @@ public class FileSystemPortable : IFileSystem {
           }
         }
         
+        if (AllowCloning && (options & CopyFileOptions.NoClone) == 0 && OperatingSystem.IsMacOS()) {
+          if (TryCloneFile(sourceEntry, destinationPath, destinationEntry, options, param, callback)) {
+            return;
+          }
+        }
+
         CopyFileImpl(sourceEntry, destinationPath, options, param, callback);
       }
+    }
+
+    private bool TryCloneFile<T>(
+      FileSystemEntry sourceEntry,
+      FullPath destinationPath,
+      FileSystemEntry? destinationEntry,
+      CopyFileOptions copyFileOptions,
+      T param,
+      CopyFileCallback<T> callback) {
+
+      if (!OperatingSystem.IsMacOS()) {
+        return false;
+      }
+
+      // If destination exists, clonefile fails with EEXIST unless deleted first
+      if (destinationEntry.HasValue || File.Exists(destinationPath.FullName)) {
+        try {
+          File.Delete(destinationPath.FullName);
+        } catch {
+          // If destination cannot be deleted, fall back to streaming copy
+          return false;
+        }
+      }
+
+      int res = clonefile(sourceEntry.Path.FullName, destinationPath.FullName, 0);
+      if (res != 0) {
+        // clonefile failed (e.g. cross-volume copy or non-APFS volume), fall back to streaming copy
+        return false;
+      }
+
+      // Preserve timestamps
+      try {
+        File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
+      } catch {
+        // Best effort
+      }
+
+      // Preserve Unix file modes (POSIX permissions)
+      try {
+        var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
+        File.SetUnixFileMode(destinationPath.FullName, mode);
+      } catch {
+        // Best effort
+      }
+
+      // Preserve FileAttributes
+      try {
+        if (sourceEntry.FileAttributes != FileAttributes.Normal) {
+          File.SetAttributes(destinationPath.FullName, sourceEntry.FileAttributes);
+        }
+      } catch {
+        // Best effort
+      }
+
+      // Notify callback that file copy is complete
+      callback(ref sourceEntry, sourceEntry.FileSize, sourceEntry.FileSize, ref param);
+      return true;
     }
 
     private void CopyFileImpl<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, T param, CopyFileCallback<T> callback) {

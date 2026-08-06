@@ -60,6 +60,7 @@ namespace mtmir {
         .WithString("destination-path", "The path of the destination directory", true)
         .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
         .WithSwitch("ft", "Compare file modification time (default)", "ft")
+        .WithSwitch("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -89,7 +90,12 @@ namespace mtmir {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       }
 
-      var statistics = DoMirror(sourcePath, destinationPath, fileComparer);
+      var copyOptions = CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles | CopyOptions.DeleteExtraFiles;
+      if (parser.Contains("noclone")) {
+        copyOptions |= CopyOptions.NoClone;
+      }
+
+      var statistics = DoMirror(sourcePath, destinationPath, fileComparer, copyOptions);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
         ProgramHelpers.DisplayGcStatistics(_fileSystem);
@@ -110,6 +116,10 @@ namespace mtmir {
     }
 
     public Statistics DoMirror(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer) {
+      return DoMirror(sourcePath, destinationPath, fileComparer, CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles | CopyOptions.DeleteExtraFiles);
+    }
+
+    public Statistics DoMirror(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer, CopyOptions copyOptions) {
       // Check source exists
       FileSystemEntry sourceDirectory;
       try {
@@ -137,7 +147,7 @@ namespace mtmir {
       var task = _parallelFileSystem.CopyDirectoryAsync(
         sourceDirectory,
         destinationPath,
-        CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles | CopyOptions.DeleteExtraFiles,
+        copyOptions,
         fileComparer,
         destinationIsNew);
       _parallelFileSystem.WaitForTask(task);

@@ -81,5 +81,6 @@ namespace mtsuite.shared {
     SkipIdenticalFiles = 0x01,
     DeleteExtraFiles = 0x02,
     DeleteMismatchedFiles = 0x04,
+    NoClone = 0x08,
   }
 }
