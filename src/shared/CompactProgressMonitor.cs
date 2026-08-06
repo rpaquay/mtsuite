@@ -16,6 +16,8 @@ using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
   public class CompactProgressMonitor : ProgressMonitor<Statistics> {
+    public bool IsDryRun { get; set; }
+
     protected override void DisplayStatus(Statistics statistics) {
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = elapsed.TotalSeconds;
@@ -35,6 +37,9 @@ namespace mtsuite.shared {
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
+      var compactedLabel = IsDryRun ? "# of files to compact" : "# of files compacted";
+      var compactedShort = IsDryRun ? "to-compact" : "compacted";
+
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
@@ -42,7 +47,7 @@ namespace mtsuite.shared {
         new PrinterEntry("# of directories", sourceDirectoriesText, indent: 2, shortName: "directories", valueAlign: Align.Right),
         new PrinterEntry("# of files", sourceFilesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: sourceFilesExtraText),
         new PrinterEntry("Destination"),
-        new PrinterEntry("# of files compacted", filesCompactedText, indent: 2, shortName: "compacted", valueAlign: Align.Right, extraValue: filesCompactedExtraText),
+        new PrinterEntry(compactedLabel, filesCompactedText, indent: 2, shortName: compactedShort, valueAlign: Align.Right, extraValue: filesCompactedExtraText),
         new PrinterEntry("# of files skipped", filesSkippedText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: filesSkippedExtraText),
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),

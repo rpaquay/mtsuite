@@ -45,7 +45,7 @@ namespace mtsuite.shared {
 
     Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options, IFileComparer fileComparer, bool destinationDirectoryIsNew);
 
-    Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, IFileComparer fileComparer);
+    Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, IFileComparer fileComparer, bool dryRun = false);
 
     /// <summary>
     /// Delete a file system entry. Recurse through directories if

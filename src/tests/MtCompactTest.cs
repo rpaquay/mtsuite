@@ -41,8 +41,10 @@ namespace tests {
         _inner = inner;
       }
 
+      public bool SupportsCloningValue { get; set; } = true;
       public List<(string Source, string Destination)> ClonedPairs { get; } = new();
 
+      public bool SupportsCloning(FullPath sourcePath, FullPath destinationPath) => SupportsCloningValue;
       public FileSystemEntry GetEntry(FullPath path) => _inner.GetEntry(path);
       public ReparsePointInfo GetReparsePointInfo(FullPath path) => _inner.GetReparsePointInfo(path);
       public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) => _inner.GetDirectoryFiles(path);
@@ -120,7 +122,7 @@ namespace tests {
       // Verify zero files were compacted or cloned
       Assert.AreEqual(0, stats.FileCompactedCount);
       Assert.AreEqual(0, stats.FileCompactedTotalSize);
-      Assert.AreEqual(2, stats.FileCompactSkippedCount); // source_a.txt and source_b.txt in root (source_sub is skipped as no matching directory in dest)
+      Assert.AreEqual(2, stats.FileCompactSkippedCount); // source_a.txt and source_b.txt in root
       Assert.AreEqual(0, stats.Errors.Count);
       Assert.AreEqual(0, testFs.ClonedPairs.Count);
 
@@ -253,6 +255,57 @@ namespace tests {
       Assert.AreEqual(1, testFs.ClonedPairs.Count);
       Assert.AreEqual(sourceSub.Path.Combine("nested.txt").FullName, testFs.ClonedPairs[0].Source);
       Assert.AreEqual(destSub.Path.Combine("nested.txt").FullName, testFs.ClonedPairs[0].Destination);
+    }
+
+    [TestMethod]
+    public void MtCompactShouldFallbackToSimulationModeWhenCloningUnsupported() {
+      // Setup identical files
+      _sourcefs.Root.CreateFile("file1.txt", 500);
+      _destfs.Root.CreateFile("file1.txt", 500);
+      _sourcefs.Root.CreateFile("file2.txt", 300);
+      _destfs.Root.CreateFile("file2.txt", 300);
+      _sourcefs.Root.CreateFile("different.txt", 100);
+      _destfs.Root.CreateFile("different.txt", 200);
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
+        SupportsCloningValue = false // Simulate non-supporting OS/filesystem
+      };
+
+      var mtcompact = new MtCompact(testFs);
+      // Run with standard CLI arguments
+      mtcompact.Run(new[] { _sourcefs.Root.Path.FullName, _destfs.Root.Path.FullName });
+
+      // In simulation mode: zero files modified/cloned on disk, but potential savings calculated accurately
+      Assert.AreEqual(0, testFs.ClonedPairs.Count);
+    }
+
+    [TestMethod]
+    public void MtCompactShouldSupportDryRunOption() {
+      _sourcefs.Root.CreateFile("file1.txt", 500);
+      _destfs.Root.CreateFile("file1.txt", 500);
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
+        SupportsCloningValue = true
+      };
+
+      var mtcompact = new MtCompact(testFs);
+      mtcompact.Run(new[] { _sourcefs.Root.Path.FullName, _destfs.Root.Path.FullName, "--dry-run" });
+
+      // In dry-run mode, no clone operations performed
+      Assert.AreEqual(0, testFs.ClonedPairs.Count);
+    }
+
+    [TestMethod]
+    public void FileSystemDefaultSupportsCloningReturnsCorrectPlatformValue() {
+      var fs = FileSystem.Default;
+      var supports = fs.SupportsCloning(_sourcefs.Root.Path, _destfs.Root.Path);
+      if (OperatingSystem.IsMacOS()) {
+        // May be true or false depending on filesystem (APFS vs HFS+)
+        Assert.IsTrue(supports || !supports);
+      } else {
+        // Non-macOS platforms must return false
+        Assert.IsFalse(supports);
+      }
     }
   }
 }

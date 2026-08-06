@@ -493,10 +493,11 @@ namespace mtsuite.shared {
     public Task CompactDirectoryAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
-      IFileComparer fileComparer) {
+      IFileComparer fileComparer,
+      bool dryRun = false) {
       return Task.Run(async () => {
         OnDirectoryTraversing(sourceDirectory);
-        await CompactDirectoryEntriesAsync(sourceDirectory, destinationPath, fileComparer).ConfigureAwait(false);
+        await CompactDirectoryEntriesAsync(sourceDirectory, destinationPath, fileComparer, dryRun).ConfigureAwait(false);
         OnDirectoryTraversed(sourceDirectory);
       });
     }
@@ -504,7 +505,8 @@ namespace mtsuite.shared {
     private async Task CompactDirectoryEntriesAsync(
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
-      IFileComparer fileComparer) {
+      IFileComparer fileComparer,
+      bool dryRun) {
 
       OnEntriesDiscovering(sourceDirectory);
       if (!TryGetDirectoryEntries(sourceDirectory.Path, out var sourceEntries)) {
@@ -527,9 +529,9 @@ namespace mtsuite.shared {
             try {
               if (fileComparer.CompareFiles(entry, destinationEntry)) {
                 if (entry.FileSize >= LargeFileAsyncThreshold) {
-                  fileTaskList.Item.Add(Task.Run(() => PerformCompactFile(entry, destinationEntry.Path)));
+                  fileTaskList.Item.Add(Task.Run(() => PerformCompactFile(entry, destinationEntry.Path, dryRun)));
                 } else {
-                  PerformCompactFile(entry, destinationEntry.Path);
+                  PerformCompactFile(entry, destinationEntry.Path, dryRun);
                 }
               } else {
                 OnFileCompactSkipped(entry);
@@ -547,7 +549,7 @@ namespace mtsuite.shared {
         foreach (var sourceEntry in sourceEntries.Item) {
           if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
             if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
-              subDirTaskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer));
+              subDirTaskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer, dryRun));
             }
           }
         }
@@ -566,13 +568,15 @@ namespace mtsuite.shared {
       }
     }
 
-    private void PerformCompactFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
+    private void PerformCompactFile(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
       var sw = _stopwatchFactory.Create();
       OnFileCompacting(sourceEntry);
-      try {
-        _fileSystem.CloneFile(sourceEntry, destinationPath);
-      } catch (Exception e) {
-        OnError(sourceEntry.Path, e);
+      if (!dryRun) {
+        try {
+          _fileSystem.CloneFile(sourceEntry, destinationPath);
+        } catch (Exception e) {
+          OnError(sourceEntry.Path, e);
+        }
       }
       OnFileCompacted(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
     }

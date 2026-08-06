@@ -322,38 +322,73 @@ public class FileSystemPortable : IFileSystem {
       }
     }
 
+    public bool SupportsCloning(FullPath sourcePath, FullPath destinationPath) {
+      if (!OperatingSystem.IsMacOS()) {
+        return false;
+      }
+
+      try {
+        if (!Directory.Exists(sourcePath.FullName) && !File.Exists(sourcePath.FullName)) {
+          return false;
+        }
+        if (!Directory.Exists(destinationPath.FullName) && !File.Exists(destinationPath.FullName)) {
+          return false;
+        }
+
+        string sourceDir = Directory.Exists(sourcePath.FullName) ? sourcePath.FullName : (Path.GetDirectoryName(sourcePath.FullName) ?? sourcePath.FullName);
+        string destDir = Directory.Exists(destinationPath.FullName) ? destinationPath.FullName : (Path.GetDirectoryName(destinationPath.FullName) ?? destinationPath.FullName);
+
+        string probeSrc = Path.Combine(sourceDir, ".mtcompact_probe_" + Guid.NewGuid().ToString("N") + ".tmp");
+        string probeDst = Path.Combine(destDir, ".mtcompact_probe_" + Guid.NewGuid().ToString("N") + ".tmp");
+
+        try {
+          File.WriteAllBytes(probeSrc, Array.Empty<byte>());
+          int res = clonefile(probeSrc, probeDst, 0);
+          return res == 0;
+        } finally {
+          try { if (File.Exists(probeSrc)) File.Delete(probeSrc); } catch { }
+          try { if (File.Exists(probeDst)) File.Delete(probeDst); } catch { }
+        }
+      } catch {
+        return false;
+      }
+    }
+
     public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
       if (!OperatingSystem.IsMacOS()) {
         throw new PlatformNotSupportedException("File cloning is currently only supported on macOS (APFS).");
       }
 
-      if (File.Exists(destinationPath.FullName)) {
-        File.Delete(destinationPath.FullName);
-      }
+      string destDir = Path.GetDirectoryName(destinationPath.FullName) ?? destinationPath.FullName;
+      string tempDst = Path.Combine(destDir, ".mtcompact_tmp_" + Guid.NewGuid().ToString("N") + ".tmp");
 
-      int res = clonefile(sourceEntry.Path.FullName, destinationPath.FullName, 0);
+      int res = clonefile(sourceEntry.Path.FullName, tempDst, 0);
       if (res != 0) {
         int errno = Marshal.GetLastPInvokeError();
+        try { if (File.Exists(tempDst)) File.Delete(tempDst); } catch { }
         throw new IOException($"Failed to clone file '{sourceEntry.Path}' to '{destinationPath}': errno {errno}");
       }
 
       // Preserve timestamps
       try {
-        File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
+        File.SetLastWriteTimeUtc(tempDst, sourceEntry.LastWriteTimeUtc);
       } catch { }
 
       // Preserve Unix file modes (POSIX permissions)
       try {
         var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
-        File.SetUnixFileMode(destinationPath.FullName, mode);
+        File.SetUnixFileMode(tempDst, mode);
       } catch { }
 
       // Preserve FileAttributes
       try {
         if (sourceEntry.FileAttributes != FileAttributes.Normal) {
-          File.SetAttributes(destinationPath.FullName, sourceEntry.FileAttributes);
+          File.SetAttributes(tempDst, sourceEntry.FileAttributes);
         }
       } catch { }
+
+      // Atomic replace
+      File.Move(tempDst, destinationPath.FullName, overwrite: true);
     }
 
     public FileStream OpenFile(FullPath path, FileAccess access) {

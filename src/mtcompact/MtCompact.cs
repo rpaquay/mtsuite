@@ -52,6 +52,7 @@ namespace mtcompact {
         .WithString("destination-path", "The path of the destination directory", true)
         .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
         .WithSwitch("ft", "Compare file modification time (default)", "ft")
+        .WithSwitch("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -80,8 +81,21 @@ namespace mtcompact {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       }
 
-      var statistics = DoCompact(sourcePath, destinationPath, fileComparer);
-      DisplayResults(statistics);
+      var explicitDryRun = parser.Contains("dry-run");
+      var supportsCloning = _fileSystem.SupportsCloning(sourcePath, destinationPath);
+      var isDryRun = explicitDryRun || !supportsCloning;
+
+      if (!supportsCloning) {
+        Console.WriteLine("NOTICE: File cloning is not supported on this platform/filesystem.");
+        Console.WriteLine("Running in SIMULATION mode to compute potential space savings.");
+        Console.WriteLine();
+      } else if (explicitDryRun) {
+        Console.WriteLine("NOTICE: Running in SIMULATION mode (--dry-run). No files will be modified.");
+        Console.WriteLine();
+      }
+
+      var statistics = DoCompact(sourcePath, destinationPath, fileComparer, isDryRun);
+      DisplayResults(statistics, isDryRun);
       if (parser.Contains("gc")) {
         ProgramHelpers.DisplayGcStatistics(_fileSystem);
       }
@@ -92,6 +106,7 @@ namespace mtcompact {
 
     private static void DisplayUsage(IList<ArgDef> argumentDefinitions) {
       Console.WriteLine("Compacts identical files between source and destination directories using Copy-on-Write (cloning).");
+      Console.WriteLine("If file cloning is not supported on the host OS or filesystem, automatically runs in simulation mode.");
       Console.WriteLine();
       Console.WriteLine("Usage: {0} {1}", Process.GetCurrentProcess().ProcessName,
         ArgumentsHelper.BuildUsageSummary(argumentDefinitions));
@@ -99,7 +114,7 @@ namespace mtcompact {
       ArgumentsHelper.PrintArgumentUsageSummary(argumentDefinitions);
     }
 
-    public Statistics DoCompact(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer) {
+    public Statistics DoCompact(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer, bool isDryRun = false) {
       FileSystemEntry sourceDirectory;
       try {
         sourceDirectory = _fileSystem.GetEntry(sourcePath);
@@ -108,16 +123,24 @@ namespace mtcompact {
         throw new CommandLineReturnValueException(8);
       }
 
-      Console.WriteLine("Compacting identical files from \"{0}\" to \"{1}\"",
-        PathHelpers.StripLongPathPrefix(sourcePath.FullName), PathHelpers.StripLongPathPrefix(destinationPath.FullName));
+      if (isDryRun) {
+        Console.WriteLine("Analyzing identical files between \"{0}\" and \"{1}\"",
+          PathHelpers.StripLongPathPrefix(sourcePath.FullName), PathHelpers.StripLongPathPrefix(destinationPath.FullName));
+      } else {
+        Console.WriteLine("Compacting identical files from \"{0}\" to \"{1}\"",
+          PathHelpers.StripLongPathPrefix(sourcePath.FullName), PathHelpers.StripLongPathPrefix(destinationPath.FullName));
+      }
+
       _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.DestinationPath = destinationPath;
+      _progressMonitor.IsDryRun = isDryRun;
       _progressMonitor.Start();
 
       var task = _parallelFileSystem.CompactDirectoryAsync(
         sourceDirectory,
         destinationPath,
-        fileComparer);
+        fileComparer,
+        isDryRun);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return _progressMonitor.GetStatistics();
@@ -132,8 +155,8 @@ namespace mtcompact {
       Console.WriteLine();
     }
 
-    private static void DisplayResults(Statistics statistics) {
-      ProgramHelpers.DisplayCompactStatistics(statistics);
+    private static void DisplayResults(Statistics statistics, bool isDryRun = false) {
+      ProgramHelpers.DisplayCompactStatistics(statistics, isDryRun);
     }
   }
 }

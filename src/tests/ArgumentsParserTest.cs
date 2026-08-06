@@ -179,13 +179,13 @@ namespace tests {
     }
 
     [TestMethod]
-    public void ArgumentsParserThreadCountDefaultIsMaxCoresAnd16() {
+    public void ArgumentsParserThreadCountDefaultIsMinCoresAnd16() {
       var builder = new ArgumentDefinitionBuilder()
         .WithThreadCountSwitch();
       var parser = new ArgumentsParser(builder.Build(), Array.Empty<string>());
       parser.Parse();
       Assert.IsTrue(parser.IsValid);
-      Assert.AreEqual(Math.Max(Environment.ProcessorCount, 16), parser["thread-count"].IntValue);
+      Assert.AreEqual(Math.Min(Environment.ProcessorCount, 16), parser["thread-count"].IntValue);
     }
 
     [TestMethod]

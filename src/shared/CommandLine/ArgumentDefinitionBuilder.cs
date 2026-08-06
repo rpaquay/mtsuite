@@ -108,10 +108,10 @@ namespace mtsuite.shared.CommandLine {
     public ArgumentDefinitionBuilder WithThreadCountSwitch() {
       return WithIntFlag(
         "thread-count",
-        "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=max(# cores, 16))",
+        "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=min(# cores, 16))",
         "t",
         "count",
-        Math.Max(Environment.ProcessorCount, 16),
+        Math.Min(Environment.ProcessorCount, 16),
         value => {
           if (value < 1)
             return "Thread count must be greater or equal to 1";
