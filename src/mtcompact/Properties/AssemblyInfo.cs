@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,16 @@
 
 using System.Reflection;
 using System.Runtime.InteropServices;
-using mtsuite.shared;
+using mtsuite.CoreFileSystem;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("mtfindstr")]
+[assembly: AssemblyTitle("mtcompact")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("mtfindstr")]
+[assembly: AssemblyProduct("mtcompact")]
 [assembly: AssemblyCopyright("Copyright ©  2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -34,7 +34,7 @@ using mtsuite.shared;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("8b2a402c-97aa-4797-aa85-fa9c7d8f06f1")]
+[assembly: Guid("b3564ac7-6b18-4720-b3b1-d42385c310d9")]
 
 // Version information for an assembly consists of the following four values:
 //

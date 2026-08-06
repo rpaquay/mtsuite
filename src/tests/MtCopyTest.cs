@@ -1,4 +1,4 @@
-// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -510,4 +510,4 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.Errors.Count);
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
   }
-}
+}
