@@ -461,4 +461,38 @@ public class MtCopyTest {
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("FILE.txt").FullName));
   }
+
+  [TestMethod]
+  public void MtCopyShouldCopyLargeAndSmallFilesInParallel() {
+    // Prepare
+    _sourcefs.Root.CreateFile("small1.txt", 100);
+    _sourcefs.Root.CreateFile("small2.txt", 200);
+    _sourcefs.Root.CreateFile("large1.dat", 1024 * 1024); // 1 MB
+    _sourcefs.Root.CreateFile("large2.dat", 2 * 1024 * 1024); // 2 MB
+
+    var sub = _sourcefs.Root.CreateDirectory("subdir");
+    sub.CreateFile("subsmall.txt", 50);
+    sub.CreateFile("sublarge.dat", 1024 * 1024);
+
+    // Act - copy with threshold lower than 1MB (e.g. 512KB) to exercise async task path
+    var pfs = new mtsuite.shared.ParallelFileSystem(_sourcefs.FileSystem) {
+      LargeFileAsyncThreshold = 512 * 1024
+    };
+    var copyProgress = new mtsuite.shared.CopyProgressMonitor();
+    var sourceEntry = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
+    var task = pfs.CopyDirectoryAsync(sourceEntry, _destfs.Root.Path, mtsuite.shared.CopyOptions.SkipIdenticalFiles, _fileComparer, true);
+    pfs.WaitForTask(task);
+    var stats = copyProgress.GetStatistics();
+
+    // Assert
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("small1.txt").FullName));
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("small2.txt").FullName));
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("large1.dat").FullName));
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("large2.dat").FullName));
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("subdir").Combine("subsmall.txt").FullName));
+    Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("subdir").Combine("sublarge.dat").FullName));
+    Assert.AreEqual(100, new FileInfo(_destfs.Root.Path.Combine("small1.txt").FullName).Length);
+    Assert.AreEqual(1024 * 1024, new FileInfo(_destfs.Root.Path.Combine("large1.dat").FullName).Length);
+    Assert.AreEqual(2 * 1024 * 1024, new FileInfo(_destfs.Root.Path.Combine("large2.dat").FullName).Length);
+  }
 }

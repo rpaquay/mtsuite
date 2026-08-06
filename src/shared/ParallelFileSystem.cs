@@ -80,6 +80,17 @@ namespace mtsuite.shared {
 
     public bool ParallelFileCopy { get; set; }
 
+    /// <summary>
+    /// Default file size threshold (10 MB) above which file copying is offloaded to a background task.
+    /// </summary>
+    public const long DefaultLargeFileAsyncThreshold = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// File size threshold in bytes above which file copying is offloaded to a background task
+    /// to avoid blocking directory traversal and other concurrent operations.
+    /// </summary>
+    public long LargeFileAsyncThreshold { get; set; } = DefaultLargeFileAsyncThreshold;
+
     public event Action<FullPath, Exception>? Error;
     public event Action? Pulse;
     public event Action<FileSystemEntry>? EntriesDiscovering;
@@ -290,8 +301,11 @@ namespace mtsuite.shared {
         await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
       }
 
-      // 1. Process and copy files in current directory immediately
-      CopyFileEntries(sourceEntries.Item, destinationDirectory, fileComparer, destinationSet.Item);
+      // 1. Process files in current directory (small files synchronously, large files in background tasks)
+      using var fileTaskList = _taskListPool.AllocateFrom();
+      foreach (var entry in sourceEntries.Item) {
+        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, fileTaskList.Item);
+      }
 
       // 2. Prepare subdirectories tasks without LINQ lambda allocations
       using (var subDirTaskList = _taskListPool.AllocateFrom()) {
@@ -310,13 +324,18 @@ namespace mtsuite.shared {
           }
         }
 
-        // 3. Recycle all pooled collections immediately before waiting for subdirectories
+        // 3. Recycle all pooled collections immediately before waiting
         entriesToDelete.Dispose();
         sourceEntries.Dispose();
         destinationEntries.Dispose();
         destinationSet.Dispose();
 
-        if (subDirTaskList.Item.Count > 0) {
+        // 4. Await both large files in the current directory and all subdirectories
+        if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
+        } else if (fileTaskList.Item.Count > 0) {
+          await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
+        } else if (subDirTaskList.Item.Count > 0) {
           await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
         }
       }
@@ -405,54 +424,60 @@ namespace mtsuite.shared {
       public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     }
 
-    private void CopyFileEntries(
-      List<FileSystemEntry> sourceEntries,
-      FileSystemEntry destinationDirectory,
-      IFileComparer fileComparer,
-      SmallSet<FileSystemEntry> destinationSet) {
-      foreach (var entry in sourceEntries) {
-        CopyFileEntry(entry, destinationDirectory, fileComparer, destinationSet);
-      }
-    }
-    
-    private void CopyFileEntry(
+    private void PerformOrScheduleFileEntryCopy(
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationDirectory,
       IFileComparer fileComparer,
-      SmallSet<FileSystemEntry> destinationSet) {
+      SmallSet<FileSystemEntry> destinationSet,
+      List<Task> fileTaskList) {
+
+      if (!sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
+        return;
+      }
 
       var destinationExists = destinationSet.TryGet(sourceEntry, out var destinationEntry);
       var destinationPath = destinationExists
         ? destinationEntry.Path
         : new FullPath(destinationDirectory.Path, sourceEntry.Name);
 
-      if (sourceEntry.IsFile || sourceEntry.IsReparsePoint) {
-        if (destinationExists) {
-          try {
-            if (fileComparer.CompareFiles(sourceEntry, destinationEntry)) {
-              OnFileCopySkipped(sourceEntry);
-              return;
-            }
-          } catch (Exception e) {
-            // If we can't compare files, log error and continue with normal copy operation.
-            OnError(sourceEntry.Path, e);
-          }
-        }
-
-        var sw = _stopwatchFactory.Create();
-        OnFileCopying(sourceEntry);
+      if (destinationExists) {
         try {
-          var copyData = new CopyFileData(this, sw); 
-          if (destinationExists) {
-            _fileSystem.CopyFile(sourceEntry, destinationEntry, CopyFileOptions.Default, copyData, _copyFileCallback);
-          } else {
-            _fileSystem.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, copyData, _copyFileCallback);
+          if (fileComparer.CompareFiles(sourceEntry, destinationEntry)) {
+            OnFileCopySkipped(sourceEntry);
+            return;
           }
         } catch (Exception e) {
+          // If we can't compare files, log error and continue with normal copy operation.
           OnError(sourceEntry.Path, e);
         }
-        OnFileCopied(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
       }
+
+      // If file size is >= threshold, offload copying to a background task
+      if (sourceEntry.IsFile && sourceEntry.FileSize >= LargeFileAsyncThreshold) {
+        fileTaskList.Add(Task.Run(() => PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists)));
+      } else {
+        PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists);
+      }
+    }
+
+    private void PerformCopyFile(
+      FileSystemEntry sourceEntry,
+      FullPath destinationPath,
+      FileSystemEntry destinationEntry,
+      bool destinationExists) {
+      var sw = _stopwatchFactory.Create();
+      OnFileCopying(sourceEntry);
+      try {
+        var copyData = new CopyFileData(this, sw);
+        if (destinationExists) {
+          _fileSystem.CopyFile(sourceEntry, destinationEntry, CopyFileOptions.Default, copyData, _copyFileCallback);
+        } else {
+          _fileSystem.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, copyData, _copyFileCallback);
+        }
+      } catch (Exception e) {
+        OnError(sourceEntry.Path, e);
+      }
+      OnFileCopied(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
     }
 
     /// <summary>
