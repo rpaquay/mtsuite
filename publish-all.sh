@@ -54,8 +54,9 @@ PLATFORMS=(
   "win-arm64"
 )
 
-# The 6 applications in mtsuite
+# The applications in mtsuite
 APPS=(
+  "mtcompact"
   "mtcopy"
   "mtdel"
   "mtfind"
@@ -76,12 +77,13 @@ for RID in "${PLATFORMS[@]}"; do
   # Publish solution for the target RID
   $DOTNET publish src/mtsuite.sln -c Release -r "$RID" --nologo
 
-  # Setup staging folder
-  STAGE_DIR="$PUBLISH_ROOT/staging/$RID"
-  rm -rf "$STAGE_DIR"
-  mkdir -p "$STAGE_DIR"
+  # Target directory per platform (unzipped folder)
+  PACKAGE_NAME="mtsuite-${VERSION}-${RID}"
+  OUT_DIR="$PUBLISH_ROOT/$PACKAGE_NAME"
+  rm -rf "$OUT_DIR"
+  mkdir -p "$OUT_DIR"
 
-  # Copy the 6 binaries to staging
+  # Copy the binaries to target folder
   IS_WINDOWS=false
   if [[ "$RID" == win-* ]]; then
     IS_WINDOWS=true
@@ -100,36 +102,24 @@ for RID in "${PLATFORMS[@]}"; do
       exit 1
     fi
 
-    cp "$BIN_PATH" "$STAGE_DIR/"
-    chmod +x "$STAGE_DIR/$BIN_NAME"
+    cp "$BIN_PATH" "$OUT_DIR/"
+    chmod +x "$OUT_DIR/$BIN_NAME"
   done
 
-  # Target zip directory per platform
-  PLATFORM_OUT_DIR="$PUBLISH_ROOT/$RID"
-  mkdir -p "$PLATFORM_OUT_DIR"
+  # Create flat zip file
+  ZIP_FILE="$PUBLISH_ROOT/${PACKAGE_NAME}.zip"
+  rm -f "$ZIP_FILE"
 
-  ZIP_FILE="$PLATFORM_OUT_DIR/mtsuite-${VERSION}.zip"
-  NAMED_ZIP_FILE="$PUBLISH_ROOT/mtsuite-${RID}-${VERSION}.zip"
-
-  rm -f "$ZIP_FILE" "$NAMED_ZIP_FILE"
-
-  # Create zip file containing the 6 apps
-  (cd "$STAGE_DIR" && zip -q -9 -r "$SCRIPT_DIR/$ZIP_FILE" .)
-  cp "$ZIP_FILE" "$NAMED_ZIP_FILE"
-
-  # Cleanup staging
-  rm -rf "$STAGE_DIR"
+  (cd "$OUT_DIR" && zip -q -9 -r "$SCRIPT_DIR/$ZIP_FILE" .)
 
   ZIP_SIZE=$(du -h "$ZIP_FILE" | cut -f1)
-  echo "Created: $ZIP_FILE ($ZIP_SIZE)"
-  echo "Created: $NAMED_ZIP_FILE ($ZIP_SIZE)"
+  echo "Created directory: $OUT_DIR"
+  echo "Created archive:   $ZIP_FILE ($ZIP_SIZE)"
 done
-
-rm -rf "$PUBLISH_ROOT/staging"
 
 echo ""
 echo "================================================================="
-echo " Publish completed successfully! Generated Zip Archives:"
+echo " Publish completed successfully! Generated Packages:"
 echo "================================================================="
-ls -lh "$PUBLISH_ROOT"/*/*.zip "$PUBLISH_ROOT"/*.zip
+ls -lhd "$PUBLISH_ROOT"/*/ "$PUBLISH_ROOT"/*.zip
 echo "================================================================="

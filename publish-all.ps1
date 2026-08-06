@@ -49,6 +49,7 @@ $Platforms = @(
 )
 
 $Apps = @(
+  "mtcompact",
   "mtcopy",
   "mtdel",
   "mtfind",
@@ -71,10 +72,10 @@ foreach ($rid in $Platforms) {
   # Run dotnet publish
   dotnet publish "src\mtsuite.sln" -c Release -r $rid --nologo
 
-  # Setup staging
-  $stageDir = Join-Path $PublishRoot "staging\$rid"
-  if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
-  New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
+  $packageName = "mtsuite-$Version-$rid"
+  $outDir = Join-Path $PublishRoot $packageName
+  if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
+  New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 
   $isWindows = $rid.StartsWith("win-")
 
@@ -87,35 +88,21 @@ foreach ($rid in $Platforms) {
       exit 1
     }
 
-    Copy-Item $binPath -Destination (Join-Path $stageDir $binName)
+    Copy-Item $binPath -Destination (Join-Path $outDir $binName)
   }
 
-  $platformOutDir = Join-Path $PublishRoot $rid
-  if (!(Test-Path $platformOutDir)) {
-    New-Item -ItemType Directory -Path $platformOutDir -Force | Out-Null
-  }
-
-  $zipFile = Join-Path $platformOutDir "mtsuite-$Version.zip"
-  $namedZipFile = Join-Path $PublishRoot "mtsuite-$rid-$Version.zip"
-
+  $zipFile = Join-Path $PublishRoot "$packageName.zip"
   if (Test-Path $zipFile) { Remove-Item $zipFile -Force }
-  if (Test-Path $namedZipFile) { Remove-Item $namedZipFile -Force }
 
-  Compress-Archive -Path "$stageDir\*" -DestinationPath $zipFile -CompressionLevel Optimal
-  Copy-Item $zipFile -Destination $namedZipFile
-
-  Remove-Item $stageDir -Recurse -Force
+  Compress-Archive -Path "$outDir\*" -DestinationPath $zipFile -CompressionLevel Optimal
 
   $size = "{0:N2} MB" -f ((Get-Item $zipFile).Length / 1MB)
-  Write-Host "Created: $zipFile ($size)" -ForegroundColor Green
-  Write-Host "Created: $namedZipFile ($size)" -ForegroundColor Green
+  Write-Host "Created directory: $outDir" -ForegroundColor Green
+  Write-Host "Created archive:   $zipFile ($size)" -ForegroundColor Green
 }
-
-$stagingRoot = Join-Path $PublishRoot "staging"
-if (Test-Path $stagingRoot) { Remove-Item $stagingRoot -Recurse -Force }
 
 Write-Host ""
 Write-Host "=================================================================" -ForegroundColor Cyan
-Write-Host " Publish completed successfully! Generated Zip Archives:" -ForegroundColor Cyan
+Write-Host " Publish completed successfully! Generated Packages:" -ForegroundColor Cyan
 Write-Host "=================================================================" -ForegroundColor Cyan
-Get-ChildItem -Path $PublishRoot -Filter "*.zip" -Recurse | Select-Object FullName, @{Name="Size(MB)";Expression={"{0:N2}" -f ($_.Length / 1MB)}} | Format-Table -AutoSize
+Get-ChildItem -Path $PublishRoot -Filter "mtsuite-*" | Select-Object FullName, Mode | Format-Table -AutoSize
