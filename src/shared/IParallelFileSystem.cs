@@ -31,6 +31,9 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> FileCopying;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesThisChunk*/> FileCopyingProgress;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCopied;
+    event Action<FileSystemEntry> FileCompacting;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCompacted;
+    event Action<FileSystemEntry> FileCompactSkipped;
     event Action<FileSystemEntry> DirectoryTraversing;
     event Action<FileSystemEntry> DirectoryTraversed;
     event Action<FileSystemEntry> DirectoryCreated;
@@ -41,6 +44,8 @@ namespace mtsuite.shared {
     Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false);
 
     Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options, IFileComparer fileComparer, bool destinationDirectoryIsNew);
+
+    Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, IFileComparer fileComparer);
 
     /// <summary>
     /// Delete a file system entry. Recurse through directories if

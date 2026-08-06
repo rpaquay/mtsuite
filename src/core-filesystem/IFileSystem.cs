@@ -98,6 +98,12 @@ namespace mtsuite.CoreFileSystem {
     void CopyFile<T>(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback);
     
     /// <summary>
+    /// Clones a file using Copy-on-Write (CoW) filesystem semantics (e.g. APFS on macOS).
+    /// Throws an exception if cloning is not supported or fails.
+    /// </summary>
+    void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath);
+
+    /// <summary>
     /// Open an existing file given its <paramref name="path"/>. Throws an
     /// exception if the file does not exist or cannot be opened with the
     /// requested access for some reason.

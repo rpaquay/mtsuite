@@ -322,6 +322,40 @@ public class FileSystemPortable : IFileSystem {
       }
     }
 
+    public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
+      if (!OperatingSystem.IsMacOS()) {
+        throw new PlatformNotSupportedException("File cloning is currently only supported on macOS (APFS).");
+      }
+
+      if (File.Exists(destinationPath.FullName)) {
+        File.Delete(destinationPath.FullName);
+      }
+
+      int res = clonefile(sourceEntry.Path.FullName, destinationPath.FullName, 0);
+      if (res != 0) {
+        int errno = Marshal.GetLastPInvokeError();
+        throw new IOException($"Failed to clone file '{sourceEntry.Path}' to '{destinationPath}': errno {errno}");
+      }
+
+      // Preserve timestamps
+      try {
+        File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
+      } catch { }
+
+      // Preserve Unix file modes (POSIX permissions)
+      try {
+        var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
+        File.SetUnixFileMode(destinationPath.FullName, mode);
+      } catch { }
+
+      // Preserve FileAttributes
+      try {
+        if (sourceEntry.FileAttributes != FileAttributes.Normal) {
+          File.SetAttributes(destinationPath.FullName, sourceEntry.FileAttributes);
+        }
+      } catch { }
+    }
+
     public FileStream OpenFile(FullPath path, FileAccess access) {
       return File.Open(path.FullName, FileMode.Open, access, FileShare.Read);
     }

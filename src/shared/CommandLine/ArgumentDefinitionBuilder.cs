@@ -111,7 +111,7 @@ namespace mtsuite.shared.CommandLine {
         "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=max(# cores, 16))",
         "t",
         "count",
-        Math.Min(Environment.ProcessorCount, 16),
+        Math.Max(Environment.ProcessorCount, 16),
         value => {
           if (value < 1)
             return "Thread count must be greater or equal to 1";

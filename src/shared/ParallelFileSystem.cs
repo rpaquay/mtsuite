@@ -104,6 +104,9 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry>? FileCopying;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCopyingProgress;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCopied;
+    public event Action<FileSystemEntry>? FileCompacting;
+    public event Action<FileSystemEntry, TimeSpan, long>? FileCompacted;
+    public event Action<FileSystemEntry>? FileCompactSkipped;
     public event Action<FileSystemEntry>? DirectoryTraversing;
     public event Action<FileSystemEntry>? DirectoryTraversed;
     public event Action<FileSystemEntry>? DirectoryCreated;
@@ -487,6 +490,93 @@ namespace mtsuite.shared {
       OnFileCopied(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
     }
 
+    public Task CompactDirectoryAsync(
+      FileSystemEntry sourceDirectory,
+      FullPath destinationPath,
+      IFileComparer fileComparer) {
+      return Task.Run(async () => {
+        OnDirectoryTraversing(sourceDirectory);
+        await CompactDirectoryEntriesAsync(sourceDirectory, destinationPath, fileComparer).ConfigureAwait(false);
+        OnDirectoryTraversed(sourceDirectory);
+      });
+    }
+
+    private async Task CompactDirectoryEntriesAsync(
+      FileSystemEntry sourceDirectory,
+      FullPath destinationPath,
+      IFileComparer fileComparer) {
+
+      OnEntriesDiscovering(sourceDirectory);
+      if (!TryGetDirectoryEntries(sourceDirectory.Path, out var sourceEntries)) {
+        return;
+      }
+      OnEntriesDiscovered(sourceDirectory, sourceEntries.Item);
+
+      if (!TryGetDirectoryEntries(destinationPath, out var destinationEntries)) {
+        sourceEntries.Dispose();
+        return;
+      }
+
+      FromPool<SmallSet<FileSystemEntry>> destinationSet = _entrySetPool.AllocateFrom();
+      destinationSet.Item.SetList(destinationEntries.Item);
+
+      using var fileTaskList = _taskListPool.AllocateFrom();
+      foreach (var entry in sourceEntries.Item) {
+        if (entry.IsFile && !entry.IsReparsePoint) {
+          if (destinationSet.Item.TryGet(entry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
+            try {
+              if (fileComparer.CompareFiles(entry, destinationEntry)) {
+                if (entry.FileSize >= LargeFileAsyncThreshold) {
+                  fileTaskList.Item.Add(Task.Run(() => PerformCompactFile(entry, destinationEntry.Path)));
+                } else {
+                  PerformCompactFile(entry, destinationEntry.Path);
+                }
+              } else {
+                OnFileCompactSkipped(entry);
+              }
+            } catch (Exception e) {
+              OnError(entry.Path, e);
+            }
+          } else {
+            OnFileCompactSkipped(entry);
+          }
+        }
+      }
+
+      using (var subDirTaskList = _taskListPool.AllocateFrom()) {
+        foreach (var sourceEntry in sourceEntries.Item) {
+          if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+            if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
+              subDirTaskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer));
+            }
+          }
+        }
+
+        sourceEntries.Dispose();
+        destinationEntries.Dispose();
+        destinationSet.Dispose();
+
+        if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
+        } else if (fileTaskList.Item.Count > 0) {
+          await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
+        } else if (subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
+        }
+      }
+    }
+
+    private void PerformCompactFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
+      var sw = _stopwatchFactory.Create();
+      OnFileCompacting(sourceEntry);
+      try {
+        _fileSystem.CloneFile(sourceEntry, destinationPath);
+      } catch (Exception e) {
+        OnError(sourceEntry.Path, e);
+      }
+      OnFileCompacted(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
+    }
+
     /// <summary>
     /// Delete a file system entry. Recurse through directories if
     /// the entry is a directory.
@@ -607,6 +697,21 @@ namespace mtsuite.shared {
     protected virtual void OnFileCopied(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
       var handler = FileCopied;
       if (handler != null) handler(arg1, arg2, arg3);
+    }
+
+    protected virtual void OnFileCompacting(FileSystemEntry arg1) {
+      var handler = FileCompacting;
+      if (handler != null) handler(arg1);
+    }
+
+    protected virtual void OnFileCompacted(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+      var handler = FileCompacted;
+      if (handler != null) handler(arg1, arg2, arg3);
+    }
+
+    protected virtual void OnFileCompactSkipped(FileSystemEntry obj) {
+      var handler = FileCompactSkipped;
+      if (handler != null) handler(obj);
     }
 
     protected virtual void OnDirectoryTraversing(FileSystemEntry obj) {

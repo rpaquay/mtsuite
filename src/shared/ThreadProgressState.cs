@@ -24,7 +24,8 @@ namespace mtsuite.shared {
     Idle,
     TraversingDirectory,
     CopyingFile,
-    DeletingEntry
+    DeletingEntry,
+    CompactingFile
   }
 
   /// <summary>
@@ -65,6 +66,10 @@ namespace mtsuite.shared {
             ? $"{FormatHelpers.FormatSize(BytesCopied)} / {FormatHelpers.FormatSize(TotalBytes)}"
             : FormatHelpers.FormatSize(BytesCopied);
           return $"Thread {ThreadIndex,2}: Copying {pathText} ({sizeText}, {elapsedText})";
+
+        case ThreadOperation.CompactingFile:
+          var compactSizeText = FormatHelpers.FormatSize(TotalBytes);
+          return $"Thread {ThreadIndex,2}: Compacting {pathText} ({compactSizeText}, {elapsedText})";
 
         case ThreadOperation.TraversingDirectory:
           return $"Thread {ThreadIndex,2}: Traversing {pathText} ({elapsedText})";
@@ -123,6 +128,15 @@ namespace mtsuite.shared {
       TotalBytes = file.FileSize;
       PreviousBytes = 0;
       Operation = ThreadOperation.CopyingFile;
+    }
+
+    public void SetCompacting(FileSystemEntry file) {
+      CurrentPath = file.Path;
+      StartTimestamp = Stopwatch.GetTimestamp();
+      BytesCopied = 0;
+      TotalBytes = file.FileSize;
+      PreviousBytes = 0;
+      Operation = ThreadOperation.CompactingFile;
     }
 
     public void UpdateCopyProgress(long bytesCopied) {

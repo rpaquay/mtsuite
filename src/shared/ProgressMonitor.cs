@@ -55,6 +55,11 @@ namespace mtsuite.shared {
     private long _symlinkSkippedCount;
     private long _fileSkippedTotalSize;
 
+    private long _fileCompactedCount;
+    private long _fileCompactedTotalSize;
+    private long _fileCompactSkippedCount;
+    private long _fileCompactSkippedTotalSize;
+
     public FullPath? SourcePath {
       get => _threadTracker.SourcePath;
       set => _threadTracker.SourcePath = value;
@@ -110,6 +115,10 @@ namespace mtsuite.shared {
       statistics.FileSkippedCount = _fileSkippedCount;
       statistics.SymlinkSkippedCount = _symlinkSkippedCount;
       statistics.FileSkippedTotalSize = _fileSkippedTotalSize;
+      statistics.FileCompactedCount = _fileCompactedCount;
+      statistics.FileCompactedTotalSize = _fileCompactedTotalSize;
+      statistics.FileCompactSkippedCount = _fileCompactSkippedCount;
+      statistics.FileCompactSkippedTotalSize = _fileCompactSkippedTotalSize;
       statistics.Errors = _errors;
       statistics.Warnings = _warnings;
     }
@@ -221,6 +230,23 @@ namespace mtsuite.shared {
         Interlocked.Increment(ref _fileCopiedCount);
       }
 
+      Pulse();
+    }
+
+    public virtual void OnFileCompacting(FileSystemEntry entry) {
+      _threadTracker.Current.SetCompacting(entry);
+    }
+
+    public virtual void OnFileCompacted(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
+      _threadTracker.Current.SetIdle();
+      Interlocked.Increment(ref _fileCompactedCount);
+      Interlocked.Add(ref _fileCompactedTotalSize, bytesTotal);
+      Pulse();
+    }
+
+    public virtual void OnFileCompactSkipped(FileSystemEntry entry, long bytes) {
+      Interlocked.Increment(ref _fileCompactSkippedCount);
+      Interlocked.Add(ref _fileCompactSkippedTotalSize, bytes);
       Pulse();
     }
 

@@ -143,6 +143,24 @@ namespace mtsuite.shared.CommandLine {
       DisplayErrors(statistics.Errors);
     }
 
+    public static void DisplayCompactStatistics(Statistics statistics) {
+      Console.WriteLine();
+      Console.WriteLine("Statistics:");
+      Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
+      Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
+      Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
+      Console.WriteLine("  Compacted entries");
+      var fileCompactedMb = statistics.FileCompactedTotalSize / 1024 / 1024;
+      Console.WriteLine("    # of files compacted:   {0:n0}", statistics.FileCompactedCount);
+      Console.WriteLine("    Total bytes compacted:  {0:n0} MB", fileCompactedMb);
+      Console.WriteLine("  Skipped entries");
+      var fileSkippedMb = statistics.FileCompactSkippedTotalSize / 1024 / 1024;
+      Console.WriteLine("    # of files skipped:     {0:n0}", statistics.FileCompactSkippedCount);
+      Console.WriteLine("    Total bytes skipped:    {0:n0} MB", fileSkippedMb);
+      Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
+      DisplayErrors(statistics.Errors);
+    }
+
     public static void DisplayGcStatistics(IFileSystem fileSystem = null) {
       Console.WriteLine();
       var sb = new StringBuilder();
