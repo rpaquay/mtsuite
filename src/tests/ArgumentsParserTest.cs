@@ -177,5 +177,63 @@ namespace tests {
       parser.Parse();
       Assert.IsFalse(parser.IsValid);
     }
+
+    [TestMethod]
+    public void ArgumentsParserThreadCountDefaultIsMaxCoresAnd16() {
+      var builder = new ArgumentDefinitionBuilder()
+        .WithThreadCountSwitch();
+      var parser = new ArgumentsParser(builder.Build(), Array.Empty<string>());
+      parser.Parse();
+      Assert.IsTrue(parser.IsValid);
+      Assert.AreEqual(Math.Max(Environment.ProcessorCount, 16), parser["thread-count"].IntValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserThreadCountSupportsAll() {
+      var builder = new ArgumentDefinitionBuilder()
+        .WithThreadCountSwitch();
+
+      // --threads:all
+      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads:all" });
+      parser1.Parse();
+      Assert.IsTrue(parser1.IsValid);
+      Assert.AreEqual(Environment.ProcessorCount, parser1["thread-count"].IntValue);
+
+      // -t:ALL
+      var parser2 = new ArgumentsParser(builder.Build(), new[] { "-t:ALL" });
+      parser2.Parse();
+      Assert.IsTrue(parser2.IsValid);
+      Assert.AreEqual(Environment.ProcessorCount, parser2["thread-count"].IntValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserThreadCountSupportsExplicitNumber() {
+      var builder = new ArgumentDefinitionBuilder()
+        .WithThreadCountSwitch();
+
+      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads:32" });
+      parser1.Parse();
+      Assert.IsTrue(parser1.IsValid);
+      Assert.AreEqual(32, parser1["thread-count"].IntValue);
+
+      var parser2 = new ArgumentsParser(builder.Build(), new[] { "-t:4" });
+      parser2.Parse();
+      Assert.IsTrue(parser2.IsValid);
+      Assert.AreEqual(4, parser2["thread-count"].IntValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserThreadCountRejectsInvalid() {
+      var builder = new ArgumentDefinitionBuilder()
+        .WithThreadCountSwitch();
+
+      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads:0" });
+      parser1.Parse();
+      Assert.IsFalse(parser1.IsValid);
+
+      var parser2 = new ArgumentsParser(builder.Build(), new[] { "--threads:invalid" });
+      parser2.Parse();
+      Assert.IsFalse(parser2.IsValid);
+    }
   }
 }

@@ -90,7 +90,7 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public static void SetWorkerThreadCount(int count) {
-      if (count == -1)
+      if (count <= 0)
         return;
       int mint, minc;
       ThreadPool.GetMinThreads(out mint, out minc);
@@ -99,6 +99,13 @@ namespace mtsuite.shared.CommandLine {
       ThreadPool.SetMinThreads(count, minc);
       ThreadPool.SetMaxThreads(count, maxc);
     }
+    // ThreadPool.GetMinThreads(out var mint, out var minc);
+    //   ThreadPool.GetMaxThreads(out var maxt, out var maxc);
+    //   int newMax = Math.Max(count, maxt);
+    //   ThreadPool.SetMaxThreads(newMax, maxc);
+    //   ThreadPool.SetMinThreads(count, minc);
+    //   ThreadPool.SetMaxThreads(Math.Max(count, Environment.ProcessorCount), maxc);
+    // }
 
     public static void DisplayFullStatistics(Statistics statistics) {
       Console.WriteLine();

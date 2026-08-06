@@ -57,7 +57,16 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithIntFlag(string id, string description, string shortName, string valueName, int defaultValue, Func<int, string> validator = null, string altShortName = "", string longName = "") {
+    public ArgumentDefinitionBuilder WithIntFlag(
+      string id,
+      string description,
+      string shortName,
+      string valueName,
+      int defaultValue,
+      Func<int, string> validator = null,
+      string altShortName = "",
+      string longName = "",
+      Func<string, int?> stringParser = null) {
       var def = new IntFlagArgDef {
         Id = id,
         Description = description,
@@ -67,6 +76,7 @@ namespace mtsuite.shared.CommandLine {
         Validator = validator,
         AltShortName = altShortName,
         LongName = longName,
+        StringParser = stringParser,
       };
       _definitions.Add(def);
       return this;
@@ -98,15 +108,22 @@ namespace mtsuite.shared.CommandLine {
     public ArgumentDefinitionBuilder WithThreadCountSwitch() {
       return WithIntFlag(
         "thread-count",
-        "Determine the # of concurrent threads (minimum=1, default=# of CPU cores)", "t", "count",
-        -1,
+        "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=max(# cores, 16))",
+        "t",
+        "count",
+        Math.Min(Environment.ProcessorCount, 16),
         value => {
           if (value < 1)
             return "Thread count must be greater or equal to 1";
           return null;
         },
         "",
-        "threads");
+        "threads",
+        stringParser: value => {
+          if (string.Equals(value, "all", StringComparison.OrdinalIgnoreCase))
+            return Environment.ProcessorCount;
+          return null;
+        });
     }
   }
 }

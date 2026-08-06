@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -187,8 +187,14 @@ namespace mtsuite.shared.CommandLine {
           int value;
           if (string.IsNullOrEmpty(argValue)) {
             value = (int)intDef.DefaultValue;
+          } else if (intDef.StringParser != null && intDef.StringParser(argValue) is int customValue) {
+            value = customValue;
           } else if (!int.TryParse(argValue, out value)) {
-            _errors.Add(String.Format("Argument \"{0}\" requires a interger value", argString));
+            if (intDef.StringParser != null) {
+              _errors.Add(String.Format("Argument \"{0}\" requires an integer value or \"all\"", argString));
+            } else {
+              _errors.Add(String.Format("Argument \"{0}\" requires an integer value", argString));
+            }
             return null;
           }
           if (intDef.Validator != null) {
