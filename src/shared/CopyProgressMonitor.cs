@@ -55,7 +55,8 @@ namespace mtsuite.shared {
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
-      Print(fields);
+      var threadLines = GetThreadProgressLines();
+      Print(fields, threadLines);
     }
   }
 }

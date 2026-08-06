@@ -16,8 +16,13 @@ using System;
 using System.Collections.Generic;
 using mtsuite.CoreFileSystem;
 
+  #nullable enable
+
 namespace mtsuite.shared {
   public interface IProgressMonitor<TStatistics> where TStatistics : Statistics {
+    FullPath? SourcePath { get; set; }
+    FullPath? DestinationPath { get; set; }
+
     #region single threaded methods
     void Start();
     void Pulse();

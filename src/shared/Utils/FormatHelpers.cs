@@ -1,4 +1,4 @@
-﻿// Copyright 2015 Renaud Paquay All Rights Reserved.
+// Copyright 2015 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,22 @@ namespace mtsuite.shared.Utils {
       } else {
         return elapsed.ToString();
       }
+    }
+
+    public static string FormatSize(long bytes) {
+      if (bytes <= 0) {
+        return "0 B";
+      }
+      if (bytes < 1024) {
+        return $"{bytes} B";
+      }
+      if (bytes < 1024 * 1024) {
+        return $"{bytes / 1024.0:F1} KB";
+      }
+      if (bytes < 1024L * 1024 * 1024) {
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+      }
+      return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
     }
   }
 }

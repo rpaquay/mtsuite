@@ -328,6 +328,31 @@ namespace tests {
         Assert.AreEqual(0, FullPath.ComparePaths(p1, p2));
       }
     }
+
+    [TestMethod]
+    public void TryGetRelativePathWorks() {
+      var root = new FullPath(MakePath("root", "dir"));
+      var fileDirect = root.Combine("file.txt");
+      var fileNested = root.Combine("sub").Combine("nested.txt");
+      var otherPath = new FullPath(MakePath("other", "dir", "file.txt"));
+
+      // Same path
+      Assert.IsTrue(root.TryGetRelativePath(root, out var relSelf));
+      Assert.AreEqual(".", relSelf);
+
+      // Direct child
+      Assert.IsTrue(fileDirect.TryGetRelativePath(root, out var relDirect));
+      Assert.AreEqual("file.txt", relDirect);
+
+      // Nested child
+      Assert.IsTrue(fileNested.TryGetRelativePath(root, out var relNested));
+      char sep = OperatingSystem.IsWindows() ? '\\' : '/';
+      Assert.AreEqual($"sub{sep}nested.txt", relNested);
+
+      // Not under root
+      Assert.IsFalse(otherPath.TryGetRelativePath(root, out var relOther));
+      Assert.AreEqual(string.Empty, relOther);
+    }
   }
 }
 

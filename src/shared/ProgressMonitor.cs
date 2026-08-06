@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -23,6 +25,7 @@ using mtsuite.CoreFileSystem;
 namespace mtsuite.shared {
   public abstract class ProgressMonitor<TStatistics> : IProgressMonitor<TStatistics> where TStatistics : Statistics, new() {
     private readonly ProgressPrinter _printer = new ProgressPrinter();
+    private readonly ThreadProgressTracker _threadTracker = new ThreadProgressTracker();
     private readonly Stopwatch _stopWatch = new Stopwatch();
     private readonly Stopwatch _displayTimer = new Stopwatch();
     private readonly ConcurrentQueue<Exception> _errors = new ConcurrentQueue<Exception>();
@@ -51,6 +54,16 @@ namespace mtsuite.shared {
     private long _fileSkippedCount;
     private long _symlinkSkippedCount;
     private long _fileSkippedTotalSize;
+
+    public FullPath? SourcePath {
+      get => _threadTracker.SourcePath;
+      set => _threadTracker.SourcePath = value;
+    }
+
+    public FullPath? DestinationPath {
+      get => _threadTracker.DestinationPath;
+      set => _threadTracker.DestinationPath = value;
+    }
 
     public void Start() {
       _stopWatch.Restart();
@@ -142,9 +155,11 @@ namespace mtsuite.shared {
     }
 
     public virtual void OnDirectoryTraversing(FileSystemEntry directory) {
+      _threadTracker.Current.SetTraversing(directory);
     }
 
     public virtual void OnDirectoryTraversed(FileSystemEntry directory) {
+      _threadTracker.Current.SetIdle();
       Interlocked.Increment(ref _directoryTraversedCount);
     }
 
@@ -153,9 +168,11 @@ namespace mtsuite.shared {
     }
 
     public virtual void OnEntryDeleting(FileSystemEntry entry) {
+      _threadTracker.Current.SetDeleting(entry);
     }
 
     public virtual void OnEntryDeleted(FileSystemEntry entry, TimeSpan elapsed) {
+      _threadTracker.Current.SetIdle();
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkDeletedCount);
       } else if (entry.IsFile) {
@@ -167,6 +184,7 @@ namespace mtsuite.shared {
     }
 
     public virtual void OnFileSkipped(FileSystemEntry entry, long size) {
+      _threadTracker.Current.SetIdle();
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkSkippedCount);
       } else if (entry.IsFile) {
@@ -176,14 +194,27 @@ namespace mtsuite.shared {
     }
 
     public virtual void OnFileCopying(FileSystemEntry entry) {
+      _threadTracker.Current.SetCopying(entry);
     }
 
     public virtual void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk) {
-      Interlocked.Add(ref _fileCopiedTotalSize, bytesThisChunk);
+      var state = _threadTracker.Current;
+      long delta = bytesThisChunk - state.PreviousBytes;
+      state.PreviousBytes = bytesThisChunk;
+      state.UpdateCopyProgress(bytesThisChunk);
+      if (delta > 0) {
+        Interlocked.Add(ref _fileCopiedTotalSize, delta);
+      }
       Pulse();
     }
 
     public virtual void OnFileCopied(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
+      var state = _threadTracker.Current;
+      long remaining = bytesTotal - state.PreviousBytes;
+      if (remaining > 0) {
+        Interlocked.Add(ref _fileCopiedTotalSize, remaining);
+      }
+      state.SetIdle();
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkCopiedCount);
       } else if (entry.IsFile) {
@@ -208,8 +239,16 @@ namespace mtsuite.shared {
 
     protected abstract void DisplayStatus(TStatistics statistics);
 
+    protected IReadOnlyList<string> GetThreadProgressLines() {
+      return _threadTracker.GetFormattedLines();
+    }
+
     protected virtual void Print(ICollection<PrinterEntry> fields) {
       _printer.Print(fields);
+    }
+
+    protected virtual void Print(ICollection<PrinterEntry> fields, IReadOnlyList<string>? additionalLines) {
+      _printer.Print(fields, additionalLines);
     }
 
     private bool IsTimeToDisplayStatus() {

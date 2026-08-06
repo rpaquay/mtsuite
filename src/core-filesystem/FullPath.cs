@@ -170,6 +170,51 @@ namespace mtsuite.CoreFileSystem {
       sb.Append(_name);
     }
 
+    /// <summary>
+    /// Attempts to compute the relative path from <paramref name="root"/> to this path.
+    /// If this path is identical to <paramref name="root"/>, <paramref name="relativePath"/> is set to ".".
+    /// If this path is a descendant of <paramref name="root"/>, <paramref name="relativePath"/> contains
+    /// the relative path (e.g. "sub/file.txt").
+    /// If this path is not a descendant of <paramref name="root"/>, returns false.
+    /// </summary>
+    public bool TryGetRelativePath(FullPath root, out string relativePath) {
+      if (root == null) {
+        relativePath = string.Empty;
+        return false;
+      }
+
+      if (this == root) {
+        relativePath = ".";
+        return true;
+      }
+
+      using var sb = FullNameBufferPool.AllocateFrom();
+      if (BuildRelativePath(sb.Item, root)) {
+        relativePath = sb.Item.ToString();
+        return true;
+      }
+
+      relativePath = string.Empty;
+      return false;
+    }
+
+    private bool BuildRelativePath(StringBuffer sb, FullPath root) {
+      if (this == root) {
+        return true;
+      }
+
+      if (_parent != null && _parent.BuildRelativePath(sb, root)) {
+        if (sb.Length > 0) {
+          char sep = PathKind == PathHelpers.RootPrefixKind.UnixPath ? '/' : '\\';
+          sb.Append(sep);
+        }
+        sb.Append(_name);
+        return true;
+      }
+
+      return false;
+    }
+
     public override string ToString() {
       return FullName;
     }

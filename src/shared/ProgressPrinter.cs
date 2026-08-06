@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 
@@ -27,6 +29,7 @@ public class ProgressPrinter {
 
     private readonly object _lock = new();
     private bool _firstPrint = true;
+    private int _lastLineCount = 0;
 
     public void Stop() {
         lock (_lock) {
@@ -38,18 +41,38 @@ public class ProgressPrinter {
     }
 
     public void Print(ICollection<PrinterEntry> fields) {
-        var output = FieldsPrinter.BuildMultiLineOutput(fields);
+        Print(fields, null);
+    }
+
+    public void Print(ICollection<PrinterEntry> fields, IReadOnlyList<string>? additionalLines) {
+        var sb = new System.Text.StringBuilder();
+        sb.Append(FieldsPrinter.BuildMultiLineOutput(fields));
+
+        var lineCount = fields.Count;
+        if (additionalLines != null && additionalLines.Count > 0) {
+            sb.AppendLine();
+            sb.Append(AnsiEsc).Append("[KThreads:");
+            lineCount++;
+            foreach (var line in additionalLines) {
+                sb.AppendLine();
+                sb.Append(AnsiEsc).Append("[K  ").Append(line);
+                lineCount++;
+            }
+        }
+
+        var output = sb.ToString();
 
         lock (_lock) {
             // Move cursor up if not first print
             if (!_firstPrint) {
                 Console.Write("\r");
-                if (fields.Count >= 1) {
-                    Console.Write(AnsiCursorUpFormat, fields.Count - 1);
+                if (_lastLineCount > 1) {
+                    Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
                 }
             }
 
             _firstPrint = false;
+            _lastLineCount = lineCount;
 
             // Print output
             Console.Write(output);
