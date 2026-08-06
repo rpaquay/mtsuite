@@ -16,6 +16,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using mtsuite.shared.Utils;
 
 namespace mtsuite.shared;
 
@@ -27,15 +29,66 @@ public class ProgressPrinter {
     // ANSI code to move cursor up N lines
     private const string AnsiCursorUpFormat = AnsiEsc + "[{0}A";
 
+    private static readonly Regex AnsiRegex = new(@"\u001B\[[0-9;]*[a-zA-Z]", RegexOptions.Compiled);
+
     private readonly object _lock = new();
     private bool _firstPrint = true;
     private int _lastLineCount = 0;
 
+    public static string StripAnsi(string input) {
+        return AnsiRegex.Replace(input, "");
+    }
+
+    public static int GetWindowWidth() {
+        try {
+            if (!Console.IsOutputRedirected) {
+                var width = Console.WindowWidth;
+                if (width > 0) return width;
+            }
+        } catch {
+            // Ignore environment where Console.WindowWidth is unavailable
+        }
+        return 120;
+    }
+
+    public static int CountVisualLines(string s, int windowWidth) {
+        if (string.IsNullOrEmpty(s)) return 0;
+        if (windowWidth <= 0) windowWidth = 80;
+
+        int visualLines = 0;
+        var lines = s.Split('\n');
+        foreach (var rawLine in lines) {
+            var line = rawLine.TrimEnd('\r');
+            var visibleLen = StripAnsi(line).Length;
+            if (visibleLen == 0) {
+                visualLines++;
+            } else {
+                visualLines += (visibleLen + windowWidth - 1) / windowWidth;
+            }
+        }
+        return visualLines;
+    }
+
     public void Stop() {
         lock (_lock) {
             if (!_firstPrint) {
-                Console.WriteLine(); // end previously displayed line
-                Console.WriteLine(); // empty line
+                // Move cursor to start of the top line of the progress block
+                Console.Write("\r");
+                if (_lastLineCount > 1) {
+                    Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
+                }
+                // Clear all lines that were drawn by the progress printer
+                for (int i = 0; i < _lastLineCount; i++) {
+                    Console.Write(AnsiEsc + "[K");
+                    if (i < _lastLineCount - 1) {
+                        Console.WriteLine();
+                    }
+                }
+                // Move back to the top line so next output directly overwrites it
+                Console.Write("\r");
+                if (_lastLineCount > 1) {
+                    Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
+                }
             }
         }
     }
@@ -45,22 +98,29 @@ public class ProgressPrinter {
     }
 
     public void Print(ICollection<PrinterEntry> fields, IReadOnlyList<string>? additionalLines) {
+        int windowWidth = GetWindowWidth();
+        int maxLineLength = Math.Max(20, windowWidth - 1);
+
         var sb = new System.Text.StringBuilder();
         sb.Append(FieldsPrinter.BuildMultiLineOutput(fields));
 
-        var lineCount = fields.Count;
         if (additionalLines != null && additionalLines.Count > 0) {
             sb.AppendLine();
             sb.Append(AnsiEsc).Append("[KThreads:");
-            lineCount++;
             foreach (var line in additionalLines) {
                 sb.AppendLine();
-                sb.Append(AnsiEsc).Append("[K  ").Append(line);
-                lineCount++;
+                // Ensure thread line fits within terminal width (accounting for "  " prefix)
+                string formattedLine = line;
+                int maxThreadLineLen = maxLineLength - 2; // "  " prefix
+                if (formattedLine.Length > maxThreadLineLen) {
+                    formattedLine = FormatHelpers.TruncateMiddle(formattedLine, maxThreadLineLen);
+                }
+                sb.Append(AnsiEsc).Append("[K  ").Append(formattedLine);
             }
         }
 
         var output = sb.ToString();
+        var visualLineCount = CountVisualLines(output, windowWidth);
 
         lock (_lock) {
             // Move cursor up if not first print
@@ -72,7 +132,7 @@ public class ProgressPrinter {
             }
 
             _firstPrint = false;
-            _lastLineCount = lineCount;
+            _lastLineCount = visualLineCount;
 
             // Print output
             Console.Write(output);

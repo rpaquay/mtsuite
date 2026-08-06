@@ -39,6 +39,38 @@ namespace tests {
     }
 
     [TestMethod]
+    public void TruncateMiddleWorksCorrectly() {
+      Assert.AreEqual("short", FormatHelpers.TruncateMiddle("short", 10));
+      Assert.AreEqual("Hel...ld", FormatHelpers.TruncateMiddle("Hello World", 8));
+      Assert.AreEqual("abc", FormatHelpers.TruncateMiddle("abcdefghij", 3));
+      Assert.AreEqual("a...j", FormatHelpers.TruncateMiddle("abcdefghij", 5));
+    }
+
+    [TestMethod]
+    public void TruncatePathWorksCorrectly() {
+      Assert.AreEqual("a/b/c.txt", FormatHelpers.TruncatePath("a/b/c.txt", 20));
+      Assert.AreEqual("...path/to/file.txt", FormatHelpers.TruncatePath("/very/long/path/to/file.txt", 19));
+    }
+
+    [TestMethod]
+    public void StripAnsiAndCountVisualLinesWork() {
+      var ansiLine = "\u001B[K  Thread  1: Copying file.dat\u001B[0m";
+      Assert.AreEqual("  Thread  1: Copying file.dat", ProgressPrinter.StripAnsi(ansiLine));
+
+      // 40-character line on 80-width terminal = 1 visual line
+      var shortText = "1234567890123456789012345678901234567890";
+      Assert.AreEqual(1, ProgressPrinter.CountVisualLines(shortText, 80));
+
+      // 100-character line on 80-width terminal = 2 visual lines
+      var longText = new string('x', 100);
+      Assert.AreEqual(2, ProgressPrinter.CountVisualLines(longText, 80));
+
+      // Multi-line text with wrapping: line 1 (100 chars -> 2 rows), line 2 (50 chars -> 1 row) = 3 rows
+      var multiLine = new string('x', 100) + "\n" + new string('y', 50);
+      Assert.AreEqual(3, ProgressPrinter.CountVisualLines(multiLine, 80));
+    }
+
+    [TestMethod]
     public void ThreadProgressSnapshotFormatsIdleCorrectly() {
       var snapshot = new ThreadProgressSnapshot {
         ThreadIndex = 1,

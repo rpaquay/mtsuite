@@ -44,5 +44,35 @@ namespace mtsuite.shared.Utils {
       }
       return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
     }
+
+    /// <summary>
+    /// Truncates a string in the middle with "..." if its length exceeds <paramref name="maxLength"/>.
+    /// </summary>
+    public static string TruncateMiddle(string text, int maxLength) {
+      if (string.IsNullOrEmpty(text) || text.Length <= maxLength) {
+        return text;
+      }
+      if (maxLength <= 3) {
+        return text.Substring(0, maxLength);
+      }
+
+      int keepEnd = (maxLength - 3) / 2;
+      int keepStart = maxLength - 3 - keepEnd;
+      return string.Concat(text.AsSpan(0, keepStart), "...", text.AsSpan(text.Length - keepEnd));
+    }
+
+    /// <summary>
+    /// Truncates a path from the start/middle with "..." so that the filename and leaf folders remain visible.
+    /// </summary>
+    public static string TruncatePath(string path, int maxLength) {
+      if (string.IsNullOrEmpty(path) || path.Length <= maxLength) {
+        return path;
+      }
+      if (maxLength <= 3) {
+        return path.Substring(0, maxLength);
+      }
+
+      return string.Concat("...", path.AsSpan(path.Length - (maxLength - 3)));
+    }
   }
 }
