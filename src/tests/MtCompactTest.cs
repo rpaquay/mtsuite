@@ -296,16 +296,27 @@ namespace tests {
     }
 
     [TestMethod]
-    public void FileSystemDefaultSupportsCloningReturnsCorrectPlatformValue() {
-      var fs = FileSystem.Default;
-      var supports = fs.SupportsCloning(_sourcefs.Root.Path, _destfs.Root.Path);
-      if (OperatingSystem.IsMacOS()) {
-        // May be true or false depending on filesystem (APFS vs HFS+)
-        Assert.IsTrue(supports || !supports);
-      } else {
-        // Non-macOS platforms must return false
-        Assert.IsFalse(supports);
-      }
+    public void MtCompactShouldDefaultToContentComparisonViaCli() {
+      // Create files with identical content but different modification timestamps
+      var srcPath = _sourcefs.Root.Path.Combine("diff_time_same_content.txt").FullName;
+      var dstPath = _destfs.Root.Path.Combine("diff_time_same_content.txt").FullName;
+      File.WriteAllBytes(srcPath, new byte[] { 1, 2, 3, 4 });
+      File.WriteAllBytes(dstPath, new byte[] { 1, 2, 3, 4 });
+      File.SetLastWriteTimeUtc(srcPath, DateTime.UtcNow.AddHours(-5));
+      File.SetLastWriteTimeUtc(dstPath, DateTime.UtcNow.AddHours(-1));
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
+        SupportsCloningValue = true
+      };
+
+      var mtcompact = new MtCompact(testFs);
+      // Run with default CLI args (no -fc or -ft)
+      mtcompact.Run(new[] { _sourcefs.Root.Path.FullName, _destfs.Root.Path.FullName });
+
+      // Should have cloned because content comparison is the default
+      Assert.AreEqual(1, testFs.ClonedPairs.Count);
+      Assert.AreEqual(srcPath, testFs.ClonedPairs[0].Source);
+      Assert.AreEqual(dstPath, testFs.ClonedPairs[0].Destination);
     }
   }
 }

@@ -50,8 +50,8 @@ namespace mtcompact {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithString("source-path", "The path of the source directory", true)
         .WithString("destination-path", "The path of the destination directory", true)
-        .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
-        .WithSwitch("ft", "Compare file modification time (default)", "ft")
+        .WithSwitch("fc", "Compare file contents (default)", "fc", "", "content")
+        .WithSwitch("ft", "Fast comparison using file modification time only", "ft")
         .WithSwitch("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
         .WithThreadCountSwitch()
         .WithGcSwitch()
@@ -75,10 +75,10 @@ namespace mtcompact {
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       IFileComparer fileComparer;
-      if (parser.Contains("fc")) {
-        fileComparer = new FileContentsFileComparer(_fileSystem);
-      } else {
+      if (parser.Contains("ft")) {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);
+      } else {
+        fileComparer = new FileContentsFileComparer(_fileSystem);
       }
 
       var explicitDryRun = parser.Contains("dry-run");
