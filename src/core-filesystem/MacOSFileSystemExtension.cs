@@ -37,12 +37,11 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
 
   private const int F_LOG2PHYS_EXT = 65;
 
-  [StructLayout(LayoutKind.Sequential)]
+  [StructLayout(LayoutKind.Sequential, Pack = 4)]
   private struct log2phys {
     public uint l_flags;
     public long l_contigbytes;
     public long l_devoffset;
-    public long l_offset;
   }
 
   private readonly IPool<StringBuffer> _fullNameBufferPool;
@@ -57,7 +56,7 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
       return false;
     }
     if (file1.FileSize == 0) {
-      return false;
+      return true;
     }
     return AreFilesCloned(file1.Path, file2.Path);
   }
@@ -73,8 +72,11 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
 
       var fi1 = new FileInfo(p1);
       var fi2 = new FileInfo(p2);
-      if (!fi1.Exists || !fi2.Exists || fi1.Length != fi2.Length || fi1.Length == 0) {
+      if (!fi1.Exists || !fi2.Exists || fi1.Length != fi2.Length) {
         return false;
+      }
+      if (fi1.Length == 0) {
+        return true;
       }
 
       using var handle1 = File.OpenHandle(p1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -87,8 +89,8 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
       long currentOffset = 0;
 
       while (currentOffset < fileSize) {
-        var ext1 = new log2phys { l_offset = currentOffset };
-        var ext2 = new log2phys { l_offset = currentOffset };
+        var ext1 = new log2phys { l_devoffset = currentOffset, l_contigbytes = fileSize - currentOffset };
+        var ext2 = new log2phys { l_devoffset = currentOffset, l_contigbytes = fileSize - currentOffset };
 
         if (__fcntl(fd1, F_LOG2PHYS_EXT, ref ext1) != 0 || __fcntl(fd2, F_LOG2PHYS_EXT, ref ext2) != 0) {
           return false;
@@ -156,33 +158,34 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
     string destDir = Path.GetDirectoryName(dstFullName) ?? dstFullName;
     string tempDst = Path.Combine(destDir, ".mtcompact_tmp_" + Guid.NewGuid().ToString("N") + ".tmp");
 
-    int res = clonefile(srcFullName, tempDst, 0);
-    if (res != 0) {
-      int errno = Marshal.GetLastPInvokeError();
-      try { if (File.Exists(tempDst)) File.Delete(tempDst); } catch { }
-      throw new IOException($"Failed to clone file '{srcFullName}' to '{dstFullName}': errno {errno}");
-    }
-
-    // Preserve timestamps
+    bool success = false;
     try {
+      int res = clonefile(srcFullName, tempDst, 0);
+      if (res != 0) {
+        int errno = Marshal.GetLastPInvokeError();
+        throw new IOException($"Failed to clone file '{srcFullName}' to '{dstFullName}': errno {errno}");
+      }
+
+      // Preserve timestamps
       File.SetLastWriteTimeUtc(tempDst, sourceEntry.LastWriteTimeUtc);
-    } catch { }
 
-    // Preserve Unix file modes (POSIX permissions)
-    try {
+      // Preserve Unix file modes (POSIX permissions)
       var mode = File.GetUnixFileMode(srcFullName);
       File.SetUnixFileMode(tempDst, mode);
-    } catch { }
 
-    // Preserve FileAttributes
-    try {
+      // Preserve FileAttributes
       if (sourceEntry.FileAttributes != FileAttributes.Normal) {
         File.SetAttributes(tempDst, sourceEntry.FileAttributes);
       }
-    } catch { }
 
-    // Atomic replace
-    File.Move(tempDst, dstFullName, overwrite: true);
+      // Atomic replace
+      File.Move(tempDst, dstFullName, overwrite: true);
+      success = true;
+    } finally {
+      if (!success) {
+        try { if (File.Exists(tempDst)) File.Delete(tempDst); } catch { }
+      }
+    }
   }
 
   public bool TryCloneFile<T>(

@@ -14,6 +14,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
@@ -216,6 +217,76 @@ namespace tests {
       } else if (OperatingSystem.IsWindows()) {
         Assert.IsInstanceOfType(extension, typeof(mtsuite.CoreFileSystem.WindowsFileSystemExtension));
       }
+    }
+
+    [TestMethod]
+    public void MacOSFileSystemExtension_CloneFile_DoesNotSwallowException_LastWriteTime() {
+      if (!OperatingSystem.IsMacOS()) {
+        Assert.Inconclusive("Test only runs on macOS.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.MacOSFileSystemExtension(poolFactory);
+
+      var sourceFile = _fileSystemSetup.Root.CreateFile("source_file.txt", 100);
+      var destinationPath = _fileSystemSetup.Root.Path.Combine("dest_file.txt");
+
+      var entry = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
+
+      // Construct an entry with invalid LastWriteTimeUtc ticks (e.g. long.MaxValue)
+      var invalidData = new mtsuite.CoreFileSystem.FileSystemEntryData(
+        System.IO.FileAttributes.Normal,
+        entry.FileSize,
+        long.MaxValue
+      );
+      var sourceEntry = new mtsuite.CoreFileSystem.FileSystemEntry(sourceFile.Path, invalidData);
+
+      Assert.ThrowsException<ArgumentOutOfRangeException>(() => {
+        extension.CloneFile(sourceEntry, destinationPath);
+      });
+    }
+
+    [TestMethod]
+    public void MacOSFileSystemExtension_AreFilesCloned_ReturnsTrueForClonedFiles() {
+      if (!OperatingSystem.IsMacOS()) {
+        Assert.Inconclusive("Test only runs on macOS.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.MacOSFileSystemExtension(poolFactory);
+
+      var sourceFile = _fileSystemSetup.Root.CreateFile("source_file.txt", 100);
+      var destinationPath = _fileSystemSetup.Root.Path.Combine("dest_file.txt");
+
+      // Verify that before cloning, they are not considered cloned
+      Assert.IsFalse(extension.AreFilesCloned(sourceFile.Path, destinationPath));
+
+      // Clone it
+      var entry = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
+      extension.CloneFile(entry, destinationPath);
+
+      // Verify that after cloning, AreFilesCloned returns true!
+      Assert.IsTrue(extension.AreFilesCloned(sourceFile.Path, destinationPath));
+    }
+
+    [TestMethod]
+    public void MacOSFileSystemExtension_AreFilesCloned_ReturnsTrueForZeroByteFiles() {
+      if (!OperatingSystem.IsMacOS()) {
+        Assert.Inconclusive("Test only runs on macOS.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.MacOSFileSystemExtension(poolFactory);
+
+      var sourceFile = _fileSystemSetup.Root.CreateFile("source_file_zero.txt", 0);
+      var destinationFile = _fileSystemSetup.Root.CreateFile("dest_file_zero.txt", 0);
+
+      // Verify that AreFilesCloned returns true for both 0-byte files
+      Assert.IsTrue(extension.AreFilesCloned(sourceFile.Path, destinationFile.Path));
+
+      var entry1 = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
+      var entry2 = _fileSystemSetup.FileSystem.GetEntry(destinationFile.Path);
+      Assert.IsTrue(extension.AreFilesCloned(entry1, entry2));
     }
 
     [TestMethod]
