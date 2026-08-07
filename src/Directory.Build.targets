@@ -6,7 +6,10 @@
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+
+    <!-- ReadyToRun: ahead-of-time precompile IL to native machine code for faster startup -->
+    <PublishReadyToRun>true</PublishReadyToRun>
 
     <!-- IL Trimming: tree-shake and strip unused types, methods, and framework assemblies -->
     <PublishTrimmed>true</PublishTrimmed>
