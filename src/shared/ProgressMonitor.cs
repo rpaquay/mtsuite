@@ -57,6 +57,8 @@ namespace mtsuite.shared {
 
     private long _fileCloneCount;
     private long _fileCloneTotalSize;
+    private long _fileAlreadyClonedCount;
+    private long _fileAlreadyClonedTotalSize;
     private long _fileCloneSkippedCount;
     private long _fileCloneSkippedTotalSize;
 
@@ -117,6 +119,8 @@ namespace mtsuite.shared {
       statistics.FileSkippedTotalSize = _fileSkippedTotalSize;
       statistics.FileClonedCount = _fileCloneCount;
       statistics.FileClonedTotalSize = _fileCloneTotalSize;
+      statistics.FileAlreadyClonedCount = _fileAlreadyClonedCount;
+      statistics.FileAlreadyClonedTotalSize = _fileAlreadyClonedTotalSize;
       statistics.FileCloneSkippedCount = _fileCloneSkippedCount;
       statistics.FileCloneSkippedTotalSize = _fileCloneSkippedTotalSize;
       statistics.Errors = _errors;
@@ -252,6 +256,13 @@ namespace mtsuite.shared {
       _threadTracker.Current.SetIdle();
       Interlocked.Increment(ref _fileCloneSkippedCount);
       Interlocked.Add(ref _fileCloneSkippedTotalSize, bytes);
+      Pulse();
+    }
+
+    public virtual void OnFileAlreadyCloned(FileSystemEntry entry, long bytes) {
+      _threadTracker.Current.SetIdle();
+      Interlocked.Increment(ref _fileAlreadyClonedCount);
+      Interlocked.Add(ref _fileAlreadyClonedTotalSize, bytes);
       Pulse();
     }
 

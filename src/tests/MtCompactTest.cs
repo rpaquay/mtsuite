@@ -69,8 +69,15 @@ namespace tests {
         _inner.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, (object)null, static (ref FileSystemEntry s, long v, long c, long t, ref object p) => { });
       }
 
-      public bool AreFilesCloned(FullPath path1, FullPath path2) => false;
-      public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
+      public HashSet<(string Source, string Destination)> AlreadyClonedPairs { get; } = new();
+
+      public bool AreFilesCloned(FullPath path1, FullPath path2) {
+        lock (AlreadyClonedPairs) {
+          return AlreadyClonedPairs.Contains((path1.FullName, path2.FullName));
+        }
+      }
+
+      public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => AreFilesCloned(file1.Path, file2.Path);
 
       public bool TryCloneFile<T>(
         FileSystemEntry sourceEntry,
@@ -436,6 +443,65 @@ namespace tests {
 
       Assert.AreEqual(1, comparingEventCount);
       Assert.AreEqual(1, comparedEventCount);
+    }
+
+    [TestMethod]
+    public void MtCompactShouldSkipAndReportAlreadyClonedFiles() {
+      // Prepare identical files
+      var srcFile1 = _sourcefs.Root.CreateFile("file1.txt", 100);
+      var srcFile2 = _sourcefs.Root.CreateFile("file2.txt", 200);
+      var dstFile1 = _destfs.Root.CreateFile("file1.txt", 100);
+      var dstFile2 = _destfs.Root.CreateFile("file2.txt", 200);
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
+        SupportsCloningValue = true
+      };
+      // Mark file1 and file2 as already cloned
+      testFs.AlreadyClonedPairs.Add((srcFile1.Path.FullName, dstFile1.Path.FullName));
+      testFs.AlreadyClonedPairs.Add((srcFile2.Path.FullName, dstFile2.Path.FullName));
+
+      var mtcompact = new MtCompact(testFs, _poolFactory);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+      // Verify files were skipped from cloning and recorded as already cloned
+      Assert.AreEqual(0, stats.FileClonedCount);
+      Assert.AreEqual(0, stats.FileClonedTotalSize);
+      Assert.AreEqual(2, stats.FileAlreadyClonedCount);
+      Assert.AreEqual(300, stats.FileAlreadyClonedTotalSize);
+      Assert.AreEqual(0, stats.FileCloneSkippedCount);
+      Assert.AreEqual(0, testFs.ClonedPairs.Count);
+    }
+
+    [TestMethod]
+    public void MtCompactShouldHandleMixOfAlreadyClonedAndNewClones() {
+      // Prepare 3 files:
+      // file1: already cloned
+      // file2: identical, not yet cloned -> should be cloned
+      // file3: different size/content -> skipped
+      var srcFile1 = _sourcefs.Root.CreateFile("file1.txt", 100);
+      var srcFile2 = _sourcefs.Root.CreateFile("file2.txt", 200);
+      var srcFile3 = _sourcefs.Root.CreateFile("file3.txt", 300);
+
+      var dstFile1 = _destfs.Root.CreateFile("file1.txt", 100);
+      var dstFile2 = _destfs.Root.CreateFile("file2.txt", 200);
+      var dstFile3 = _destfs.Root.CreateFile("file3.txt", 350);
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
+        SupportsCloningValue = true
+      };
+      // Mark file1 as already cloned
+      testFs.AlreadyClonedPairs.Add((srcFile1.Path.FullName, dstFile1.Path.FullName));
+
+      var mtcompact = new MtCompact(testFs, _poolFactory);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+      Assert.AreEqual(1, stats.FileClonedCount);
+      Assert.AreEqual(200, stats.FileClonedTotalSize);
+      Assert.AreEqual(1, stats.FileAlreadyClonedCount);
+      Assert.AreEqual(100, stats.FileAlreadyClonedTotalSize);
+      Assert.AreEqual(1, stats.FileCloneSkippedCount); // file3 has different size
+      Assert.AreEqual(1, testFs.ClonedPairs.Count);
+      Assert.AreEqual((srcFile2.Path.FullName, dstFile2.Path.FullName), testFs.ClonedPairs[0]);
     }
   }
 }

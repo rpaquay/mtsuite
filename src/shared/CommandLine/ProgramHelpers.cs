@@ -164,6 +164,9 @@ namespace mtsuite.shared.CommandLine {
         Console.WriteLine("    # of files compacted:   {0:n0}", statistics.FileClonedCount);
         Console.WriteLine("    Total bytes compacted:  {0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
       }
+      Console.WriteLine("  Already compacted entries");
+      Console.WriteLine("    # of files:             {0:n0}", statistics.FileAlreadyClonedCount);
+      Console.WriteLine("    Total bytes:            {0}", FormatHelpers.FormatSize(statistics.FileAlreadyClonedTotalSize));
       Console.WriteLine("  Skipped entries");
       Console.WriteLine("    # of files skipped:     {0:n0}", statistics.FileCloneSkippedCount);
       Console.WriteLine("    Total bytes skipped:    {0}", FormatHelpers.FormatSize(statistics.FileCloneSkippedTotalSize));

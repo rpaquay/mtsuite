@@ -51,6 +51,8 @@ namespace mtsuite.shared {
 
     public long FileClonedCount { get; set; }
     public long FileClonedTotalSize { get; set; }
+    public long FileAlreadyClonedCount { get; set; }
+    public long FileAlreadyClonedTotalSize { get; set; }
     public long FileCloneSkippedCount { get; set; }
     public long FileCloneSkippedTotalSize { get; set; }
 

@@ -46,6 +46,7 @@ namespace mtcompact {
       _parallelFileSystem.FileCloning += (entry) => _progressMonitor.OnFileCloning(entry);
       _parallelFileSystem.FileCloned += (entry, elapsed, bytes) => _progressMonitor.OnFileCloned(entry, elapsed, bytes);
       _parallelFileSystem.FileCloneSkipped += (entry) => _progressMonitor.OnFileCloneSkipped(entry, entry.FileSize);
+      _parallelFileSystem.FileAlreadyCloned += (entry) => _progressMonitor.OnFileAlreadyCloned(entry, entry.FileSize);
 
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);
       _parallelFileSystem.DirectoryTraversed += (entry) => _progressMonitor.OnDirectoryTraversed(entry);

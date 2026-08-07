@@ -23,7 +23,7 @@ namespace mtsuite.shared {
       var totalSeconds = elapsed.TotalSeconds;
       var fileCloneTotalSizeMb = statistics.FileClonedTotalSize / 1024 / 1024;
       var fileSkippedTotalSizeMb = statistics.FileCloneSkippedTotalSize / 1024 / 1024;
-      var totalEntriesCount = statistics.DirectoryTraversedCount + statistics.FileClonedCount + statistics.FileCloneSkippedCount;
+      var totalEntriesCount = statistics.DirectoryTraversedCount + statistics.FileClonedCount + statistics.FileAlreadyClonedCount + statistics.FileCloneSkippedCount;
 
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(elapsed));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
@@ -33,6 +33,8 @@ namespace mtsuite.shared {
       var sourceLinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesCompactedText = string.Format("{0:n0}", statistics.FileClonedCount);
       var filesCompactedExtraText = $"({FormatHelpers.FormatSize(statistics.FileClonedTotalSize)})";
+      var filesAlreadyCompactedText = string.Format("{0:n0}", statistics.FileAlreadyClonedCount);
+      var filesAlreadyCompactedExtraText = $"({FormatHelpers.FormatSize(statistics.FileAlreadyClonedTotalSize)})";
       var filesSkippedText = string.Format("{0:n0}", statistics.FileCloneSkippedCount);
       var filesSkippedExtraText = $"({FormatHelpers.FormatSize(statistics.FileCloneSkippedTotalSize)})";
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
@@ -50,6 +52,7 @@ namespace mtsuite.shared {
         new PrinterEntry("# of links", sourceLinksText, indent: 2, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("Destination"),
         new PrinterEntry(compactedLabel, filesCompactedText, indent: 2, shortName: compactedShort, valueAlign: Align.Right, extraValue: filesCompactedExtraText),
+        new PrinterEntry("# of files already compacted", filesAlreadyCompactedText, indent: 2, shortName: "already", valueAlign: Align.Right, extraValue: filesAlreadyCompactedExtraText),
         new PrinterEntry("# of files skipped", filesSkippedText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: filesSkippedExtraText),
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),

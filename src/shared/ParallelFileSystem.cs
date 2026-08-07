@@ -124,6 +124,7 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry>? FileCloning;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCloned;
     public event Action<FileSystemEntry>? FileCloneSkipped;
+    public event Action<FileSystemEntry>? FileAlreadyCloned;
     public event Action<FileSystemEntry>? DirectoryTraversing;
     public event Action<FileSystemEntry>? DirectoryTraversed;
     public event Action<FileSystemEntry>? DirectoryCreated;
@@ -550,11 +551,15 @@ namespace mtsuite.shared {
         if (sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
           if (destinationSet.Item.TryGet(sourceEntry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
             try {
-              var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
-              if (areEqual) {
-                PerformFileClone(sourceEntry, destinationEntry.Path, dryRun);
+              if (sourceEntry.FileSize == destinationEntry.FileSize && _fileSystem.Extension.AreFilesCloned(sourceEntry, destinationEntry)) {
+                OnFileAlreadyCloned(sourceEntry);
               } else {
-                OnFileCloneSkipped(sourceEntry);
+                var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
+                if (areEqual) {
+                  PerformFileClone(sourceEntry, destinationEntry.Path, dryRun);
+                } else {
+                  OnFileCloneSkipped(sourceEntry);
+                }
               }
             } catch (Exception e) {
               OnError(sourceEntry.Path, e);
@@ -775,6 +780,11 @@ namespace mtsuite.shared {
 
     protected virtual void OnFileCloneSkipped(FileSystemEntry sourceEntry) {
       var handler = FileCloneSkipped;
+      if (handler != null) handler(sourceEntry);
+    }
+
+    protected virtual void OnFileAlreadyCloned(FileSystemEntry sourceEntry) {
+      var handler = FileAlreadyCloned;
       if (handler != null) handler(sourceEntry);
     }
 
