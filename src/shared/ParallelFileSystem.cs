@@ -16,8 +16,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using mtsuite.shared.Collections;
 using mtsuite.CoreFileSystem;
@@ -51,8 +49,6 @@ namespace mtsuite.shared {
     private readonly INoAllocStopwatchFactory _stopwatchFactory;
     private readonly IPool<List<FileSystemEntry>> _entryListPool;
     private readonly IPool<List<Task>> _taskListPool;
-    private readonly IPool<List<CompactFileItem>> _compactItemListPool;
-    private readonly IPool<List<CopyFileItem>> _copyItemListPool;
     private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool;
     private readonly IPool<Dictionary<string, FileSystemEntry>> _sourceDictPool;
 
@@ -80,8 +76,6 @@ namespace mtsuite.shared {
 
       _entryListPool = poolFactory.CreateList<FileSystemEntry>("ParallelFileSystem.EntryList");
       _taskListPool = poolFactory.CreateList<Task>("ParallelFileSystem.TaskList");
-      _compactItemListPool = poolFactory.CreateList<CompactFileItem>("ParallelFileSystem.CompactItemList");
-      _copyItemListPool = poolFactory.CreateList<CopyFileItem>("ParallelFileSystem.CopyItemList");
 
       _entrySetPool = poolFactory.Create(
         "ParallelFileSystem.EntrySet",
@@ -323,82 +317,43 @@ namespace mtsuite.shared {
         await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
       }
 
-      // 1. Process files in current directory
+      // 1. Process files in current directory (small files synchronously, large files in background tasks)
       using var fileTaskList = _taskListPool.AllocateFrom();
-      FromPool<List<CopyFileItem>> copyWorkList = _copyItemListPool.AllocateFrom();
-      try {
-        foreach (var entry in sourceEntries.Item) {
-          if (!entry.IsFile && !entry.IsReparsePoint) {
-            continue;
-          }
+      foreach (var entry in sourceEntries.Item) {
+        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, fileTaskList.Item, options);
+      }
 
-          var destinationExists = destinationSet.Item.TryGet(entry, out var destinationEntry);
-          var destEntryPath = destinationExists
-            ? destinationEntry.Path
-            : new FullPath(destinationDirectory.Path, entry.Name);
-
-          var copyFileOptions = CopyFileOptions.Default;
-          if ((options & CopyOptions.NoClone) != 0) {
-            copyFileOptions |= CopyFileOptions.NoClone;
-          }
-
-          if (destinationExists) {
-            // Hint 1: If sizes differ, files are definitely different (must copy, no comparison needed)
-            if (entry.IsFile && destinationEntry.IsFile && entry.FileSize != destinationEntry.FileSize) {
-              copyWorkList.Item.Add(new CopyFileItem(entry, destEntryPath, destinationEntry, true, needsComparison: false, copyFileOptions));
-              continue;
-            }
-
-            // Hint 2: If both are 0 bytes, they are identical (skip copy)
-            if (entry.IsFile && destinationEntry.IsFile && entry.FileSize == 0) {
-              OnFileCopySkipped(entry);
-              continue;
-            }
-
-            // Both exist with same size > 0: Needs comparison before copy/skip
-            copyWorkList.Item.Add(new CopyFileItem(entry, destEntryPath, destinationEntry, true, needsComparison: true, copyFileOptions));
-          } else {
-            // Destination does not exist: Direct copy
-            copyWorkList.Item.Add(new CopyFileItem(entry, destEntryPath, null, false, needsComparison: false, copyFileOptions));
+      // 2. Prepare subdirectories tasks without LINQ lambda allocations
+      using (var subDirTaskList = _taskListPool.AllocateFrom()) {
+        foreach (var sourceEntry in sourceEntries.Item) {
+          if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+            var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
+            var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+            subDirTaskList.Item.Add(CopyDirectoryAsync(
+              sourceEntry,
+              destinationEntryPath,
+              destinationExists ? childDestEntry : (FileSystemEntry?)null,
+              options,
+              fileComparer,
+              !destinationExists,
+              false/*skipNotification*/));
           }
         }
 
-        ScheduleCopyItems(copyWorkList.Item, fileComparer, fileTaskList.Item);
+        // 3. Recycle all pooled collections immediately before waiting
+        entriesToDelete.Dispose();
+        sourceEntries.Dispose();
+        destinationEntries.Dispose();
+        destinationSet.Dispose();
 
-        // 2. Prepare subdirectories tasks without LINQ lambda allocations
-        using (var subDirTaskList = _taskListPool.AllocateFrom()) {
-          foreach (var sourceEntry in sourceEntries.Item) {
-            if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-              var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
-              var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
-              subDirTaskList.Item.Add(CopyDirectoryAsync(
-                sourceEntry,
-                destinationEntryPath,
-                destinationExists ? childDestEntry : (FileSystemEntry?)null,
-                options,
-                fileComparer,
-                !destinationExists,
-                false/*skipNotification*/));
-            }
-          }
-
-          // 3. Recycle all pooled collections immediately before waiting
-          entriesToDelete.Dispose();
-          sourceEntries.Dispose();
-          destinationEntries.Dispose();
-          destinationSet.Dispose();
-
-          // 4. Await both files in the current directory and all subdirectories
-          if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
-            await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
-          } else if (fileTaskList.Item.Count > 0) {
-            await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
-          } else if (subDirTaskList.Item.Count > 0) {
-            await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
-          }
+        // 4. Await both large files in the current directory and all subdirectories
+        if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
+        } else if (fileTaskList.Item.Count > 0) {
+          await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
+        } else if (subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
         }
-      } finally {
-        copyWorkList.Dispose();
       }
     }
 
@@ -490,81 +445,51 @@ namespace mtsuite.shared {
       public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     }
 
-    private readonly struct CompactFileItem(
+    private void PerformOrScheduleFileEntryCopy(
       FileSystemEntry sourceEntry,
-      FileSystemEntry destinationEntry) {
-      public FileSystemEntry SourceEntry => sourceEntry;
-      public FileSystemEntry DestinationEntry => destinationEntry;
-    }
-
-    private readonly struct CopyFileItem(
-      FileSystemEntry sourceEntry,
-      FullPath destinationPath,
-      FileSystemEntry? destinationEntry,
-      bool destinationExists,
-      bool needsComparison,
-      CopyFileOptions copyOptions) {
-      public FileSystemEntry SourceEntry => sourceEntry;
-      public FullPath DestinationPath => destinationPath;
-      public FileSystemEntry? DestinationEntry => destinationEntry;
-      public bool DestinationExists => destinationExists;
-      public bool NeedsComparison => needsComparison;
-      public CopyFileOptions CopyOptions => copyOptions;
-    }
-
-    private void ScheduleCopyItems(
-      List<CopyFileItem> items,
+      FileSystemEntry destinationDirectory,
       IFileComparer fileComparer,
-      List<Task> fileTaskList) {
+      SmallSet<FileSystemEntry> destinationSet,
+      List<Task> fileTaskList,
+      CopyOptions options) {
 
-      if (items.Count == 0) {
+      if (!sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
         return;
       }
 
-      if (items.Count == 1) {
-        var item = items[0];
-        if (item.SourceEntry.IsFile && (item.SourceEntry.FileSize >= LargeFileAsyncThreshold || ParallelFileCopy)) {
-          fileTaskList.Add(Task.Run(() => ProcessCopyItem(item, fileComparer)));
-        } else {
-          ProcessCopyItem(item, fileComparer);
-        }
-        return;
-      }
+      var destinationExists = destinationSet.TryGet(sourceEntry, out var destinationEntry);
+      var destinationPath = destinationExists
+        ? destinationEntry.Path
+        : new FullPath(destinationDirectory.Path, sourceEntry.Name);
 
-      // Multiple files: dispatch across worker tasks to parallelize comparison and copying
-      var workerCount = Math.Min(Environment.ProcessorCount, items.Count);
-      int nextIndex = -1;
-      for (int i = 0; i < workerCount; i++) {
-        fileTaskList.Add(Task.Run(() => {
-          while (true) {
-            var idx = Interlocked.Increment(ref nextIndex);
-            if (idx >= items.Count) {
-              break;
-            }
-            ProcessCopyItem(items[idx], fileComparer);
-          }
-        }));
-      }
-    }
-
-    private void ProcessCopyItem(CopyFileItem item, IFileComparer fileComparer) {
-      if (item.NeedsComparison && item.DestinationEntry.HasValue) {
+      if (destinationExists) {
         try {
           var sw = _stopwatchFactory.Create();
-          OnFileComparing(item.SourceEntry);
+          OnFileComparing(sourceEntry);
           var compareData = new CompareFileData(this, sw);
-          bool areEqual = fileComparer.CompareFiles(item.SourceEntry, item.DestinationEntry.Value, compareData, _compareFileCallback);
-          OnFileCompared(item.SourceEntry, sw.Elapsed, item.SourceEntry.FileSize);
+          bool areEqual = fileComparer.CompareFiles(sourceEntry, destinationEntry, compareData, _compareFileCallback);
+          OnFileCompared(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
           if (areEqual) {
-            OnFileCopySkipped(item.SourceEntry);
+            OnFileCopySkipped(sourceEntry);
             return;
           }
         } catch (Exception e) {
-          OnError(item.SourceEntry.Path, e);
+          // If we can't compare files, log error and continue with normal copy operation.
+          OnError(sourceEntry.Path, e);
         }
       }
 
-      PerformCopyFile(item.SourceEntry, item.DestinationPath, item.DestinationEntry, item.DestinationExists, item.CopyOptions);
+      var copyFileOptions = CopyFileOptions.Default;
+      if ((options & CopyOptions.NoClone) != 0) {
+        copyFileOptions |= CopyFileOptions.NoClone;
+      }
+
+      // If file size is >= threshold, offload copying to a background task
+      if (sourceEntry.IsFile && sourceEntry.FileSize >= LargeFileAsyncThreshold) {
+        fileTaskList.Add(Task.Run(() => PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions)));
+      } else {
+        PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions);
+      }
     }
 
     private void PerformCopyFile(
@@ -621,109 +546,49 @@ namespace mtsuite.shared {
       destinationSet.Item.SetList(destinationEntries.Item);
 
       using var fileTaskList = _taskListPool.AllocateFrom();
-      FromPool<List<CompactFileItem>> compactWorkList = _compactItemListPool.AllocateFrom();
-      try {
-        foreach (var entry in sourceEntries.Item) {
-          if (entry.IsFile && !entry.IsReparsePoint) {
-            if (destinationSet.Item.TryGet(entry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
-              // Hint 1: If sizes differ, files cannot be identical. Skip immediately!
-              if (entry.FileSize != destinationEntry.FileSize) {
-                OnFileCompactSkipped(entry);
-                continue;
-              }
-
-              // Hint 2: If size is 0, files are identical without reading disk.
-              if (entry.FileSize == 0) {
+      foreach (var entry in sourceEntries.Item) {
+        if (entry.IsFile && !entry.IsReparsePoint) {
+          if (destinationSet.Item.TryGet(entry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
+            try {
+              var sw = _stopwatchFactory.Create();
+              OnFileComparing(entry);
+              var compareData = new CompareFileData(this, sw);
+              bool areEqual = fileComparer.CompareFiles(entry, destinationEntry, compareData, _compareFileCallback);
+              OnFileCompared(entry, sw.Elapsed, entry.FileSize);
+              if (areEqual) {
                 PerformCompactFile(entry, destinationEntry.Path, dryRun);
-                continue;
+              } else {
+                OnFileCompactSkipped(entry);
               }
+            } catch (Exception e) {
+              OnError(entry.Path, e);
+            }
+          } else {
+            OnFileCompactSkipped(entry);
+          }
+        }
+      }
 
-              // Otherwise, queue for parallel comparison + compacting!
-              compactWorkList.Item.Add(new CompactFileItem(entry, destinationEntry));
-            } else {
-              OnFileCompactSkipped(entry);
+      using (var subDirTaskList = _taskListPool.AllocateFrom()) {
+        foreach (var sourceEntry in sourceEntries.Item) {
+          if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+            if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
+              subDirTaskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer, dryRun));
             }
           }
         }
 
-        ScheduleCompactItems(compactWorkList.Item, fileComparer, dryRun, fileTaskList.Item);
+        sourceEntries.Dispose();
+        destinationEntries.Dispose();
+        destinationSet.Dispose();
 
-        using (var subDirTaskList = _taskListPool.AllocateFrom()) {
-          foreach (var sourceEntry in sourceEntries.Item) {
-            if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-              if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
-                subDirTaskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer, dryRun));
-              }
-            }
-          }
-
-          sourceEntries.Dispose();
-          destinationEntries.Dispose();
-          destinationSet.Dispose();
-
-          if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
-            await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
-          } else if (fileTaskList.Item.Count > 0) {
-            await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
-          } else if (subDirTaskList.Item.Count > 0) {
-            await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
-          }
+        if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
+        } else if (fileTaskList.Item.Count > 0) {
+          await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
+        } else if (subDirTaskList.Item.Count > 0) {
+          await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
         }
-      } finally {
-        compactWorkList.Dispose();
-      }
-    }
-
-    private void ScheduleCompactItems(
-      List<CompactFileItem> items,
-      IFileComparer fileComparer,
-      bool dryRun,
-      List<Task> fileTaskList) {
-
-      if (items.Count == 0) {
-        return;
-      }
-
-      if (items.Count == 1) {
-        var item = items[0];
-        if (item.SourceEntry.FileSize >= LargeFileAsyncThreshold || ParallelFileCopy) {
-          fileTaskList.Add(Task.Run(() => ProcessCompactItem(item, fileComparer, dryRun)));
-        } else {
-          ProcessCompactItem(item, fileComparer, dryRun);
-        }
-        return;
-      }
-
-      // Multiple files to compare and compact in parallel across thread pool:
-      var workerCount = Math.Min(Environment.ProcessorCount, items.Count);
-      int nextIndex = -1;
-      for (int i = 0; i < workerCount; i++) {
-        fileTaskList.Add(Task.Run(() => {
-          while (true) {
-            var idx = Interlocked.Increment(ref nextIndex);
-            if (idx >= items.Count) {
-              break;
-            }
-            ProcessCompactItem(items[idx], fileComparer, dryRun);
-          }
-        }));
-      }
-    }
-
-    private void ProcessCompactItem(CompactFileItem item, IFileComparer fileComparer, bool dryRun) {
-      try {
-        var sw = _stopwatchFactory.Create();
-        OnFileComparing(item.SourceEntry);
-        var compareData = new CompareFileData(this, sw);
-        bool areEqual = fileComparer.CompareFiles(item.SourceEntry, item.DestinationEntry, compareData, _compareFileCallback);
-        OnFileCompared(item.SourceEntry, sw.Elapsed, item.SourceEntry.FileSize);
-        if (areEqual) {
-          PerformCompactFile(item.SourceEntry, item.DestinationEntry.Path, dryRun);
-        } else {
-          OnFileCompactSkipped(item.SourceEntry);
-        }
-      } catch (Exception e) {
-        OnError(item.SourceEntry.Path, e);
       }
     }
 

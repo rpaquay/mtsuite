@@ -17,7 +17,7 @@ namespace mtsuite.CoreFileSystem {
   public delegate void CompareFileCallback<T>(ref FileSystemEntry sourceEntry, long bytesSoFar, long totalBytes, ref T param);
 
   public interface IFileComparer {
-    bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2);
+    //bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2);
 
     bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback);
   }
