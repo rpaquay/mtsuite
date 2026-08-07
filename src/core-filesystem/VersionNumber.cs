@@ -13,7 +13,7 @@
 // limitations under the License.
 namespace mtsuite.CoreFileSystem {
   public static class VersionNumber {
-    public const string Product = "0.9.19";
+    public const string Product = "0.9.21";
     public const string File = Product + ".0";
   }
 }

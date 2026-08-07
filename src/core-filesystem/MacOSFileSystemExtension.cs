@@ -29,13 +29,16 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
   [DllImport("libSystem", EntryPoint = "clonefile", SetLastError = true)]
   private static extern int clonefile(string src, string dst, uint flags);
 
-  [DllImport("libSystem", EntryPoint = "fcntl", SetLastError = true)]
-  private static extern int fcntl(int fd, int cmd, ref log2phys_ext l2p);
+  // __fcntl is the non-variadic direct C entry point in libSystem.
+  // Standard fcntl is a C variadic function (int fcntl(int, int, ...)) which on Apple Silicon (ARM64)
+  // passes variadic arguments on the stack, causing standard P/Invoke register passing to crash with SIGSEGV 11.
+  [DllImport("libSystem", EntryPoint = "__fcntl", SetLastError = true)]
+  private static extern int __fcntl(int fd, int cmd, ref log2phys l2p);
 
   private const int F_LOG2PHYS_EXT = 65;
 
   [StructLayout(LayoutKind.Sequential)]
-  private struct log2phys_ext {
+  private struct log2phys {
     public uint l_flags;
     public long l_contigbytes;
     public long l_devoffset;
@@ -84,10 +87,10 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
       long currentOffset = 0;
 
       while (currentOffset < fileSize) {
-        var ext1 = new log2phys_ext { l_offset = currentOffset };
-        var ext2 = new log2phys_ext { l_offset = currentOffset };
+        var ext1 = new log2phys { l_offset = currentOffset };
+        var ext2 = new log2phys { l_offset = currentOffset };
 
-        if (fcntl(fd1, F_LOG2PHYS_EXT, ref ext1) != 0 || fcntl(fd2, F_LOG2PHYS_EXT, ref ext2) != 0) {
+        if (__fcntl(fd1, F_LOG2PHYS_EXT, ref ext1) != 0 || __fcntl(fd2, F_LOG2PHYS_EXT, ref ext2) != 0) {
           return false;
         }
 
@@ -97,7 +100,7 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
 
         long step = Math.Min(ext1.l_contigbytes, ext2.l_contigbytes);
         if (step <= 0) {
-          break;
+          return false;
         }
         currentOffset += step;
       }
