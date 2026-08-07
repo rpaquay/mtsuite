@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@
 
 using mtsuite.shared.CommandLine;
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtinfo {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtInfo(FileSystem.Default).Run(args);
+        new MtInfo(FileSystem.Default, MtPoolFactory.Instance).Run(args);
       });
     }
   }

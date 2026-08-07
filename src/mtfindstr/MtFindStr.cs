@@ -23,15 +23,18 @@ using mtsuite.shared.CommandLine;
 using mtsuite.shared.FileNameMatching;
 using mtsuite.shared.Utils;
 
+using mtsuite.CoreFileSystem.ObjectPool;
+
 namespace mtfindstr {
   public class MtFindStr {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly FindStrProgressMonitor _progressMonitor;
 
-    public MtFindStr(IFileSystem fileSystem) {
+    public MtFindStr(IFileSystem fileSystem, MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
-      _parallelFileSystem = new ParallelFileSystem(fileSystem);
+      _parallelFileSystem = new ParallelFileSystem(fileSystem, poolFactory);
       _progressMonitor = new FindStrProgressMonitor();
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);

@@ -11,18 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
 using System;
+using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtsuite.CoreFileSystem;
 
 public static class FileSystem {
-  private static IFileSystem _default = null;
+  private static IFileSystem? _default = null;
   
   public static IFileSystem Default {
     get {
       if (_default == null) {
-        _default = new FileSystemPortable();
+        _default = new FileSystemPortable(MtPoolFactory.Instance);
       }
 
       return _default;

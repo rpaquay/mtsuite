@@ -17,18 +17,22 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using mtsuite.shared;
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.CommandLine;
 using mtsuite.CoreFileSystem;
 
 namespace mtcopy {
   public class MtCopy {
     private readonly IFileSystem _fileSystem;
+    private readonly MtPoolFactory _poolFactory;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor<Statistics> _progressMonitor;
 
-    public MtCopy(IFileSystem fileSystem) {
+    public MtCopy(IFileSystem fileSystem, MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
-      _parallelFileSystem = new ParallelFileSystem(fileSystem);
+      _poolFactory = poolFactory;
+      _parallelFileSystem = new ParallelFileSystem(fileSystem, poolFactory);
       _progressMonitor = new CopyProgressMonitor();
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
@@ -87,7 +91,7 @@ namespace mtcopy {
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       IFileComparer fileComparer;
       if (parser.Contains("fc")) {
-        fileComparer = new FileContentsFileComparer(_fileSystem);
+        fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
       }
       else {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);

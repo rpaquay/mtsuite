@@ -14,12 +14,13 @@
 
 using mtsuite.shared.CommandLine;
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtcompact {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtCompact(FileSystem.Default).Run(args);
+        new MtCompact(FileSystem.Default, MtPoolFactory.Instance).Run(args);
       });
     }
   }

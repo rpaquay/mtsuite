@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared;
 using mtsuite.shared.CommandLine;
 using mtsuite.shared.Utils;
@@ -24,12 +25,15 @@ using mtsuite.shared.Utils;
 namespace mtcompact {
   public class MtCompact {
     private readonly IFileSystem _fileSystem;
+    private readonly MtPoolFactory _poolFactory;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly CompactProgressMonitor _progressMonitor;
 
-    public MtCompact(IFileSystem fileSystem) {
+    public MtCompact(IFileSystem fileSystem, MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
-      _parallelFileSystem = new ParallelFileSystem(fileSystem);
+      _poolFactory = poolFactory;
+      _parallelFileSystem = new ParallelFileSystem(fileSystem, poolFactory);
       _progressMonitor = new CompactProgressMonitor();
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
@@ -82,7 +86,7 @@ namespace mtcompact {
       if (parser.Contains("ft")) {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       } else {
-        fileComparer = new FileContentsFileComparer(_fileSystem);
+        fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
       }
 
       var explicitDryRun = parser.Contains("dry-run");

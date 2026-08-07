@@ -24,9 +24,18 @@ namespace mtsuite.CoreFileSystem {
     private readonly IFileSystem _fileSystem;
     private readonly IPool<byte[]> _bufferPool;
 
-    public FileContentsFileComparer(IFileSystem fileSystem, IPool<byte[]>? bufferPool = null) {
+    public FileContentsFileComparer(IFileSystem fileSystem, MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(fileSystem);
+      ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
-      _bufferPool = bufferPool ?? FileIOByteArrayPool.Instance;
+      _bufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
+    }
+
+    public FileContentsFileComparer(IFileSystem fileSystem, IPool<byte[]> bufferPool) {
+      ArgumentNullException.ThrowIfNull(fileSystem);
+      ArgumentNullException.ThrowIfNull(bufferPool);
+      _fileSystem = fileSystem;
+      _bufferPool = bufferPool;
     }
 
     public bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2) {

@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,6 +70,87 @@ namespace tests {
         Console.WriteLine();
         Assert.IsTrue(verify(allocCount * threadCount));
       });
+    }
+
+    [TestMethod]
+    public void MtPoolFactoryTracksPoolStatisticsCorrectly() {
+      var poolName = "TestTrackStatsPool_" + Guid.NewGuid().ToString("N");
+      var pool = MtPoolFactory.Instance.Create<Entry>(poolName, () => new Entry(), _ => { });
+
+      // IPool<T> directly inherits from INamedPool
+      Assert.IsTrue(pool is INamedPool);
+      Assert.AreEqual(poolName, pool.Name);
+      Assert.AreEqual(typeof(Entry), pool.ItemType);
+      Assert.AreEqual(0, pool.RentCount);
+      Assert.AreEqual(0, pool.ReturnCount);
+      Assert.AreEqual(0, pool.CreatedCount);
+
+      // Allocate first item (creation)
+      var item1 = pool.Allocate();
+      Assert.AreEqual(1, pool.RentCount);
+      Assert.AreEqual(1, pool.CreatedCount);
+      Assert.AreEqual(0, pool.ReturnCount);
+      Assert.AreEqual(1, pool.OutstandingCount);
+      Assert.AreEqual(0, pool.HitCount);
+
+      // Allocate second item (creation)
+      var item2 = pool.Allocate();
+      Assert.AreEqual(2, pool.RentCount);
+      Assert.AreEqual(2, pool.CreatedCount);
+      Assert.AreEqual(0, pool.ReturnCount);
+      Assert.AreEqual(2, pool.OutstandingCount);
+
+      // Recycle both items
+      pool.Recycle(item1);
+      pool.Recycle(item2);
+      Assert.AreEqual(2, pool.ReturnCount);
+      Assert.AreEqual(0, pool.OutstandingCount);
+
+      // Re-allocate (hits from pool)
+      var reused1 = pool.Allocate();
+      var reused2 = pool.Allocate();
+      Assert.AreEqual(4, pool.RentCount);
+      Assert.AreEqual(2, pool.CreatedCount); // No new creation!
+      Assert.AreEqual(2, pool.HitCount);
+      Assert.AreEqual(50.0, pool.HitRatio, 0.01);
+      Assert.AreEqual(2, pool.OutstandingCount);
+
+      pool.Recycle(reused1);
+      pool.Recycle(reused2);
+      Assert.AreEqual(4, pool.ReturnCount);
+      Assert.AreEqual(0, pool.OutstandingCount);
+
+      // Test reset
+      pool.Reset();
+      Assert.AreEqual(0, pool.RentCount);
+      Assert.AreEqual(0, pool.ReturnCount);
+      Assert.AreEqual(0, pool.CreatedCount);
+    }
+
+    [TestMethod]
+    public void MtPoolFactoryCreateListCreatesWorkingNamedPool() {
+      var listPoolName = "TestListPool_" + Guid.NewGuid().ToString("N");
+      var listPool = MtPoolFactory.Instance.CreateList<string>(listPoolName, 128);
+
+      Assert.IsTrue(listPool is INamedPool);
+      Assert.AreEqual(listPoolName, listPool.Name);
+
+      using (var rented = listPool.AllocateFrom()) {
+        rented.Item.Add("hello");
+        rented.Item.Add("world");
+        Assert.AreEqual(2, rented.Item.Count);
+        Assert.AreEqual(1, listPool.RentCount);
+        Assert.AreEqual(1, listPool.OutstandingCount);
+      }
+
+      Assert.AreEqual(1, listPool.ReturnCount);
+      Assert.AreEqual(0, listPool.OutstandingCount);
+
+      using (var rented2 = listPool.AllocateFrom()) {
+        Assert.AreEqual(0, rented2.Item.Count); // Recycled and cleared
+        Assert.AreEqual(2, listPool.RentCount);
+        Assert.AreEqual(1, listPool.HitCount);
+      }
     }
   }
 }

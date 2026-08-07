@@ -28,11 +28,13 @@ public class FileSystemPortable : IFileSystem {
     [DllImport("libSystem", EntryPoint = "clonefile", SetLastError = true)]
     private static extern int clonefile(string src, string dst, uint flags);
 
-    private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
+    private readonly IPool<List<FileSystemEntry>> _entryListPool;
     private readonly IPool<byte[]> _copyFileBufferPool;
 
-    public FileSystemPortable(IPool<byte[]>? copyFileBufferPool = null) {
-      _copyFileBufferPool = copyFileBufferPool ?? FileIOByteArrayPool.Instance;
+    public FileSystemPortable(MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
+      _entryListPool = poolFactory.CreateList<FileSystemEntry>("FileSystemPortable.EntryList");
+      _copyFileBufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
     }
 
     public bool AllowCloning { get; set; } = true;

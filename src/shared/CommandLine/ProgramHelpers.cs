@@ -20,6 +20,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.CoreFileSystem.Utils;
 using mtsuite.shared.Utils;
 
@@ -188,6 +189,33 @@ namespace mtsuite.shared.CommandLine {
         GC.GetTotalAllocatedBytes() / (1024.0 * 1024.0));
 
       Console.WriteLine(sb.ToString());
+
+      DisplayPoolStatistics();
+    }
+
+    public static void DisplayPoolStatistics() {
+      var pools = MtPoolFactory.Instance.RegisteredPools;
+      if (pools.Count == 0)
+        return;
+
+      Console.WriteLine();
+      Console.WriteLine("Pool Statistics:");
+      Console.WriteLine("  {0,-38} {1,10} {2,10} {3,10} {4,8} {5,10}",
+        "Pool Name", "Rented", "Recycled", "Created", "Hit %", "In-Use");
+      Console.WriteLine("  {0}", new string('-', 92));
+
+      foreach (var pool in pools.OrderBy(p => p.Name)) {
+        if (pool.RentCount == 0 && pool.CreatedCount == 0)
+          continue;
+
+        Console.WriteLine("  {0,-38} {1,10:n0} {2,10:n0} {3,10:n0} {4,7:F1}% {5,10:n0}",
+          pool.Name,
+          pool.RentCount,
+          pool.ReturnCount,
+          pool.CreatedCount,
+          pool.HitRatio,
+          pool.OutstandingCount);
+      }
     }
   }
 }

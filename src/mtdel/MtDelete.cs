@@ -21,15 +21,18 @@ using mtsuite.shared.CommandLine;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared.Utils;
 
+using mtsuite.CoreFileSystem.ObjectPool;
+
 namespace mtdel {
   public class MtDelete {
     private readonly IFileSystem _fileSystem;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor<Statistics> _progressMonitor;
 
-    public MtDelete(IFileSystem fileSystem) {
+    public MtDelete(IFileSystem fileSystem, MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
-      _parallelFileSystem = new ParallelFileSystem(fileSystem);
+      _parallelFileSystem = new ParallelFileSystem(fileSystem, poolFactory);
       _progressMonitor = new DeleteProgressMonitor();
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);

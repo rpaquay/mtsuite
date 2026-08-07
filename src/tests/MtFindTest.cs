@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,11 +13,9 @@
 // limitations under the License.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using mtfind;
-
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.CommandLine;
-
 using tests.FileSystemHelpers;
 
 namespace tests {
@@ -39,7 +37,7 @@ namespace tests {
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtFindShouldThrowWithNonExistingFolder() {
-      var mtfind = new MtFind(_fileSystemSetup.FileSystem);
+      var mtfind = new MtFind(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
       mtfind.Run(new string[] {
         "-d", "fake",
         "foo"

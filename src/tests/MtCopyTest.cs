@@ -16,6 +16,7 @@ using System;
 using System.IO;
 using mtcopy;
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
@@ -32,7 +33,7 @@ public class MtCopyTest {
   public void Setup() {
     _sourcefs = new FileSystemSetup();
     _destfs = new FileSystemSetup();
-    _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem);
+    _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem, MtPoolFactory.Instance);
   }
 
   [TestCleanup]
@@ -49,7 +50,7 @@ public class MtCopyTest {
     // Prepare
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     mtcopy.DoCopy(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -60,7 +61,7 @@ public class MtCopyTest {
     // Prepare
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -80,7 +81,7 @@ public class MtCopyTest {
     _sourcefs.Root.CreateFile("c", 12);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -105,7 +106,7 @@ public class MtCopyTest {
     dir2.CreateFile("c", 12);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -124,7 +125,7 @@ public class MtCopyTest {
     _sourcefs.Root.CreateDirectory("a").CreateDirectory("b").CreateDirectory("c").CreateDirectory("d");
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -148,7 +149,7 @@ public class MtCopyTest {
     _destfs.Root.CreateFile("a", 10); // "a" is a dir in sourcefs!
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -168,7 +169,7 @@ public class MtCopyTest {
     _destfs.Root.CreateFile("a", 10).SetReadOnlyAttribute();
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -188,7 +189,7 @@ public class MtCopyTest {
     _sourcefs.Root.CreateFile("a", 15);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -221,7 +222,7 @@ public class MtCopyTest {
     ddir2.CreateFile("a", 10);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -252,7 +253,7 @@ public class MtCopyTest {
     dir1.CreateDirectoryLink("c", "..");
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -283,7 +284,7 @@ public class MtCopyTest {
     dir1.CreateJunctionPoint("jct", "subdir");
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -314,7 +315,7 @@ public class MtCopyTest {
     dir2.CreateJunctionPoint("jct", "subdir");
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -345,7 +346,7 @@ public class MtCopyTest {
     dir2.CreateJunctionPoint("jct", "subdir");
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -376,7 +377,7 @@ public class MtCopyTest {
     dir2.CreateFile("jct", 10);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -403,7 +404,7 @@ public class MtCopyTest {
     File.SetLastWriteTimeUtc(sourceFile.Path.FullName, expectedTime);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -429,7 +430,7 @@ public class MtCopyTest {
     File.SetUnixFileMode(sourceFile.Path.FullName, expectedMode);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -452,7 +453,7 @@ public class MtCopyTest {
     _sourcefs.Root.CreateFile("FILE.txt", 20);
 
     // Act
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
     // Assert
@@ -475,7 +476,7 @@ public class MtCopyTest {
     sub.CreateFile("sublarge.dat", 1024 * 1024);
 
     // Act - copy with threshold lower than 1MB (e.g. 512KB) to exercise async task path
-    var pfs = new mtsuite.shared.ParallelFileSystem(_sourcefs.FileSystem) {
+    var pfs = new mtsuite.shared.ParallelFileSystem(_sourcefs.FileSystem, mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory.Instance) {
       LargeFileAsyncThreshold = 512 * 1024
     };
     var copyProgress = new mtsuite.shared.CopyProgressMonitor();
@@ -502,7 +503,7 @@ public class MtCopyTest {
     _sourcefs.Root.CreateFile("file.txt", 100);
 
     // Act - copy with NoClone option explicitly passed
-    var mtcopy = new MtCopy(_sourcefs.FileSystem);
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, MtPoolFactory.Instance);
     var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, mtsuite.shared.CopyOptions.SkipIdenticalFiles | mtsuite.shared.CopyOptions.NoClone);
 
     // Assert

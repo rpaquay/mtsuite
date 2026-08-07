@@ -20,10 +20,10 @@ using System.Threading;
 namespace mtsuite.CoreFileSystem.ObjectPool;
 
 /// <summary>
-/// A high-performance, thread-safe implementation of <see cref="IPool{T}"/> using a
+/// A high-performance, thread-safe implementation of <see cref="IPool{T}"/> and <see cref="INamedPool"/> using a
 /// per-thread <see cref="ThreadState"/> cache and a thread-distributed array for zero-contention pooling.
 /// </summary>
-public class ConcurrentFixedSizeArrayPool<T> : IPool<T> where T : class {
+public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : class {
   [DebuggerDisplay("{Value}")]
   private struct Entry {
     public T? Value;
@@ -41,6 +41,24 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T> where T : class {
       Count = 0;
     }
   }
+
+  /// <summary>
+  /// Human-readable identifier assigned by the caller for reporting and diagnostics.
+  /// </summary>
+  public string Name { get; }
+
+  /// <summary>
+  /// Type of objects stored in this pool.
+  /// </summary>
+  public Type ItemType => typeof(T);
+
+  private long _rentCount;
+  private long _returnCount;
+  private long _createdCount;
+
+  public long RentCount => Volatile.Read(ref _rentCount);
+  public long ReturnCount => Volatile.Read(ref _returnCount);
+  public long CreatedCount => Volatile.Read(ref _createdCount);
 
   /// <summary>
   /// Instance creation function, used when pool is empty.
@@ -73,15 +91,16 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T> where T : class {
   /// </summary>
   private readonly int _localCapacity;
 
-  public ConcurrentFixedSizeArrayPool(Func<T> creator, Action<T> recycler)
-    : this(creator, recycler, Environment.ProcessorCount * 2, localCapacityPerThread: 4) {
+  public ConcurrentFixedSizeArrayPool(string name, Func<T> creator, Action<T> recycler)
+    : this(name, creator, recycler, Environment.ProcessorCount * 2, localCapacityPerThread: 4) {
   }
 
-  public ConcurrentFixedSizeArrayPool(Func<T> creator, Action<T> recycler, int size)
-    : this(creator, recycler, size, localCapacityPerThread: 4) {
+  public ConcurrentFixedSizeArrayPool(string name, Func<T> creator, Action<T> recycler, int size)
+    : this(name, creator, recycler, size, localCapacityPerThread: 4) {
   }
 
-  public ConcurrentFixedSizeArrayPool(Func<T> creator, Action<T> recycler, int size, int localCapacityPerThread) {
+  public ConcurrentFixedSizeArrayPool(string name, Func<T> creator, Action<T> recycler, int size, int localCapacityPerThread) {
+    Name = name ?? throw new ArgumentNullException(nameof(name));
     _creator = creator ?? throw new ArgumentNullException(nameof(creator));
     _recycler = recycler ?? throw new ArgumentNullException(nameof(recycler));
     if (size < 1)
@@ -98,7 +117,27 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T> where T : class {
     _mask = capacity - 1;
   }
 
+  public ConcurrentFixedSizeArrayPool(Func<T> creator, Action<T> recycler)
+    : this(typeof(T).Name, creator, recycler) {
+  }
+
+  public ConcurrentFixedSizeArrayPool(Func<T> creator, Action<T> recycler, int size)
+    : this(typeof(T).Name, creator, recycler, size) {
+  }
+
+  public ConcurrentFixedSizeArrayPool(Func<T> creator, Action<T> recycler, int size, int localCapacityPerThread)
+    : this(typeof(T).Name, creator, recycler, size, localCapacityPerThread) {
+  }
+
+  public void Reset() {
+    Interlocked.Exchange(ref _rentCount, 0);
+    Interlocked.Exchange(ref _returnCount, 0);
+    Interlocked.Exchange(ref _createdCount, 0);
+  }
+
   public T Allocate() {
+    Interlocked.Increment(ref _rentCount);
+
     // Fast path: thread-local stack (0 atomic operations, 0 bus contention, instance-isolated)
     var state = _threadState.Value!;
     if (state.Count > 0) {
@@ -123,6 +162,7 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T> where T : class {
       }
     }
 
+    Interlocked.Increment(ref _createdCount);
     return _creator();
   }
 
@@ -130,6 +170,7 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T> where T : class {
     if (item == null)
       return;
 
+    Interlocked.Increment(ref _returnCount);
     _recycler(item);
 
     // Fast path: recycle into thread-local stack if space is available

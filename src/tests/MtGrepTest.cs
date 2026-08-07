@@ -13,12 +13,10 @@
 // limitations under the License.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using mtfindstr;
-
 using mtsuite.CoreFileSystem;
+using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.CommandLine;
-
 using tests.FileSystemHelpers;
 
 namespace tests {
@@ -40,7 +38,7 @@ namespace tests {
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtFindStrShouldThrowWithNonExistingFolder() {
-      var findStr = new MtFindStr(_fileSystemSetup.FileSystem);
+      var findStr = new MtFindStr(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
       findStr.Run(new string[] {
         "-d:" + _fileSystemSetup.Root.Path.Combine("fake").FullName,
         "foobar2"

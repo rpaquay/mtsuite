@@ -49,20 +49,12 @@ namespace mtsuite.shared {
   public class ParallelFileSystem : IParallelFileSystem {
     private readonly IFileSystem _fileSystem;
     private readonly INoAllocStopwatchFactory _stopwatchFactory;
-    private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
-    private readonly IPool<List<Task>> _taskListPool = new ListPool<Task>();
-    private readonly IPool<List<CompactFileItem>> _compactItemListPool = new ListPool<CompactFileItem>();
-    private readonly IPool<List<CopyFileItem>> _copyItemListPool = new ListPool<CopyFileItem>();
-
-    private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool =
-      PoolFactory<SmallSet<FileSystemEntry>>.Create(
-        () => new SmallSet<FileSystemEntry>(FileSystemEntryNameComparer.Instance),
-        x => x.Clear());
-
-    private readonly IPool<Dictionary<string, FileSystemEntry>> _sourceDictPool =
-      PoolFactory<Dictionary<string, FileSystemEntry>>.Create(
-        () => new Dictionary<string, FileSystemEntry>(256, PathHelpers.FileNameComparer),
-        d => d.Clear());
+    private readonly IPool<List<FileSystemEntry>> _entryListPool;
+    private readonly IPool<List<Task>> _taskListPool;
+    private readonly IPool<List<CompactFileItem>> _compactItemListPool;
+    private readonly IPool<List<CopyFileItem>> _copyItemListPool;
+    private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool;
+    private readonly IPool<Dictionary<string, FileSystemEntry>> _sourceDictPool;
 
     /// <summary>
     /// Callback to <see cref="IFileSystem.CopyFile"/>, stored in a field to avoid GC allocation
@@ -78,11 +70,28 @@ namespace mtsuite.shared {
 
     public ParallelFileSystem(
       IFileSystem fileSystem,
+      MtPoolFactory poolFactory,
       INoAllocStopwatchFactory? stopwatchFactory = null,
       bool parallelFileCopy = false) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
       _stopwatchFactory = stopwatchFactory ?? NoAllocStopwatchFactory.Instance;
       ParallelFileCopy = parallelFileCopy;
+
+      _entryListPool = poolFactory.CreateList<FileSystemEntry>("ParallelFileSystem.EntryList");
+      _taskListPool = poolFactory.CreateList<Task>("ParallelFileSystem.TaskList");
+      _compactItemListPool = poolFactory.CreateList<CompactFileItem>("ParallelFileSystem.CompactItemList");
+      _copyItemListPool = poolFactory.CreateList<CopyFileItem>("ParallelFileSystem.CopyItemList");
+
+      _entrySetPool = poolFactory.Create(
+        "ParallelFileSystem.EntrySet",
+        static () => new SmallSet<FileSystemEntry>(FileSystemEntryNameComparer.Instance),
+        static x => x.Clear());
+
+      _sourceDictPool = poolFactory.Create(
+        "ParallelFileSystem.SourceDict",
+        static () => new Dictionary<string, FileSystemEntry>(256, PathHelpers.FileNameComparer),
+        static d => d.Clear());
     }
 
     public bool ParallelFileCopy { get; set; }

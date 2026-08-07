@@ -25,7 +25,4 @@ public static class FileIOByteArrayPool {
   /// Standard buffer size (1 MB) used for high-throughput disk I/O.
   /// </summary>
   public const int BufferSize = 1024 * 1024;
-
-  public static IPool<byte[]> Instance { get; } =
-    PoolFactory<byte[]>.Create(() => new byte[BufferSize]);
 }

@@ -23,9 +23,10 @@ namespace mtsuite.CoreFileSystem {
   /// Represents a fully qualified path.
   /// </summary>
   public sealed class FullPath : IEquatable<FullPath>, IComparable<FullPath> {
-    private static readonly IPool<StringBuffer> FullNameBufferPool = new ConcurrentFixedSizeArrayPool<StringBuffer>(
-      () => new StringBuffer(),
-      sb => sb.Clear()
+    private static readonly IPool<StringBuffer> FullNameBufferPool = MtPoolFactory.Instance.Create(
+      "FullPath.FullNameBuffer",
+      static () => new StringBuffer(),
+      static sb => sb.Clear()
     );
       
     /// <summary>
