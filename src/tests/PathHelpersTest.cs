@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using mtsuite.CoreFileSystem;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -44,14 +45,21 @@ namespace tests {
 
     [TestMethod]
     public void NormalizePathTest() {
-      Assert.AreEqual(@"c:\", PathHelpers.NormalizePath(@"c:\test\.."));
-      Assert.AreEqual(@"\\?\c:\", PathHelpers.NormalizePath(@"\\?\c:\test\.."));
-      Assert.AreEqual(@"\\server\share", PathHelpers.NormalizePath(@"\\server\share"));
-      Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.NormalizePath(@"\\?\UNC\server\share"));
-      Assert.AreEqual(@"\\server\share", PathHelpers.NormalizePath(@"\\server\share\."));
-      Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.NormalizePath(@"\\?\UNC\server\share\."));
-      Assert.AreEqual(@"\\server", PathHelpers.NormalizePath(@"\\server\share\.."));
-      Assert.AreEqual(@"\\?\UNC\server", PathHelpers.NormalizePath(@"\\?\UNC\server\share\.."));
+      if (OperatingSystem.IsWindows()) {
+        Assert.AreEqual(@"c:\", PathHelpers.NormalizePath(@"c:\test\.."));
+        Assert.AreEqual(@"\\?\c:\", PathHelpers.NormalizePath(@"\\?\c:\test\.."));
+        Assert.AreEqual(@"\\server\share", PathHelpers.NormalizePath(@"\\server\share"));
+        Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.NormalizePath(@"\\?\UNC\server\share"));
+        Assert.AreEqual(@"\\server\share", PathHelpers.NormalizePath(@"\\server\share\."));
+        Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.NormalizePath(@"\\?\UNC\server\share\."));
+        Assert.AreEqual(@"\\server", PathHelpers.NormalizePath(@"\\server\share\.."));
+        Assert.AreEqual(@"\\?\UNC\server", PathHelpers.NormalizePath(@"\\?\UNC\server\share\.."));
+      } else {
+        Assert.AreEqual(@"/", PathHelpers.NormalizePath(@"/test/.."));
+        Assert.AreEqual(@"/server/share", PathHelpers.NormalizePath(@"/server/share"));
+        Assert.AreEqual(@"/server/share", PathHelpers.NormalizePath(@"/server/share/."));
+        Assert.AreEqual(@"/server", PathHelpers.NormalizePath(@"/server/share/.."));
+      }
     }
 
     [TestMethod]
@@ -100,11 +108,16 @@ namespace tests {
 
     [TestMethod]
     public void NormalizeUserInputPathTest() {
-      Assert.AreEqual(@"c:\test", PathHelpers.NormalizeUserInputPath(@"c:\", @"c:\test"));
-      Assert.AreEqual(@"c:\test", PathHelpers.NormalizeUserInputPath(@"c:\", @"\test"));
-      Assert.AreEqual(@"c:\test", PathHelpers.NormalizeUserInputPath(@"c:\", @"test\"));
-      Assert.AreEqual(@"c:\", PathHelpers.NormalizeUserInputPath(@"c:\", @"c:"));
-      Assert.AreEqual(@"d:\", PathHelpers.NormalizeUserInputPath(@"c:\", @"d:"));
+      if (OperatingSystem.IsWindows()) {
+        Assert.AreEqual(@"c:\test", PathHelpers.NormalizeUserInputPath(@"c:\", @"c:\test"));
+        Assert.AreEqual(@"c:\test", PathHelpers.NormalizeUserInputPath(@"c:\", @"\test"));
+        Assert.AreEqual(@"c:\test", PathHelpers.NormalizeUserInputPath(@"c:\", @"test\"));
+        Assert.AreEqual(@"c:\", PathHelpers.NormalizeUserInputPath(@"c:\", @"c:"));
+        Assert.AreEqual(@"d:\", PathHelpers.NormalizeUserInputPath(@"c:\", @"d:"));
+      } else {
+        Assert.AreEqual(@"/test", PathHelpers.NormalizeUserInputPath(@"/", @"/test"));
+        Assert.AreEqual(@"/test", PathHelpers.NormalizeUserInputPath(@"/", @"test/"));
+      }
     }
   }
 }

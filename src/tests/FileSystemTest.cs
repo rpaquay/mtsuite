@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Diagnostics;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -83,6 +84,11 @@ namespace tests {
 
     [TestMethod]
     public void GetJunctionPointInfoWorks() {
+      if (!OperatingSystem.IsWindows()) {
+        Assert.Inconclusive("Junction points are only supported on Windows.");
+        return;
+      }
+
       // Prepare
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo with spaces");
 
@@ -107,12 +113,11 @@ namespace tests {
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo with spaces");
 
       // Act
-      var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
-      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/d", junctionPointPath.FullName, fooTarget.Path.FullName });
-      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
+      var linkPath = fooTarget.Parent.Path.Combine("foo.link");
+      _fileSystemSetup.CreateDirectorySymbolicLink(linkPath, fooTarget.Path.FullName);
+      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(linkPath);
 
       // Assert
-      Assert.AreEqual(0, rc);
       Assert.IsTrue(info.IsSymbolicLink);
       Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
@@ -127,12 +132,11 @@ namespace tests {
       var fooTarget = _fileSystemSetup.Root.CreateFile("foo with spaces", 200);
 
       // Act
-      var junctionPointPath = fooTarget.Parent.Path.Combine("foo.junction");
-      int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", junctionPointPath.FullName, fooTarget.Path.FullName });
-      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
+      var linkPath = fooTarget.Parent.Path.Combine("foo.link");
+      _fileSystemSetup.CreateFileSymbolicLink(linkPath, fooTarget.Path.FullName);
+      var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(linkPath);
 
       // Assert
-      Assert.AreEqual(0, rc);
       Assert.IsTrue(info.IsSymbolicLink);
       Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
