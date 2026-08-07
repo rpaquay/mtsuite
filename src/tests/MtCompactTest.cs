@@ -71,13 +71,11 @@ namespace tests {
 
       public HashSet<(string Source, string Destination)> AlreadyClonedPairs { get; } = new();
 
-      public bool AreFilesCloned(FullPath path1, FullPath path2) {
+      public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
         lock (AlreadyClonedPairs) {
-          return AlreadyClonedPairs.Contains((path1.FullName, path2.FullName));
+          return AlreadyClonedPairs.Contains((file1.Path.FullName, file2.Path.FullName));
         }
       }
-
-      public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => AreFilesCloned(file1.Path, file2.Path);
 
       public bool TryCloneFile<T>(
         FileSystemEntry sourceEntry,

@@ -256,17 +256,21 @@ namespace tests {
       var extension = new mtsuite.CoreFileSystem.MacOSFileSystemExtension(poolFactory);
 
       var sourceFile = _fileSystemSetup.Root.CreateFile("source_file.txt", 100);
-      var destinationPath = _fileSystemSetup.Root.Path.Combine("dest_file.txt");
+      var destinationFile = _fileSystemSetup.Root.CreateFile("dest_file.txt", 100);
+
+      var entry1 = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
+      var entry2 = _fileSystemSetup.FileSystem.GetEntry(destinationFile.Path);
 
       // Verify that before cloning, they are not considered cloned
-      Assert.IsFalse(extension.AreFilesCloned(sourceFile.Path, destinationPath));
+      Assert.IsFalse(extension.AreFilesCloned(entry1, entry2));
 
       // Clone it
-      var entry = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
-      extension.CloneFile(entry, destinationPath);
+      _fileSystemSetup.FileSystem.DeleteEntry(entry2);
+      extension.CloneFile(entry1, destinationFile.Path);
 
       // Verify that after cloning, AreFilesCloned returns true!
-      Assert.IsTrue(extension.AreFilesCloned(sourceFile.Path, destinationPath));
+      var clonedEntry2 = _fileSystemSetup.FileSystem.GetEntry(destinationFile.Path);
+      Assert.IsTrue(extension.AreFilesCloned(entry1, clonedEntry2));
     }
 
     [TestMethod]
@@ -281,9 +285,6 @@ namespace tests {
       var sourceFile = _fileSystemSetup.Root.CreateFile("source_file_zero.txt", 0);
       var destinationFile = _fileSystemSetup.Root.CreateFile("dest_file_zero.txt", 0);
 
-      // Verify that AreFilesCloned returns true for both 0-byte files
-      Assert.IsTrue(extension.AreFilesCloned(sourceFile.Path, destinationFile.Path));
-
       var entry1 = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
       var entry2 = _fileSystemSetup.FileSystem.GetEntry(destinationFile.Path);
       Assert.IsTrue(extension.AreFilesCloned(entry1, entry2));
@@ -293,7 +294,6 @@ namespace tests {
     public void NullFileSystemExtensionBehavesSafely() {
       var nullExt = new mtsuite.CoreFileSystem.NullFileSystemExtension();
       Assert.IsFalse(nullExt.IsCloningSupported(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
-      Assert.IsFalse(nullExt.AreFilesCloned(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
       Assert.IsFalse(nullExt.AreFilesCloned(default(mtsuite.CoreFileSystem.FileSystemEntry), default(mtsuite.CoreFileSystem.FileSystemEntry)));
       Assert.ThrowsException<PlatformNotSupportedException>(() =>
         nullExt.CloneFile(default, new mtsuite.CoreFileSystem.FullPath("/tmp/b")));

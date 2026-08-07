@@ -35,7 +35,6 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     return false;
   }
 
-  public bool AreFilesCloned(FullPath path1, FullPath path2) => false;
 
   public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
 

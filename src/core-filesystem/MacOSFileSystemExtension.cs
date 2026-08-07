@@ -51,9 +51,6 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
     _fullNameBufferPool = poolFactory.Create("MacOSFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
   }
 
-  public bool AreFilesCloned(FullPath path1, FullPath path2) {
-    throw new NotImplementedException();
-  }
 
   public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
     if (!OperatingSystem.IsMacOS()) {
