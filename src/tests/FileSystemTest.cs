@@ -202,5 +202,28 @@ namespace tests {
       Assert.IsFalse(info.IsTargetRelative);
       Assert.AreEqual(fooTarget.Path.FullName, info.Target);
     }
+
+    [TestMethod]
+    public void FileSystemExtensionFactoryCreatesPlatformExtension() {
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = mtsuite.CoreFileSystem.FileSystemExtension.Create(poolFactory);
+      Assert.IsNotNull(extension);
+
+      if (OperatingSystem.IsMacOS()) {
+        Assert.IsInstanceOfType(extension, typeof(mtsuite.CoreFileSystem.MacOSFileSystemExtension));
+      } else if (OperatingSystem.IsLinux()) {
+        Assert.IsInstanceOfType(extension, typeof(mtsuite.CoreFileSystem.LinuxFileSystemExtension));
+      } else if (OperatingSystem.IsWindows()) {
+        Assert.IsInstanceOfType(extension, typeof(mtsuite.CoreFileSystem.WindowsFileSystemExtension));
+      }
+    }
+
+    [TestMethod]
+    public void NullFileSystemExtensionBehavesSafely() {
+      var nullExt = new mtsuite.CoreFileSystem.NullFileSystemExtension();
+      Assert.IsFalse(nullExt.IsCloningSupported(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
+      Assert.ThrowsException<PlatformNotSupportedException>(() =>
+        nullExt.CloneFile(default, new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
+    }
   }
 }

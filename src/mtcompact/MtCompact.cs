@@ -90,7 +90,7 @@ namespace mtcompact {
       }
 
       var explicitDryRun = parser.Contains("dry-run");
-      var supportsCloning = _fileSystem.SupportsCloning(sourcePath, destinationPath);
+      var supportsCloning = _fileSystem.Extension.IsCloningSupported(sourcePath, destinationPath);
       var isDryRun = explicitDryRun || !supportsCloning;
 
       if (!supportsCloning) {

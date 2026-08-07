@@ -36,17 +36,18 @@ namespace tests {
     /// Test file system that records clone operations without requiring OS-level CoW support (e.g. on Linux/Windows),
     /// enabling complete verification of which files are selected for cloning vs skipped or untouched.
     /// </summary>
-    private class TestCompactFileSystem : IFileSystem {
+    private class TestCompactFileSystem : IFileSystem, IFileSystemExtension {
       private readonly IFileSystem _inner;
 
       public TestCompactFileSystem(IFileSystem inner) {
         _inner = inner;
       }
 
+      public IFileSystemExtension Extension => this;
       public bool SupportsCloningValue { get; set; } = true;
       public List<(string Source, string Destination)> ClonedPairs { get; } = new();
 
-      public bool SupportsCloning(FullPath sourcePath, FullPath destinationPath) => SupportsCloningValue;
+      public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) => SupportsCloningValue;
       public FileSystemEntry GetEntry(FullPath path) => _inner.GetEntry(path);
       public ReparsePointInfo GetReparsePointInfo(FullPath path) => _inner.GetReparsePointInfo(path);
       public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) => _inner.GetDirectoryFiles(path);
@@ -67,6 +68,14 @@ namespace tests {
         }
         _inner.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, (object)null, static (ref FileSystemEntry s, long v, long c, long t, ref object p) => { });
       }
+
+      public bool TryCloneFile<T>(
+        FileSystemEntry sourceEntry,
+        FullPath destinationPath,
+        FileSystemEntry? destinationEntry,
+        CopyFileOptions copyFileOptions,
+        T param,
+        CopyFileCallback<T> callback) => false;
     }
 
     [TestInitialize]

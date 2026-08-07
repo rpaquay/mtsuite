@@ -552,7 +552,7 @@ namespace mtsuite.shared {
             try {
               var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
               if (areEqual) {
-                PerformCompactFile(sourceEntry, destinationEntry.Path, dryRun);
+                PerformFileClone(sourceEntry, destinationEntry.Path, dryRun);
               } else {
                 OnFileCloneSkipped(sourceEntry);
               }
@@ -603,12 +603,12 @@ namespace mtsuite.shared {
       return areEqual;
     }
 
-    private void PerformCompactFile(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
+    private void PerformFileClone(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
       var sw = _stopwatchFactory.Create();
       OnFileCloning(sourceEntry);
       if (!dryRun) {
         try {
-          _fileSystem.CloneFile(sourceEntry, destinationPath);
+          _fileSystem.Extension.CloneFile(sourceEntry, destinationPath);
         } catch (Exception e) {
           OnError(sourceEntry.Path, e);
         }

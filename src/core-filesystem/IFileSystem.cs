@@ -98,16 +98,9 @@ namespace mtsuite.CoreFileSystem {
     void CopyFile<T>(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback);
     
     /// <summary>
-    /// Checks whether Copy-on-Write (CoW) file cloning is supported between <paramref name="sourcePath"/>
-    /// and <paramref name="destinationPath"/> (e.g. APFS on macOS within the same volume).
+    /// Gets the platform- and filesystem-specific extension operations.
     /// </summary>
-    bool SupportsCloning(FullPath sourcePath, FullPath destinationPath);
-
-    /// <summary>
-    /// Clones a file using Copy-on-Write (CoW) filesystem semantics (e.g. APFS on macOS).
-    /// Throws an exception if cloning is not supported or fails.
-    /// </summary>
-    void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath);
+    IFileSystemExtension Extension { get; }
 
     /// <summary>
     /// Open an existing file given its <paramref name="path"/>. Throws an

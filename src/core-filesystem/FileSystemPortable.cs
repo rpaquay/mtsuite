@@ -25,15 +25,15 @@ using mtsuite.CoreFileSystem.Utils;
 namespace mtsuite.CoreFileSystem;
 
 public class FileSystemPortable : IFileSystem {
-    [DllImport("libSystem", EntryPoint = "clonefile", SetLastError = true)]
-    private static extern int clonefile(string src, string dst, uint flags);
+    public IFileSystemExtension Extension { get; }
 
     private readonly IPool<List<FileSystemEntry>> _entryListPool;
     private readonly IPool<byte[]> _copyFileBufferPool;
     private readonly IPool<StringBuffer> _fullNameBufferPool;
 
-    public FileSystemPortable(MtPoolFactory poolFactory) {
+    public FileSystemPortable(MtPoolFactory poolFactory, IFileSystemExtension? extension = null) {
       ArgumentNullException.ThrowIfNull(poolFactory);
+      Extension = extension ?? FileSystemExtension.Create(poolFactory);
       _entryListPool = poolFactory.CreateList<FileSystemEntry>("FileSystemPortable.EntryList");
       _copyFileBufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
       _fullNameBufferPool = poolFactory.Create("FileSystemPortable.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
@@ -205,74 +205,14 @@ public class FileSystemPortable : IFileSystem {
           }
         }
         
-        if (AllowCloning && (options & CopyFileOptions.NoClone) == 0 && OperatingSystem.IsMacOS()) {
-          if (TryCloneFile(sourceEntry, destinationPath, destinationEntry, options, param, callback)) {
+        if (AllowCloning && (options & CopyFileOptions.NoClone) == 0) {
+          if (Extension.TryCloneFile(sourceEntry, destinationPath, destinationEntry, options, param, callback)) {
             return;
           }
         }
 
         CopyFileImpl(sourceEntry, destinationPath, options, param, callback);
       }
-    }
-
-    private bool TryCloneFile<T>(
-      FileSystemEntry sourceEntry,
-      FullPath destinationPath,
-      FileSystemEntry? destinationEntry,
-      CopyFileOptions copyFileOptions,
-      T param,
-      CopyFileCallback<T> callback) {
-
-      if (!OperatingSystem.IsMacOS()) {
-        return false;
-      }
-
-      string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
-
-      // If destination exists, clonefile fails with EEXIST unless deleted first
-      if (destinationEntry.HasValue || File.Exists(dstFullName)) {
-        try {
-          File.Delete(dstFullName);
-        } catch {
-          // If destination cannot be deleted, fall back to streaming copy
-          return false;
-        }
-      }
-
-      string srcFullName = sourceEntry.Path.GetFullName(_fullNameBufferPool);
-      int res = clonefile(srcFullName, dstFullName, 0);
-      if (res != 0) {
-        // clonefile failed (e.g. cross-volume copy or non-APFS volume), fall back to streaming copy
-        return false;
-      }
-
-      // Preserve timestamps
-      try {
-        File.SetLastWriteTimeUtc(dstFullName, sourceEntry.LastWriteTimeUtc);
-      } catch {
-        // Best effort
-      }
-
-      // Preserve Unix file modes (POSIX permissions)
-      try {
-        var mode = File.GetUnixFileMode(srcFullName);
-        File.SetUnixFileMode(dstFullName, mode);
-      } catch {
-        // Best effort
-      }
-
-      // Preserve FileAttributes
-      try {
-        if (sourceEntry.FileAttributes != FileAttributes.Normal) {
-          File.SetAttributes(dstFullName, sourceEntry.FileAttributes);
-        }
-      } catch {
-        // Best effort
-      }
-
-      // Notify callback that file copy is complete
-      callback(ref sourceEntry, sourceEntry.FileSize, sourceEntry.FileSize, sourceEntry.FileSize, ref param);
-      return true;
     }
 
     private void CopyFileImpl<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, T param, CopyFileCallback<T> callback) {
@@ -336,80 +276,6 @@ public class FileSystemPortable : IFileSystem {
       } catch {
         // Best effort
       }
-    }
-
-    public bool SupportsCloning(FullPath sourcePath, FullPath destinationPath) {
-      if (!OperatingSystem.IsMacOS()) {
-        return false;
-      }
-
-      try {
-        string srcFullName = sourcePath.GetFullName(_fullNameBufferPool);
-        string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
-
-        if (!Directory.Exists(srcFullName) && !File.Exists(srcFullName)) {
-          return false;
-        }
-        if (!Directory.Exists(dstFullName) && !File.Exists(dstFullName)) {
-          return false;
-        }
-
-        string sourceDir = Directory.Exists(srcFullName) ? srcFullName : (Path.GetDirectoryName(srcFullName) ?? srcFullName);
-        string destDir = Directory.Exists(dstFullName) ? dstFullName : (Path.GetDirectoryName(dstFullName) ?? dstFullName);
-
-        string probeSrc = Path.Combine(sourceDir, ".mtcompact_probe_" + Guid.NewGuid().ToString("N") + ".tmp");
-        string probeDst = Path.Combine(destDir, ".mtcompact_probe_" + Guid.NewGuid().ToString("N") + ".tmp");
-
-        try {
-          File.WriteAllBytes(probeSrc, Array.Empty<byte>());
-          int res = clonefile(probeSrc, probeDst, 0);
-          return res == 0;
-        } finally {
-          try { if (File.Exists(probeSrc)) File.Delete(probeSrc); } catch { }
-          try { if (File.Exists(probeDst)) File.Delete(probeDst); } catch { }
-        }
-      } catch {
-        return false;
-      }
-    }
-
-    public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
-      if (!OperatingSystem.IsMacOS()) {
-        throw new PlatformNotSupportedException("File cloning is currently only supported on macOS (APFS).");
-      }
-
-      string srcFullName = sourceEntry.Path.GetFullName(_fullNameBufferPool);
-      string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
-      string destDir = Path.GetDirectoryName(dstFullName) ?? dstFullName;
-      string tempDst = Path.Combine(destDir, ".mtcompact_tmp_" + Guid.NewGuid().ToString("N") + ".tmp");
-
-      int res = clonefile(srcFullName, tempDst, 0);
-      if (res != 0) {
-        int errno = Marshal.GetLastPInvokeError();
-        try { if (File.Exists(tempDst)) File.Delete(tempDst); } catch { }
-        throw new IOException($"Failed to clone file '{srcFullName}' to '{dstFullName}': errno {errno}");
-      }
-
-      // Preserve timestamps
-      try {
-        File.SetLastWriteTimeUtc(tempDst, sourceEntry.LastWriteTimeUtc);
-      } catch { }
-
-      // Preserve Unix file modes (POSIX permissions)
-      try {
-        var mode = File.GetUnixFileMode(srcFullName);
-        File.SetUnixFileMode(tempDst, mode);
-      } catch { }
-
-      // Preserve FileAttributes
-      try {
-        if (sourceEntry.FileAttributes != FileAttributes.Normal) {
-          File.SetAttributes(tempDst, sourceEntry.FileAttributes);
-        }
-      } catch { }
-
-      // Atomic replace
-      File.Move(tempDst, dstFullName, overwrite: true);
     }
 
     public FileStream OpenFile(FullPath path, FileAccess access) {
