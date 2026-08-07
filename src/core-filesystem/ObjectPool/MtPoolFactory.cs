@@ -22,8 +22,6 @@ namespace mtsuite.CoreFileSystem.ObjectPool;
 /// Consolidated pool factory that creates, names, and tracks all object and array pools across mtsuite.
 /// </summary>
 public class MtPoolFactory {
-  public static MtPoolFactory Instance { get; } = new();
-
   private readonly List<INamedPool> _pools = new();
   private readonly object _lock = new();
 

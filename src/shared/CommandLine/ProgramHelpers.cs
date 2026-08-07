@@ -173,7 +173,9 @@ namespace mtsuite.shared.CommandLine {
       DisplayErrors(statistics.Errors);
     }
 
-    public static void DisplayGcStatistics(IFileSystem fileSystem = null) {
+    public static void DisplayGcStatistics(MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
+
       Console.WriteLine();
       var sb = new StringBuilder();
       sb.AppendFormat("GC Memory: {0:n0} KB", GC.GetTotalMemory(false) / 1024);
@@ -190,11 +192,13 @@ namespace mtsuite.shared.CommandLine {
 
       Console.WriteLine(sb.ToString());
 
-      DisplayPoolStatistics();
+      DisplayPoolStatistics(poolFactory);
     }
 
-    public static void DisplayPoolStatistics() {
-      var pools = MtPoolFactory.Instance.RegisteredPools;
+    public static void DisplayPoolStatistics(MtPoolFactory poolFactory) {
+      ArgumentNullException.ThrowIfNull(poolFactory);
+
+      var pools = poolFactory.RegisteredPools;
       if (pools.Count == 0)
         return;
 

@@ -28,6 +28,7 @@ namespace tests {
   public class MtCompactTest {
     private FileSystemSetup _sourcefs;
     private FileSystemSetup _destfs;
+    private MtPoolFactory _poolFactory;
     private IFileComparer _fileComparer;
 
     /// <summary>
@@ -71,7 +72,8 @@ namespace tests {
     public void Setup() {
       _sourcefs = new FileSystemSetup();
       _destfs = new FileSystemSetup();
-      _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      _poolFactory = new MtPoolFactory();
+      _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
     }
 
     [TestCleanup]
@@ -80,20 +82,21 @@ namespace tests {
       _sourcefs = null;
       _destfs.Dispose();
       _destfs = null;
+      _poolFactory = null;
     }
 
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtCompactShouldThrowWithNonExistingFolder() {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
       mtcompact.DoCompact(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer);
     }
 
     [TestMethod]
     public void MtCompactShouldWorkWithEmptyFolders() {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.AreEqual(0, stats.FileCompactedCount);
@@ -117,7 +120,7 @@ namespace tests {
       destSub.CreateFile("dest_z.txt", 600);
 
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
@@ -151,7 +154,7 @@ namespace tests {
       _destfs.Root.CreateFile("file2.txt", 200);
 
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.AreEqual(2, stats.FileCompactedCount);
@@ -186,7 +189,7 @@ namespace tests {
       _destfs.Root.CreateFile("file4.txt", 500);
 
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.AreEqual(1, stats.FileCompactedCount);
@@ -223,8 +226,8 @@ namespace tests {
       File.SetLastWriteTimeUtc(dstPath2, DateTime.UtcNow.AddMinutes(-1));
 
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
-      var contentComparer = new FileContentsFileComparer(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
+      var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
       Assert.AreEqual(1, stats.FileCompactedCount); // only same_content_diff_time.txt
@@ -247,7 +250,7 @@ namespace tests {
       destSub.CreateFile("nested.txt", 500);
 
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.AreEqual(1, stats.FileCompactedCount);
@@ -273,7 +276,7 @@ namespace tests {
         SupportsCloningValue = false // Simulate non-supporting OS/filesystem
       };
 
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
       // Run with standard CLI arguments
       mtcompact.Run(new[] { _sourcefs.Root.Path.FullName, _destfs.Root.Path.FullName });
 
@@ -290,7 +293,7 @@ namespace tests {
         SupportsCloningValue = true
       };
 
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
       mtcompact.Run(new[] { _sourcefs.Root.Path.FullName, _destfs.Root.Path.FullName, "--dry-run" });
 
       // In dry-run mode, no clone operations performed
@@ -311,7 +314,7 @@ namespace tests {
         SupportsCloningValue = true
       };
 
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
       // Run with default CLI args (no -fc or -ft)
       mtcompact.Run(new[] { _sourcefs.Root.Path.FullName, _destfs.Root.Path.FullName });
 
@@ -350,8 +353,8 @@ namespace tests {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
         SupportsCloningValue = true
       };
-      var mtcompact = new MtCompact(testFs, MtPoolFactory.Instance);
-      var contentComparer = new FileContentsFileComparer(testFs, MtPoolFactory.Instance);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
+      var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
       Assert.AreEqual(10, stats.FileCompactedCount); // 10 even files

@@ -22,28 +22,31 @@ namespace tests {
   [TestClass]
   public class MtDeleteTest {
     private FileSystemSetup _fileSystemSetup;
+    private MtPoolFactory _poolFactory;
 
     [TestInitialize]
     public void Setup() {
       _fileSystemSetup = new FileSystemSetup();
+      _poolFactory = new MtPoolFactory();
     }
 
     [TestCleanup]
     public void Cleanup() {
       _fileSystemSetup.Dispose();
       _fileSystemSetup = null;
+      _poolFactory = null;
     }
 
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtDeleteShouldThrowWithNonExistingFolder() {
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
       mtdelete.DoDelete(_fileSystemSetup.Root.Path.Combine("fake"), new MtDelete.Options { QuietMode = true });
     }
 
     [TestMethod]
     public void MtDeleteShouldWorkWithEmptyFolder() {
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
@@ -56,7 +59,7 @@ namespace tests {
       _fileSystemSetup.Root.CreateFile("b", 11);
       _fileSystemSetup.Root.CreateFile("c", 12);
 
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
@@ -74,7 +77,7 @@ namespace tests {
       dir2.CreateFile("b", 11);
       dir2.CreateFile("c", 12);
 
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
@@ -86,7 +89,7 @@ namespace tests {
     public void MtDeleteShouldWorkWithNestedDirectories() {
       _fileSystemSetup.Root.CreateDirectory("a").CreateDirectory("b").CreateDirectory("c").CreateDirectory("d");
 
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
@@ -98,7 +101,7 @@ namespace tests {
       var file = _fileSystemSetup.Root.CreateFile("a", 10);
       file.SetReadOnlyAttribute();
 
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
@@ -112,7 +115,7 @@ namespace tests {
       var file = _fileSystemSetup.Root.CreateFile("a", 10);
       file.SetSystemAttribute();
 
-      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
       Assert.IsFalse(_fileSystemSetup.Root.Exists());

@@ -29,12 +29,14 @@ using mtsuite.CoreFileSystem.ObjectPool;
 namespace mtinfo {
   public class MtInfo {
     private readonly IFileSystem _fileSystem;
+    private readonly MtPoolFactory _poolFactory;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor<Statistics> _progressMonitor;
 
     public MtInfo(IFileSystem fileSystem, MtPoolFactory poolFactory) {
       ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
+      _poolFactory = poolFactory;
       _parallelFileSystem = new ParallelFileSystem(fileSystem, poolFactory);
       _progressMonitor = new InfoProgressMonitor();
 
@@ -110,7 +112,7 @@ namespace mtinfo {
       DisplayDirectoryEntries(summaryRoot, x => x.Stats.FileBytesTotal);
 
       if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics(_fileSystem);
+        ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 
       // 0 = success, 8 = fail (to match robocopy)

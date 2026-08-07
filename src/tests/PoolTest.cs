@@ -74,8 +74,9 @@ namespace tests {
 
     [TestMethod]
     public void MtPoolFactoryTracksPoolStatisticsCorrectly() {
+      var poolFactory = new MtPoolFactory();
       var poolName = "TestTrackStatsPool_" + Guid.NewGuid().ToString("N");
-      var pool = MtPoolFactory.Instance.Create<Entry>(poolName, () => new Entry(), _ => { });
+      var pool = poolFactory.Create<Entry>(poolName, () => new Entry(), _ => { });
 
       // IPool<T> directly inherits from INamedPool
       Assert.IsTrue(pool is INamedPool);
@@ -129,8 +130,9 @@ namespace tests {
 
     [TestMethod]
     public void MtPoolFactoryCreateListCreatesWorkingNamedPool() {
+      var poolFactory = new MtPoolFactory();
       var listPoolName = "TestListPool_" + Guid.NewGuid().ToString("N");
-      var listPool = MtPoolFactory.Instance.CreateList<string>(listPoolName, 128);
+      var listPool = poolFactory.CreateList<string>(listPoolName, 128);
 
       Assert.IsTrue(listPool is INamedPool);
       Assert.AreEqual(listPoolName, listPool.Name);

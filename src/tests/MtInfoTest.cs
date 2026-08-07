@@ -23,28 +23,31 @@ namespace tests {
   [TestClass]
   public class MtInfoTest {
     private FileSystemSetup _fileSystemSetup;
+    private MtPoolFactory _poolFactory;
 
     [TestInitialize]
     public void Setup() {
       _fileSystemSetup = new FileSystemSetup();
+      _poolFactory = new MtPoolFactory();
     }
 
     [TestCleanup]
     public void Cleanup() {
       _fileSystemSetup.Dispose();
       _fileSystemSetup = null;
+      _poolFactory = null;
     }
 
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtInfoShouldThrowWithNonExistingFolder() {
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
       mtinfo.DoCollect(_fileSystemSetup.Root.Path.Combine("fake"), new MtInfo.CollectOptions { LevelCount = 3});
     }
 
     [TestMethod]
     public void MtInfoShouldWorkWithEmptyFolder() {
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
       var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3}).Summary;
       Assert.AreEqual(0, summary.Stats.DirectoryCount);
       Assert.AreEqual(0, summary.Stats.FileCount);
@@ -56,7 +59,7 @@ namespace tests {
       _fileSystemSetup.Root.CreateFile("a", 10);
       _fileSystemSetup.Root.CreateFile("b", 11);
       _fileSystemSetup.Root.CreateFile("c", 12);
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
 
       var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3 }).Summary;
       Assert.AreEqual(0, summary.Stats.DirectoryCount);
@@ -73,7 +76,7 @@ namespace tests {
       var dir2 = _fileSystemSetup.Root.CreateDirectory("b");
       dir2.CreateFile("b", 11);
       dir2.CreateFile("c", 12);
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
 
       var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3 }).Summary;
       Assert.AreEqual(2, summary.Stats.DirectoryCount);
@@ -84,7 +87,7 @@ namespace tests {
     [TestMethod]
     public void MtInfoShouldWorkWithNestedDirectories() {
       _fileSystemSetup.Root.CreateDirectory("a").CreateDirectory("b").CreateDirectory("c").CreateDirectory("d");
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
 
       var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3 }).Summary;
       Assert.AreEqual(4, summary.Stats.DirectoryCount);
@@ -101,7 +104,7 @@ namespace tests {
       dir.CreateFile("a", 10);
       dir.CreateFileLink("b", "a");
 
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
 
       var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3 }).Summary;
       Assert.AreEqual(1, summary.Stats.DirectoryCount);
@@ -127,7 +130,7 @@ namespace tests {
       var j2 = root.CreateJunctionPoint("j2", ".\\subdir");
       var j3 = root.CreateJunctionPoint("j3", root.Path.Combine("subdir").FullName);
 
-      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
 
       var summary = mtinfo.DoCollect(_fileSystemSetup.Root.Path, new MtInfo.CollectOptions { LevelCount = 3 }).Summary;
       Assert.AreEqual(1, summary.Stats.DirectoryCount);

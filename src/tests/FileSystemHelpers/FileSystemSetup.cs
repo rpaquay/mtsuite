@@ -25,7 +25,7 @@ public class FileSystemSetup : IDisposable {
   private readonly Lazy<DirectorySetup> _root;
 
   public FileSystemSetup() {
-    _fileSystem = mtsuite.CoreFileSystem.FileSystem.Default;
+    _fileSystem = mtsuite.CoreFileSystem.FileSystem.CreateDefault(new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory());
     _root = new Lazy<DirectorySetup>(CreateRootDirectory);
   }
 

@@ -20,7 +20,9 @@ namespace mtcompact {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtCompact(FileSystem.Default, MtPoolFactory.Instance).Run(args);
+        var poolFactory = new MtPoolFactory();
+        var fileSystem = FileSystem.CreateDefault(poolFactory);
+        new MtCompact(fileSystem, poolFactory).Run(args);
       });
     }
   }

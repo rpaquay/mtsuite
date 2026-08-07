@@ -20,7 +20,9 @@ namespace mtcopy {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtCopy(FileSystem.Default, MtPoolFactory.Instance).Run(args);
+        var poolFactory = new MtPoolFactory();
+        var fileSystem = FileSystem.CreateDefault(poolFactory);
+        new MtCopy(fileSystem, poolFactory).Run(args);
       });
     }
   }

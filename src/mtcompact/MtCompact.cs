@@ -105,7 +105,7 @@ namespace mtcompact {
       var statistics = DoCompact(sourcePath, destinationPath, fileComparer, isDryRun);
       DisplayResults(statistics, isDryRun);
       if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics(_fileSystem);
+        ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 
       if (statistics.Errors.Count > 0)

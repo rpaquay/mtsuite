@@ -27,12 +27,14 @@ using mtsuite.CoreFileSystem.ObjectPool;
 namespace mtfind {
   public class MtFind {
     private readonly IFileSystem _fileSystem;
+    private readonly MtPoolFactory _poolFactory;
     private readonly ParallelFileSystem _parallelFileSystem;
     private readonly FindProgressMonitor _progressMonitor;
 
     public MtFind(IFileSystem fileSystem, MtPoolFactory poolFactory) {
       ArgumentNullException.ThrowIfNull(poolFactory);
       _fileSystem = fileSystem;
+      _poolFactory = poolFactory;
       _parallelFileSystem = new ParallelFileSystem(fileSystem, poolFactory);
       _progressMonitor = new FindProgressMonitor();
 
@@ -78,7 +80,7 @@ namespace mtfind {
 #endif
 
       if (arguments.Values.GarbageCollect) {
-        ProgramHelpers.DisplayGcStatistics(_fileSystem);
+        ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 
       // 0 = success, 8 = fail (to match robocopy)

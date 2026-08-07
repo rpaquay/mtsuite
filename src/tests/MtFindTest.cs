@@ -37,7 +37,7 @@ namespace tests {
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtFindShouldThrowWithNonExistingFolder() {
-      var mtfind = new MtFind(_fileSystemSetup.FileSystem, MtPoolFactory.Instance);
+      var mtfind = new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory());
       mtfind.Run(new string[] {
         "-d", "fake",
         "foo"

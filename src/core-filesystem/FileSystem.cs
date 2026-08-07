@@ -19,15 +19,8 @@ using mtsuite.CoreFileSystem.ObjectPool;
 namespace mtsuite.CoreFileSystem;
 
 public static class FileSystem {
-  private static IFileSystem? _default = null;
-  
-  public static IFileSystem Default {
-    get {
-      if (_default == null) {
-        _default = new FileSystemPortable(MtPoolFactory.Instance);
-      }
-
-      return _default;
-    }
+  public static IFileSystem CreateDefault(MtPoolFactory poolFactory) {
+    ArgumentNullException.ThrowIfNull(poolFactory);
+    return new FileSystemPortable(poolFactory);
   }
 }

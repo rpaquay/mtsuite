@@ -106,7 +106,7 @@ namespace mtmir {
       var statistics = DoMirror(sourcePath, destinationPath, fileComparer, copyOptions);
       DisplayResults(statistics);
       if (parser.Contains("gc")) {
-        ProgramHelpers.DisplayGcStatistics(_fileSystem);
+        ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 
       if (statistics.Errors.Count > 0)

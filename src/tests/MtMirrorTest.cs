@@ -26,13 +26,15 @@ namespace tests {
   public class MtMirrorTest {
     private FileSystemSetup _sourcefs;
     private FileSystemSetup _destfs;
+    private MtPoolFactory _poolFactory;
     private IFileComparer _fileComparer;
 
     [TestInitialize]
     public void Setup() {
       _sourcefs = new FileSystemSetup();
       _destfs = new FileSystemSetup();
-      _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      _poolFactory = new MtPoolFactory();
+      _fileComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
     }
 
     [TestCleanup]
@@ -41,18 +43,19 @@ namespace tests {
       _sourcefs = null;
       _destfs.Dispose();
       _destfs = null;
+      _poolFactory = null;
     }
 
     [TestMethod]
     [ExpectedException(typeof(CommandLineReturnValueException))]
     public void MtMirrorShouldThrowWithNonExistingFolder() {
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
       mtmirror.DoMirror(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer);
     }
 
     [TestMethod]
     public void MtMirrorShouldWorkWithEmptyFolder() {
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -68,7 +71,7 @@ namespace tests {
       _sourcefs.Root.CreateFile("b", 11);
       _sourcefs.Root.CreateFile("c", 12);
 
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -89,7 +92,7 @@ namespace tests {
       dir2.CreateFile("b", 11);
       dir2.CreateFile("c", 12);
 
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -104,7 +107,7 @@ namespace tests {
     public void MtMirrorShouldWorkWithNestedDirectories() {
       _sourcefs.Root.CreateDirectory("a").CreateDirectory("b").CreateDirectory("c").CreateDirectory("d");
 
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -124,7 +127,7 @@ namespace tests {
 
       _destfs.Root.CreateFile("a", 10);
 
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       foreach (var error in stats.Errors) {
@@ -151,7 +154,7 @@ namespace tests {
 
       _destfs.Root.CreateFile("f", 10);
 
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -180,7 +183,7 @@ namespace tests {
       var ddir2 = _destfs.Root.CreateDirectory("c");
       ddir2.CreateFile("a", 10);
 
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -205,7 +208,7 @@ namespace tests {
       dir1.CreateFileLink("fl", "a");
       dir1.CreateDirectoryLink("dl", "..");
 
-      var mtcopy = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtcopy = new MtMirror(_sourcefs.FileSystem, _poolFactory);
 
       var stats = mtcopy.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
       Assert.IsTrue(_sourcefs.Root.Exists());
@@ -231,7 +234,7 @@ namespace tests {
       File.SetLastWriteTimeUtc(sourceFile.Path.FullName, expectedTime);
 
       // Act
-      var mtmirror = new MtMirror(_sourcefs.FileSystem, MtPoolFactory.Instance);
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
       var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Assert

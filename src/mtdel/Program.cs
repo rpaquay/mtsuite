@@ -20,7 +20,9 @@ namespace mtdel {
   internal class Program {
     private static int Main(string[] args) {
       return ProgramHelpers.RunProgram(args, () => {
-        new MtDelete(FileSystem.Default, MtPoolFactory.Instance).Run(args);
+        var poolFactory = new MtPoolFactory();
+        var fileSystem = FileSystem.CreateDefault(poolFactory);
+        new MtDelete(fileSystem, poolFactory).Run(args);
       });
     }
   }
