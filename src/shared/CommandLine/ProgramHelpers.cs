@@ -156,18 +156,18 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
       if (isDryRun) {
         Console.WriteLine("  Identical entries (Potential clones)");
-        var fileCompactedMb = statistics.FileCompactedTotalSize / 1024 / 1024;
-        Console.WriteLine("    # of files to compact:  {0:n0}", statistics.FileCompactedCount);
-        Console.WriteLine("    Potential space savings:{0:n0} MB", fileCompactedMb);
+        var fileClonedMb = statistics.FileClonedTotalSize / 1024 / 1024;
+        Console.WriteLine("    # of files to compact:  {0:n0}", statistics.FileClonedCount);
+        Console.WriteLine("    Potential space savings:{0:n0} MB", fileClonedMb);
       } else {
         Console.WriteLine("  Compacted entries");
-        var fileCompactedMb = statistics.FileCompactedTotalSize / 1024 / 1024;
-        Console.WriteLine("    # of files compacted:   {0:n0}", statistics.FileCompactedCount);
-        Console.WriteLine("    Total bytes compacted:  {0:n0} MB", fileCompactedMb);
+        var fileClonedMb = statistics.FileClonedTotalSize / 1024 / 1024;
+        Console.WriteLine("    # of files compacted:   {0:n0}", statistics.FileClonedCount);
+        Console.WriteLine("    Total bytes compacted:  {0:n0} MB", fileClonedMb);
       }
       Console.WriteLine("  Skipped entries");
-      var fileSkippedMb = statistics.FileCompactSkippedTotalSize / 1024 / 1024;
-      Console.WriteLine("    # of files skipped:     {0:n0}", statistics.FileCompactSkippedCount);
+      var fileSkippedMb = statistics.FileCloneSkippedTotalSize / 1024 / 1024;
+      Console.WriteLine("    # of files skipped:     {0:n0}", statistics.FileCloneSkippedCount);
       Console.WriteLine("    Total bytes skipped:    {0:n0} MB", fileSkippedMb);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       DisplayErrors(statistics.Errors);

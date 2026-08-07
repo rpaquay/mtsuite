@@ -73,6 +73,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.DirectoryDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(0, stats.EntryCopiedCount);
+    Assert.AreEqual(0, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -94,6 +95,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(3, stats.FileCopiedCount);
+    Assert.AreEqual(33, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -119,6 +121,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(2, stats.DirectoryCreatedCount);
     Assert.AreEqual(5, stats.FileCopiedCount);
+    Assert.AreEqual(56, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -135,6 +138,7 @@ public class MtCopyTest {
     Assert.IsTrue(_sourcefs.Root.Exists());
     Assert.IsTrue(_destfs.Root.Exists());
     Assert.AreEqual(4, stats.DirectoryCreatedCount);
+    Assert.AreEqual(0, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -160,8 +164,10 @@ public class MtCopyTest {
     Assert.IsTrue(_destfs.Root.Exists());
     Assert.AreEqual(0, stats.DirectoryDeletedCount);
     Assert.AreEqual(1, stats.FileDeletedCount);
+    Assert.AreEqual(10, stats.FileDeletedTotalSize);
     Assert.AreEqual(2, stats.DirectoryCreatedCount);
     Assert.AreEqual(5, stats.FileCopiedCount);
+    Assert.AreEqual(56, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -182,6 +188,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(15, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -202,6 +209,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(15, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -241,6 +249,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(2, stats.DirectoryCreatedCount);
     Assert.AreEqual(5, stats.FileCopiedCount);
+    Assert.AreEqual(56, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
 
@@ -274,6 +283,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(1, stats.DirectoryCreatedCount);
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(10, stats.FileCopiedTotalSize);
     Assert.AreEqual(2, stats.SymlinkCopiedCount);
     Assert.AreEqual(0, stats.Errors.Count);
   }
@@ -301,6 +311,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(2, stats.DirectoryCreatedCount);
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(10, stats.FileCopiedTotalSize);
     Assert.AreEqual(1, stats.SymlinkCopiedCount);
     Assert.AreEqual(0, stats.Errors.Count);
   }
@@ -332,6 +343,7 @@ public class MtCopyTest {
     Assert.AreEqual(0, stats.FileDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(10, stats.FileCopiedTotalSize);
     Assert.AreEqual(1, stats.SymlinkCopiedCount);
     Assert.AreEqual(0, stats.Errors.Count);
   }
@@ -363,6 +375,7 @@ public class MtCopyTest {
     Assert.AreEqual(1, stats.SymlinkDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(2, stats.FileCopiedCount);
+    Assert.AreEqual(20, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.SymlinkCopiedCount);
     Assert.AreEqual(0, stats.Errors.Count);
   }
@@ -392,9 +405,11 @@ public class MtCopyTest {
     Assert.AreEqual(_sourcefs.Root.GetDirectory("a").GetDirectory("subdir").Path.FullName, _destfs.Root.GetDirectory("a").GetJunctionPoint("jct").Target);
     Assert.AreEqual(0, stats.DirectoryDeletedCount);
     Assert.AreEqual(1, stats.FileDeletedCount);
+    Assert.AreEqual(10, stats.FileDeletedTotalSize);
     Assert.AreEqual(0, stats.SymlinkDeletedCount);
     Assert.AreEqual(0, stats.DirectoryCreatedCount);
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(10, stats.FileCopiedTotalSize);
     Assert.AreEqual(1, stats.SymlinkCopiedCount);
     Assert.AreEqual(0, stats.Errors.Count);
   }
@@ -412,6 +427,7 @@ public class MtCopyTest {
 
     // Assert
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(50, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
     var destFilePath = _destfs.Root.Path.Combine("timestamp.txt").FullName;
     Assert.IsTrue(File.Exists(destFilePath));
@@ -438,6 +454,7 @@ public class MtCopyTest {
 
     // Assert
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(20, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
     var destFilePath = _destfs.Root.Path.Combine("script.sh").FullName;
     Assert.IsTrue(File.Exists(destFilePath));
@@ -461,6 +478,7 @@ public class MtCopyTest {
 
     // Assert
     Assert.AreEqual(2, stats.FileCopiedCount);
+    Assert.AreEqual(30, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("FILE.txt").FullName));
@@ -511,7 +529,23 @@ public class MtCopyTest {
 
     // Assert
     Assert.AreEqual(1, stats.FileCopiedCount);
+    Assert.AreEqual(100, stats.FileCopiedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
     Assert.IsTrue(File.Exists(_destfs.Root.Path.Combine("file.txt").FullName));
+  }
+
+  [TestMethod]
+  public void MtCopyShouldTrackFileCopiedTotalSizeWhenCloning() {
+    _sourcefs.Root.CreateFile("clone1.dat", 500);
+    _sourcefs.Root.CreateFile("clone2.dat", 1500);
+
+    // Act
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, _poolFactory);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+    // Assert
+    Assert.AreEqual(2, stats.FileCopiedCount);
+    Assert.AreEqual(2000, stats.FileCopiedTotalSize);
+    Assert.AreEqual(0, stats.Errors.Count);
   }
 }

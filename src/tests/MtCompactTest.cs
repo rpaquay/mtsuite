@@ -100,8 +100,8 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
-      Assert.AreEqual(0, stats.FileCompactedCount);
-      Assert.AreEqual(0, stats.FileCompactSkippedCount);
+      Assert.AreEqual(0, stats.FileClonedCount);
+      Assert.AreEqual(0, stats.FileCloneSkippedCount);
       Assert.AreEqual(0, stats.Errors.Count);
       Assert.AreEqual(0, testFs.ClonedPairs.Count);
     }
@@ -126,9 +126,9 @@ namespace tests {
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
 
       // Verify zero files were compacted or cloned
-      Assert.AreEqual(0, stats.FileCompactedCount);
-      Assert.AreEqual(0, stats.FileCompactedTotalSize);
-      Assert.AreEqual(2, stats.FileCompactSkippedCount); // source_a.txt and source_b.txt in root
+      Assert.AreEqual(0, stats.FileClonedCount);
+      Assert.AreEqual(0, stats.FileClonedTotalSize);
+      Assert.AreEqual(2, stats.FileCloneSkippedCount); // source_a.txt and source_b.txt in root
       Assert.AreEqual(0, stats.Errors.Count);
       Assert.AreEqual(0, testFs.ClonedPairs.Count);
 
@@ -158,9 +158,9 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
-      Assert.AreEqual(2, stats.FileCompactedCount);
-      Assert.AreEqual(300, stats.FileCompactedTotalSize);
-      Assert.AreEqual(0, stats.FileCompactSkippedCount);
+      Assert.AreEqual(2, stats.FileClonedCount);
+      Assert.AreEqual(300, stats.FileClonedTotalSize);
+      Assert.AreEqual(0, stats.FileCloneSkippedCount);
       Assert.AreEqual(0, stats.Errors.Count);
 
       // Verify the exact source->destination pairs that were cloned
@@ -193,9 +193,9 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
-      Assert.AreEqual(1, stats.FileCompactedCount);
-      Assert.AreEqual(300, stats.FileCompactedTotalSize);
-      Assert.AreEqual(2, stats.FileCompactSkippedCount); // file1 (different) and file3 (missing in dest)
+      Assert.AreEqual(1, stats.FileClonedCount);
+      Assert.AreEqual(300, stats.FileClonedTotalSize);
+      Assert.AreEqual(2, stats.FileCloneSkippedCount); // file1 (different) and file3 (missing in dest)
       Assert.AreEqual(0, stats.Errors.Count);
 
       // Verify only file2 was cloned
@@ -231,8 +231,8 @@ namespace tests {
       var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
-      Assert.AreEqual(1, stats.FileCompactedCount); // only same_content_diff_time.txt
-      Assert.AreEqual(1, stats.FileCompactSkippedCount); // diff_content.txt
+      Assert.AreEqual(1, stats.FileClonedCount); // only same_content_diff_time.txt
+      Assert.AreEqual(1, stats.FileCloneSkippedCount); // diff_content.txt
       Assert.AreEqual(1, testFs.ClonedPairs.Count);
       Assert.AreEqual(srcPath2, testFs.ClonedPairs[0].Source);
       Assert.AreEqual(dstPath2, testFs.ClonedPairs[0].Destination);
@@ -254,8 +254,8 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
-      Assert.AreEqual(1, stats.FileCompactedCount);
-      Assert.AreEqual(500, stats.FileCompactedTotalSize);
+      Assert.AreEqual(1, stats.FileClonedCount);
+      Assert.AreEqual(500, stats.FileClonedTotalSize);
       Assert.AreEqual(0, stats.Errors.Count);
 
       Assert.AreEqual(1, testFs.ClonedPairs.Count);
@@ -358,8 +358,8 @@ namespace tests {
       var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
-      Assert.AreEqual(10, stats.FileCompactedCount); // 10 even files
-      Assert.AreEqual(10, stats.FileCompactSkippedCount); // 10 odd files
+      Assert.AreEqual(10, stats.FileClonedCount); // 10 even files
+      Assert.AreEqual(10, stats.FileCloneSkippedCount); // 10 odd files
       Assert.AreEqual(10, testFs.ClonedPairs.Count);
     }
 

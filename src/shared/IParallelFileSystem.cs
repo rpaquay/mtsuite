@@ -34,9 +34,9 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> FileCopying;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesFromPreviousCall*/, long /*bytesSoFar*/> FileCopyingProgress;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCopied;
-    event Action<FileSystemEntry> FileCompacting;
-    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCompacted;
-    event Action<FileSystemEntry> FileCompactSkipped;
+    event Action<FileSystemEntry> FileCloning;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCloned;
+    event Action<FileSystemEntry> FileCloneSkipped;
     event Action<FileSystemEntry> DirectoryTraversing;
     event Action<FileSystemEntry> DirectoryTraversed;
     event Action<FileSystemEntry> DirectoryCreated;

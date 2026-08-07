@@ -55,10 +55,10 @@ namespace mtsuite.shared {
     private long _symlinkSkippedCount;
     private long _fileSkippedTotalSize;
 
-    private long _fileCompactedCount;
-    private long _fileCompactedTotalSize;
-    private long _fileCompactSkippedCount;
-    private long _fileCompactSkippedTotalSize;
+    private long _fileCloneCount;
+    private long _fileCloneTotalSize;
+    private long _fileCloneSkippedCount;
+    private long _fileCloneSkippedTotalSize;
 
     public FullPath? SourcePath {
       get => _threadTracker.SourcePath;
@@ -115,10 +115,10 @@ namespace mtsuite.shared {
       statistics.FileSkippedCount = _fileSkippedCount;
       statistics.SymlinkSkippedCount = _symlinkSkippedCount;
       statistics.FileSkippedTotalSize = _fileSkippedTotalSize;
-      statistics.FileCompactedCount = _fileCompactedCount;
-      statistics.FileCompactedTotalSize = _fileCompactedTotalSize;
-      statistics.FileCompactSkippedCount = _fileCompactSkippedCount;
-      statistics.FileCompactSkippedTotalSize = _fileCompactSkippedTotalSize;
+      statistics.FileClonedCount = _fileCloneCount;
+      statistics.FileClonedTotalSize = _fileCloneTotalSize;
+      statistics.FileCloneSkippedCount = _fileCloneSkippedCount;
+      statistics.FileCloneSkippedTotalSize = _fileCloneSkippedTotalSize;
       statistics.Errors = _errors;
       statistics.Warnings = _warnings;
     }
@@ -237,21 +237,21 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    public virtual void OnFileCompacting(FileSystemEntry entry) {
+    public virtual void OnFileCloning(FileSystemEntry entry) {
       _threadTracker.Current.SetCompacting(entry);
     }
 
-    public virtual void OnFileCompacted(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
+    public virtual void OnFileCloned(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
       _threadTracker.Current.SetIdle();
-      Interlocked.Increment(ref _fileCompactedCount);
-      Interlocked.Add(ref _fileCompactedTotalSize, bytesTotal);
+      Interlocked.Increment(ref _fileCloneCount);
+      Interlocked.Add(ref _fileCloneTotalSize, bytesTotal);
       Pulse();
     }
 
-    public virtual void OnFileCompactSkipped(FileSystemEntry entry, long bytes) {
+    public virtual void OnFileCloneSkipped(FileSystemEntry entry, long bytes) {
       _threadTracker.Current.SetIdle();
-      Interlocked.Increment(ref _fileCompactSkippedCount);
-      Interlocked.Add(ref _fileCompactSkippedTotalSize, bytes);
+      Interlocked.Increment(ref _fileCloneSkippedCount);
+      Interlocked.Add(ref _fileCloneSkippedTotalSize, bytes);
       Pulse();
     }
 

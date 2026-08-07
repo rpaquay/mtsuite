@@ -21,18 +21,18 @@ namespace mtsuite.shared {
     protected override void DisplayStatus(Statistics statistics) {
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = elapsed.TotalSeconds;
-      var fileCompactedTotalSizeMb = statistics.FileCompactedTotalSize / 1024 / 1024;
-      var fileSkippedTotalSizeMb = statistics.FileCompactSkippedTotalSize / 1024 / 1024;
-      var totalEntriesCount = statistics.DirectoryTraversedCount + statistics.FileCompactedCount + statistics.FileCompactSkippedCount;
+      var fileCloneTotalSizeMb = statistics.FileClonedTotalSize / 1024 / 1024;
+      var fileSkippedTotalSizeMb = statistics.FileCloneSkippedTotalSize / 1024 / 1024;
+      var totalEntriesCount = statistics.DirectoryTraversedCount + statistics.FileClonedCount + statistics.FileCloneSkippedCount;
 
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(elapsed));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var sourceDirectoriesText = string.Format("{0:n0}", statistics.DirectoryEnumeratedCount);
       var sourceFilesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
       var sourceFilesExtraText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
-      var filesCompactedText = string.Format("{0:n0}", statistics.FileCompactedCount);
-      var filesCompactedExtraText = string.Format("({0:n0} MB)", fileCompactedTotalSizeMb);
-      var filesSkippedText = string.Format("{0:n0}", statistics.FileCompactSkippedCount);
+      var filesCompactedText = string.Format("{0:n0}", statistics.FileClonedCount);
+      var filesCompactedExtraText = string.Format("({0:n0} MB)", fileCloneTotalSizeMb);
+      var filesSkippedText = string.Format("{0:n0}", statistics.FileCloneSkippedCount);
       var filesSkippedExtraText = string.Format("({0:n0} MB)", fileSkippedTotalSizeMb);
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);

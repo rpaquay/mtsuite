@@ -60,6 +60,10 @@ namespace mtsuite.shared {
       data.Instance.OnFileCopyingProgress(sourceEntry, data.Stopwatch.Elapsed, bytesFromPreviousCall, bytesSoFar);
     };
 
+    /// <summary>
+    /// Callback to <see cref="IFileComparer.CompareFiles"/>, stored in a field to avoid GC allocation
+    /// at every invocation.
+    /// </summary>
     private readonly CompareFileCallback<CompareFileData> _compareFileCallback = static (ref FileSystemEntry sourceEntry, long bytesFromPreviousCall, long bytesSoFar, long totalBytes, ref CompareFileData data) => {
       data.Instance.OnFileComparingProgress(sourceEntry, data.Stopwatch.Elapsed, bytesFromPreviousCall, bytesSoFar);
     };
@@ -117,9 +121,9 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry>? FileCopying;
     public event Action<FileSystemEntry, TimeSpan, long, long>? FileCopyingProgress;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCopied;
-    public event Action<FileSystemEntry>? FileCompacting;
-    public event Action<FileSystemEntry, TimeSpan, long>? FileCompacted;
-    public event Action<FileSystemEntry>? FileCompactSkipped;
+    public event Action<FileSystemEntry>? FileCloning;
+    public event Action<FileSystemEntry, TimeSpan, long>? FileCloned;
+    public event Action<FileSystemEntry>? FileCloneSkipped;
     public event Action<FileSystemEntry>? DirectoryTraversing;
     public event Action<FileSystemEntry>? DirectoryTraversed;
     public event Action<FileSystemEntry>? DirectoryCreated;
@@ -550,13 +554,13 @@ namespace mtsuite.shared {
               if (areEqual) {
                 PerformCompactFile(sourceEntry, destinationEntry.Path, dryRun);
               } else {
-                OnFileCompactSkipped(sourceEntry);
+                OnFileCloneSkipped(sourceEntry);
               }
             } catch (Exception e) {
               OnError(sourceEntry.Path, e);
             }
           } else {
-            OnFileCompactSkipped(sourceEntry);
+            OnFileCloneSkipped(sourceEntry);
           }
         }
       }
@@ -601,7 +605,7 @@ namespace mtsuite.shared {
 
     private void PerformCompactFile(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
       var sw = _stopwatchFactory.Create();
-      OnFileCompacting(sourceEntry);
+      OnFileCloning(sourceEntry);
       if (!dryRun) {
         try {
           _fileSystem.CloneFile(sourceEntry, destinationPath);
@@ -609,7 +613,7 @@ namespace mtsuite.shared {
           OnError(sourceEntry.Path, e);
         }
       }
-      OnFileCompacted(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
+      OnFileCloned(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
     }
 
     /// <summary>
@@ -679,9 +683,9 @@ namespace mtsuite.shared {
       OnEntryDeleted(entry, sw.Elapsed);
     }
 
-    protected virtual void OnError(FullPath path, Exception obj) {
+    protected virtual void OnError(FullPath path, Exception exception) {
       var handler = Error;
-      if (handler != null) handler(path, obj);
+      if (handler != null) handler(path, exception);
     }
 
     protected virtual void OnPulse() {
@@ -689,54 +693,64 @@ namespace mtsuite.shared {
       if (handler != null) handler();
     }
 
-    protected virtual void OnEntriesDiscovered(FileSystemEntry arg1, List<FileSystemEntry> arg2) {
+    protected virtual void OnEntriesDiscovering(FileSystemEntry directoryEntry) {
+      var handler = EntriesDiscovering;
+      if (handler != null) handler(directoryEntry);
+    }
+
+    protected virtual void OnEntriesDiscovered(FileSystemEntry directoryEntry, List<FileSystemEntry> entries) {
       var handler = EntriesDiscovered;
-      if (handler != null) handler(arg1, arg2);
+      if (handler != null) handler(directoryEntry, entries);
     }
 
-    protected virtual void OnEntriesToDeleteDiscovering(FileSystemEntry obj) {
+    protected virtual void OnEntriesToDeleteDiscovering(FileSystemEntry directoryEntry) {
       var handler = EntriesToDeleteDiscovering;
-      if (handler != null) handler(obj);
+      if (handler != null) handler(directoryEntry);
     }
 
-    protected virtual void OnEntriesToDeleteDiscovered(FileSystemEntry directoryEntry, List<FileSystemEntry> obj) {
+    protected virtual void OnEntriesToDeleteDiscovered(FileSystemEntry directoryEntry, List<FileSystemEntry> entries) {
       var handler = EntriesToDeleteDiscovered;
-      if (handler != null) handler(directoryEntry, obj);
+      if (handler != null) handler(directoryEntry, entries);
     }
 
-    protected virtual void OnEntryDeleting(FileSystemEntry arg1) {
+    protected virtual void OnEntriesToDeleteProcessed(FileSystemEntry directoryEntry, List<FileSystemEntry> entries) {
+      var handler = EntriesToDeleteProcessed;
+      if (handler != null) handler(directoryEntry, entries);
+    }
+
+    protected virtual void OnEntryDeleting(FileSystemEntry entry) {
       var handler = EntryDeleting;
-      if (handler != null) handler(arg1);
+      if (handler != null) handler(entry);
     }
 
-    protected virtual void OnEntryDeleted(FileSystemEntry arg1, TimeSpan arg2) {
+    protected virtual void OnEntryDeleted(FileSystemEntry entry, TimeSpan elapsed) {
       var handler = EntryDeleted;
-      if (handler != null) handler(arg1, arg2);
+      if (handler != null) handler(entry, elapsed);
     }
 
-    protected virtual void OnFileCopySkipped(FileSystemEntry obj) {
+    protected virtual void OnFileCopySkipped(FileSystemEntry sourceEntry) {
       var handler = FileCopySkipped;
-      if (handler != null) handler(obj);
+      if (handler != null) handler(sourceEntry);
     }
 
-    protected virtual void OnFileComparing(FileSystemEntry arg1) {
+    protected virtual void OnFileComparing(FileSystemEntry sourceEntry) {
       var handler = FileComparing;
-      if (handler != null) handler(arg1);
+      if (handler != null) handler(sourceEntry);
     }
 
-    protected virtual void OnFileComparingProgress(FileSystemEntry arg1, TimeSpan arg2, long bytesFromPreviousCall, long arg3) {
+    protected virtual void OnFileComparingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesFromPreviousCall, long bytesSoFar) {
       var handler = FileComparingProgress;
-      if (handler != null) handler(arg1, arg2, bytesFromPreviousCall, arg3);
+      if (handler != null) handler(entry, elapsed, bytesFromPreviousCall, bytesSoFar);
     }
 
-    protected virtual void OnFileCompared(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+    protected virtual void OnFileCompared(FileSystemEntry sourceEntry, TimeSpan elapsed, long totalBytes) {
       var handler = FileCompared;
-      if (handler != null) handler(arg1, arg2, arg3);
+      if (handler != null) handler(sourceEntry, elapsed, totalBytes);
     }
 
-    protected virtual void OnFileCopying(FileSystemEntry arg1) {
+    protected virtual void OnFileCopying(FileSystemEntry sourceEntry) {
       var handler = FileCopying;
-      if (handler != null) handler(arg1);
+      if (handler != null) handler(sourceEntry);
     }
 
     protected virtual void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesFromPreviousCall, long bytesSoFar) {
@@ -749,44 +763,34 @@ namespace mtsuite.shared {
       if (handler != null) handler(sourceEntry, elapsed, totalBytes);
     }
 
-    protected virtual void OnFileCompacting(FileSystemEntry arg1) {
-      var handler = FileCompacting;
-      if (handler != null) handler(arg1);
+    protected virtual void OnFileCloning(FileSystemEntry sourceEntry) {
+      var handler = FileCloning;
+      if (handler != null) handler(sourceEntry);
     }
 
-    protected virtual void OnFileCompacted(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
-      var handler = FileCompacted;
-      if (handler != null) handler(arg1, arg2, arg3);
+    protected virtual void OnFileCloned(FileSystemEntry sourceEntry, TimeSpan elapsed, long totalBytes) {
+      var handler = FileCloned;
+      if (handler != null) handler(sourceEntry, elapsed, totalBytes);
     }
 
-    protected virtual void OnFileCompactSkipped(FileSystemEntry obj) {
-      var handler = FileCompactSkipped;
-      if (handler != null) handler(obj);
+    protected virtual void OnFileCloneSkipped(FileSystemEntry sourceEntry) {
+      var handler = FileCloneSkipped;
+      if (handler != null) handler(sourceEntry);
     }
 
-    protected virtual void OnDirectoryTraversing(FileSystemEntry obj) {
+    protected virtual void OnDirectoryTraversing(FileSystemEntry directoryEntry) {
       var handler = DirectoryTraversing;
-      if (handler != null) handler(obj);
+      if (handler != null) handler(directoryEntry);
     }
 
-    protected virtual void OnDirectoryTraversed(FileSystemEntry obj) {
+    protected virtual void OnDirectoryTraversed(FileSystemEntry directoryEntry) {
       var handler = DirectoryTraversed;
-      if (handler != null) handler(obj);
+      if (handler != null) handler(directoryEntry);
     }
 
-    protected virtual void OnDirectoryCreated(FileSystemEntry obj) {
+    protected virtual void OnDirectoryCreated(FileSystemEntry directoryEntry) {
       var handler = DirectoryCreated;
-      if (handler != null) handler(obj);
-    }
-
-    protected virtual void OnEntriesToDeleteProcessed(FileSystemEntry arg1, List<FileSystemEntry> arg2) {
-      var handler = EntriesToDeleteProcessed;
-      if (handler != null) handler(arg1, arg2);
-    }
-
-    protected virtual void OnEntriesDiscovering(FileSystemEntry obj) {
-      var handler = EntriesDiscovering;
-      if (handler != null) handler(obj);
+      if (handler != null) handler(directoryEntry);
     }
   }
 }

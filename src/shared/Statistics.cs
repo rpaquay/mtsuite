@@ -49,10 +49,10 @@ namespace mtsuite.shared {
     public long SymlinkSkippedCount { get; set; }
     public long FileSkippedTotalSize { get; set; }
 
-    public long FileCompactedCount { get; set; }
-    public long FileCompactedTotalSize { get; set; }
-    public long FileCompactSkippedCount { get; set; }
-    public long FileCompactSkippedTotalSize { get; set; }
+    public long FileClonedCount { get; set; }
+    public long FileClonedTotalSize { get; set; }
+    public long FileCloneSkippedCount { get; set; }
+    public long FileCloneSkippedTotalSize { get; set; }
 
     public ConcurrentQueue<Exception> Errors { get; set; }
 

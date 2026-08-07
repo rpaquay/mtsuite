@@ -271,7 +271,7 @@ public class FileSystemPortable : IFileSystem {
       }
 
       // Notify callback that file copy is complete
-      callback(ref sourceEntry, 0, sourceEntry.FileSize, sourceEntry.FileSize, ref param);
+      callback(ref sourceEntry, sourceEntry.FileSize, sourceEntry.FileSize, sourceEntry.FileSize, ref param);
       return true;
     }
 

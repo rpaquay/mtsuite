@@ -63,6 +63,7 @@ namespace tests {
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
       Assert.AreEqual(0, stats.DirectoryCreatedCount);
       Assert.AreEqual(0, stats.EntryCopiedCount);
+      Assert.AreEqual(0, stats.FileCopiedTotalSize);
     }
 
     [TestMethod]
@@ -80,6 +81,7 @@ namespace tests {
       Assert.AreEqual(0, stats.FileDeletedCount);
       Assert.AreEqual(0, stats.DirectoryCreatedCount);
       Assert.AreEqual(3, stats.FileCopiedCount);
+      Assert.AreEqual(33, stats.FileCopiedTotalSize);
     }
 
     [TestMethod]
@@ -101,6 +103,7 @@ namespace tests {
       Assert.AreEqual(0, stats.FileDeletedCount);
       Assert.AreEqual(2, stats.DirectoryCreatedCount);
       Assert.AreEqual(5, stats.FileCopiedCount);
+      Assert.AreEqual(56, stats.FileCopiedTotalSize);
     }
 
     [TestMethod]
@@ -113,6 +116,7 @@ namespace tests {
       Assert.IsTrue(_sourcefs.Root.Exists());
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(4, stats.DirectoryCreatedCount);
+      Assert.AreEqual(0, stats.FileCopiedTotalSize);
     }
 
     [TestMethod]
@@ -137,8 +141,10 @@ namespace tests {
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
       Assert.AreEqual(1, stats.FileDeletedCount);
+      Assert.AreEqual(10, stats.FileDeletedTotalSize);
       Assert.AreEqual(2, stats.DirectoryCreatedCount);
       Assert.AreEqual(5, stats.FileCopiedCount);
+      Assert.AreEqual(56, stats.FileCopiedTotalSize);
       Assert.AreEqual(0, stats.Errors.Count);
     }
 
@@ -161,8 +167,10 @@ namespace tests {
       Assert.IsTrue(_destfs.Root.Exists());
       Assert.AreEqual(0, stats.DirectoryDeletedCount);
       Assert.AreEqual(1, stats.FileDeletedCount);
+      Assert.AreEqual(10, stats.FileDeletedTotalSize);
       Assert.AreEqual(2, stats.DirectoryCreatedCount);
       Assert.AreEqual(5, stats.FileCopiedCount);
+      Assert.AreEqual(56, stats.FileCopiedTotalSize);
       Assert.AreEqual(0, stats.Errors.Count);
     }
 
@@ -193,8 +201,10 @@ namespace tests {
       Assert.AreEqual(2, _destfs.Root.GetDirectory("b").GetEntries().Count);
       Assert.AreEqual(3, stats.DirectoryDeletedCount);
       Assert.AreEqual(3, stats.FileDeletedCount);
+      Assert.AreEqual(30, stats.FileDeletedTotalSize);
       Assert.AreEqual(2, stats.DirectoryCreatedCount);
       Assert.AreEqual(5, stats.FileCopiedCount);
+      Assert.AreEqual(56, stats.FileCopiedTotalSize);
       Assert.AreEqual(0, stats.Errors.Count);
     }
 
@@ -222,6 +232,7 @@ namespace tests {
       Assert.AreEqual(0, stats.FileDeletedCount);
       Assert.AreEqual(1, stats.DirectoryCreatedCount);
       Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(10, stats.FileCopiedTotalSize);
       Assert.AreEqual(2, stats.SymlinkCopiedCount);
       Assert.AreEqual(0, stats.Errors.Count);
     }
@@ -239,6 +250,7 @@ namespace tests {
 
       // Assert
       Assert.AreEqual(1, stats.FileCopiedCount);
+      Assert.AreEqual(50, stats.FileCopiedTotalSize);
       Assert.AreEqual(0, stats.Errors.Count);
       var destFilePath = _destfs.Root.Path.Combine("timestamp.txt").FullName;
       Assert.IsTrue(File.Exists(destFilePath));
