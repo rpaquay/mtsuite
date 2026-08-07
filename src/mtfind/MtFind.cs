@@ -147,9 +147,9 @@ namespace mtfind {
         new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right, indent: 2),
         new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, indent: 2),
-        new PrinterEntry("# of symlinks", symlinksText, shortName: "symlinks", valueAlign: Align.Right, indent: 2),
-        new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName:"entries/sec", valueAlign: Align.Right, indent: 2),
-        new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of links", symlinksText, shortName: "links", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right, indent: 2),
       };
       Console.WriteLine();
       FieldsPrinter.WriteLine(fields);

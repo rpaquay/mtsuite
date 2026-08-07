@@ -113,28 +113,26 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
-      Console.WriteLine("  # of source directories:    {0:n0}", statistics.DirectoryTraversedCount);
-      Console.WriteLine("  # of source files:          {0:n0}", statistics.FileCopiedCount + statistics.FileSkippedCount);
-      Console.WriteLine("  # of source symlinks:       {0:n0}", statistics.SymlinkCopiedCount + statistics.SymlinkSkippedCount);
+      Console.WriteLine("  # of source directories:  {0:n0}", statistics.DirectoryTraversedCount);
+      Console.WriteLine("  # of source files:        {0:n0}", statistics.FileEnumeratedCount);
+      Console.WriteLine("  # of source links:        {0:n0}", statistics.SymlinkEnumeratedCount);
+      Console.WriteLine("  Total source files size:  {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
       Console.WriteLine("  Copied entries");
       Console.WriteLine("    # of directories created: {0:n0}", statistics.DirectoryCreatedCount);
       Console.WriteLine("    # of files copied:        {0:n0}", statistics.FileCopiedCount);
-      Console.WriteLine("    # of symlinks copied:     {0:n0}", statistics.SymlinkCopiedCount);
-      var fileSizeTotalMb = statistics.FileCopiedTotalSize / 1024 / 1024;
-      Console.WriteLine("    Total bytes copied:       {0:n0} MB", fileSizeTotalMb);
-      Console.WriteLine("    Throughput:               {0:n2} MB/sec",
-        fileSizeTotalMb / statistics.ElapsedTime.TotalSeconds);
+      Console.WriteLine("    # of links copied:        {0:n0}", statistics.SymlinkCopiedCount);
+      Console.WriteLine("    Total bytes copied:       {0}", FormatHelpers.FormatSize(statistics.FileCopiedTotalSize));
+      Console.WriteLine("    Throughput:               {0}", FormatHelpers.FormatThroughput(statistics.FileCopiedTotalSize, statistics.ElapsedTime.TotalSeconds));
 
       Console.WriteLine("  Deleted entries");
       Console.WriteLine("    # of directories deleted: {0:n0}", statistics.DirectoryDeletedCount);
       Console.WriteLine("    # of files deleted:       {0:n0}", statistics.FileDeletedCount);
-      Console.WriteLine("    # of symlinks deleted:    {0:n0}", statistics.SymlinkDeletedCount);
+      Console.WriteLine("    # of links deleted:       {0:n0}", statistics.SymlinkDeletedCount);
 
       Console.WriteLine("  Skipped entries");
-      var fileSkippedTotalSizeMb = statistics.FileSkippedTotalSize / 1024 / 1024;
       Console.WriteLine("    # of files skipped:       {0:n0}", statistics.FileSkippedCount);
-      Console.WriteLine("    # of symlinks skipped:    {0:n0}", statistics.SymlinkSkippedCount);
-      Console.WriteLine("    Total bytes skipped:      {0:n0} MB", fileSkippedTotalSizeMb);
+      Console.WriteLine("    # of links skipped:       {0:n0}", statistics.SymlinkSkippedCount);
+      Console.WriteLine("    Total bytes skipped:      {0}", FormatHelpers.FormatSize(statistics.FileSkippedTotalSize));
 
       Console.WriteLine("  # entries/sec:            {0:n0}",
         (statistics.EntryCopiedCount + statistics.EntryDeletedCount + statistics.FileSkippedCount) /
@@ -156,23 +154,19 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("  # of source directories:  {0:n0}", statistics.DirectoryTraversedCount);
       Console.WriteLine("  # of source files:        {0:n0}", statistics.FileEnumeratedCount);
       Console.WriteLine("  # of source links:        {0:n0}", statistics.SymlinkEnumeratedCount);
-      var sourceFileSizeMb = statistics.FileEnumeratedTotalSize / 1024 / 1024;
-      Console.WriteLine("  Total source files size:  {0:n0} MB", sourceFileSizeMb);
+      Console.WriteLine("  Total source files size:  {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
       if (isDryRun) {
         Console.WriteLine("  Identical entries (Potential clones)");
-        var fileClonedMb = statistics.FileClonedTotalSize / 1024 / 1024;
         Console.WriteLine("    # of files to compact:  {0:n0}", statistics.FileClonedCount);
-        Console.WriteLine("    Potential space savings:{0:n0} MB", fileClonedMb);
+        Console.WriteLine("    Potential space savings:{0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
       } else {
         Console.WriteLine("  Compacted entries");
-        var fileClonedMb = statistics.FileClonedTotalSize / 1024 / 1024;
         Console.WriteLine("    # of files compacted:   {0:n0}", statistics.FileClonedCount);
-        Console.WriteLine("    Total bytes compacted:  {0:n0} MB", fileClonedMb);
+        Console.WriteLine("    Total bytes compacted:  {0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
       }
       Console.WriteLine("  Skipped entries");
-      var fileSkippedMb = statistics.FileCloneSkippedTotalSize / 1024 / 1024;
       Console.WriteLine("    # of files skipped:     {0:n0}", statistics.FileCloneSkippedCount);
-      Console.WriteLine("    Total bytes skipped:    {0:n0} MB", fileSkippedMb);
+      Console.WriteLine("    Total bytes skipped:    {0}", FormatHelpers.FormatSize(statistics.FileCloneSkippedTotalSize));
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       DisplayErrors(statistics.Errors);
     }
@@ -182,7 +176,7 @@ namespace mtsuite.shared.CommandLine {
 
       Console.WriteLine();
       var sb = new StringBuilder();
-      sb.AppendFormat("GC Memory: {0:n0} KB", GC.GetTotalMemory(false) / 1024);
+      sb.AppendFormat("GC Memory: {0}", FormatHelpers.FormatSize(GC.GetTotalMemory(false)));
       for (var i = 0; i <= GC.MaxGeneration; i++) {
         sb.AppendFormat(", Gen{0}: {1:n0}", i, GC.CollectionCount(i));
       }
@@ -191,8 +185,8 @@ namespace mtsuite.shared.CommandLine {
       sb.AppendFormat(", GC Pause: {0:N2} ms ({1:F2}%)",
         GC.GetTotalPauseDuration().TotalMilliseconds,
         gcInfo.PauseTimePercentage);
-      sb.AppendFormat(", Total Allocated: {0:N2} MB",
-        GC.GetTotalAllocatedBytes() / (1024.0 * 1024.0));
+      sb.AppendFormat(", Total Allocated: {0}",
+        FormatHelpers.FormatSize(GC.GetTotalAllocatedBytes()));
 
       Console.WriteLine(sb.ToString());
 

@@ -40,8 +40,8 @@ namespace mtfindstr {
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
-      var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
-      //var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
+      var linksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
       var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
@@ -49,14 +49,14 @@ namespace mtfindstr {
 
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
-        new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
+        new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
         new PrinterEntry("# of directories visited", directoriesText, shortName: "directories", valueAlign: Align.Right),
         new PrinterEntry("# of files discovered", filesText, shortName: "files", valueAlign: Align.Right),
-        //new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of links discovered", linksText, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right),
         new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
-        new PrinterEntry("# of warnings", warningsText, shortName:"warnings", valueAlign: Align.Right),
-        new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
+        new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right),
+        new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       Print(fields);
     }

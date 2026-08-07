@@ -178,9 +178,8 @@ I  Not content indexed Files  L  Reparse Points
       Console.WriteLine("  # entries deleted/sec:    {0:n0}", statistics.EntryDeletedCount / statistics.ElapsedTime.TotalSeconds);
       Console.WriteLine("  # of directories deleted: {0:n0}", statistics.DirectoryDeletedCount);
       Console.WriteLine("  # of files deleted:       {0:n0}", statistics.FileDeletedCount);
-      Console.WriteLine("  # of symlinks deleted:    {0:n0}", statistics.SymlinkDeletedCount);
-      var fileSizeTotalMb = statistics.FileDeletedTotalSize / 1024 / 1024;
-      Console.WriteLine("    Total bytes deleted:    {0:n0} MB", fileSizeTotalMb);
+      Console.WriteLine("  # of links deleted:       {0:n0}", statistics.SymlinkDeletedCount);
+      Console.WriteLine("    Total bytes deleted:    {0}", FormatHelpers.FormatSize(statistics.FileDeletedTotalSize));
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }

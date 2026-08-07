@@ -245,7 +245,8 @@ namespace mtinfo {
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
       Console.WriteLine("  # of files:               {0:n0}", statistics.FileEnumeratedCount);
-      Console.WriteLine("  # of symlinks:            {0:n0}", statistics.SymlinkEnumeratedCount);
+      Console.WriteLine("  # of links:               {0:n0}", statistics.SymlinkEnumeratedCount);
+      Console.WriteLine("  Total file size:          {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
       Console.WriteLine("  # entries/sec:            {0:n0}",
         statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
 

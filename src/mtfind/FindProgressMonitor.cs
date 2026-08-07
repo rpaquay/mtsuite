@@ -38,19 +38,19 @@ namespace mtfind {
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
-      var filesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
+      var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
+      var linksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
-      //var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
-        new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
+        new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
         new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right),
         new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right),
-        //new PrinterEntry("# of files/sec", entriesPerSecondText, shortName:"files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of links", linksText, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("# of files matching pattern", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
-        new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign: Align.Right),
+        new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       Print(fields);
     }

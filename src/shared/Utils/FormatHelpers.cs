@@ -36,13 +36,33 @@ namespace mtsuite.shared.Utils {
       if (bytes < 1024) {
         return $"{bytes} B";
       }
-      if (bytes < 1024 * 1024) {
+      if (bytes < 1024L * 1024) {
         return $"{bytes / 1024.0:F1} KB";
       }
       if (bytes < 1024L * 1024 * 1024) {
         return $"{bytes / (1024.0 * 1024.0):F1} MB";
       }
-      return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
+      if (bytes < 1024L * 1024 * 1024 * 1024) {
+        return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
+      }
+      return $"{bytes / (1024.0 * 1024.0 * 1024.0 * 1024.0):F2} TB";
+    }
+
+    public static string FormatThroughput(long bytes, double totalSeconds) {
+      if (totalSeconds <= 0 || bytes <= 0) {
+        return "0 B/sec";
+      }
+      var bytesPerSecond = bytes / totalSeconds;
+      if (bytesPerSecond < 1024) {
+        return $"{bytesPerSecond:F0} B/sec";
+      }
+      if (bytesPerSecond < 1024L * 1024) {
+        return $"{bytesPerSecond / 1024.0:F1} KB/sec";
+      }
+      if (bytesPerSecond < 1024L * 1024 * 1024) {
+        return $"{bytesPerSecond / (1024.0 * 1024.0):F2} MB/sec";
+      }
+      return $"{bytesPerSecond / (1024.0 * 1024.0 * 1024.0):F2} GB/sec";
     }
 
     /// <summary>

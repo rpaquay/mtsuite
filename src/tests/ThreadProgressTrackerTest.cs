@@ -36,6 +36,18 @@ namespace tests {
       Assert.AreEqual("50.0 MB", FormatHelpers.FormatSize(50 * 1024 * 1024));
       Assert.AreEqual("1.00 GB", FormatHelpers.FormatSize(1024L * 1024 * 1024));
       Assert.AreEqual("2.50 GB", FormatHelpers.FormatSize((long)(2.5 * 1024 * 1024 * 1024)));
+      Assert.AreEqual("1.00 TB", FormatHelpers.FormatSize(1024L * 1024 * 1024 * 1024));
+      Assert.AreEqual("3.50 TB", FormatHelpers.FormatSize((long)(3.5 * 1024 * 1024 * 1024 * 1024)));
+    }
+
+    [TestMethod]
+    public void FormatThroughputWorksCorrectly() {
+      Assert.AreEqual("0 B/sec", FormatHelpers.FormatThroughput(0, 1.0));
+      Assert.AreEqual("0 B/sec", FormatHelpers.FormatThroughput(1000, 0));
+      Assert.AreEqual("500 B/sec", FormatHelpers.FormatThroughput(500, 1.0));
+      Assert.AreEqual("1.5 KB/sec", FormatHelpers.FormatThroughput(1536, 1.0));
+      Assert.AreEqual("10.00 MB/sec", FormatHelpers.FormatThroughput(10 * 1024 * 1024, 1.0));
+      Assert.AreEqual("1.50 GB/sec", FormatHelpers.FormatThroughput((long)(3.0 * 1024 * 1024 * 1024), 2.0));
     }
 
     [TestMethod]

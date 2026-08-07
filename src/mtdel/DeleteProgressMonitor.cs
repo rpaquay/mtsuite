@@ -21,18 +21,20 @@ namespace mtdel {
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesDeletedText = string.Format("{0:n0}", statistics.DirectoryDeletedCount);
-      var filesDeletedText = string.Format("{0:n0}", statistics.FileDeletedCount + statistics.SymlinkDeletedCount);
-      var filesDeletedSizeText = string.Format("({0:n0} MB)", statistics.FileDeletedTotalSize / 1024 / 1024);
-      var entriesPerSecondText = string.Format("{0:n0}", (statistics.FileDeletedCount + statistics.SymlinkDeletedCount) / statistics.ElapsedTime.TotalSeconds);
+      var filesDeletedText = string.Format("{0:n0}", statistics.FileDeletedCount);
+      var filesDeletedSizeText = $"({FormatHelpers.FormatSize(statistics.FileDeletedTotalSize)})";
+      var linksDeletedText = string.Format("{0:n0}", statistics.SymlinkDeletedCount);
+      var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryDeletedCount / statistics.ElapsedTime.TotalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
-        new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign:Align.Right),
-        new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right),
-        new PrinterEntry("# of directories deleted", directoriesDeletedText, shortName: "directories", valueAlign:Align.Right),
-        new PrinterEntry("# of files deleted", filesDeletedText, shortName: "files", valueAlign:Align.Right, extraValue: filesDeletedSizeText),
-        new PrinterEntry("# of files deleted/sec", entriesPerSecondText, shortName: "files/sec", valueAlign:Align.Right),
-        new PrinterEntry("# of errors", errorsText, shortName:"errors", valueAlign:Align.Right),
+        new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
+        new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
+        new PrinterEntry("# of directories deleted", directoriesDeletedText, shortName: "directories", valueAlign: Align.Right),
+        new PrinterEntry("# of files deleted", filesDeletedText, shortName: "files", valueAlign: Align.Right, extraValue: filesDeletedSizeText),
+        new PrinterEntry("# of links deleted", linksDeletedText, shortName: "links", valueAlign: Align.Right),
+        new PrinterEntry("# of entries deleted/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       Print(fields);
     }

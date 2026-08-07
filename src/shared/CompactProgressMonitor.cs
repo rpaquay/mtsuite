@@ -29,12 +29,12 @@ namespace mtsuite.shared {
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var sourceDirectoriesText = string.Format("{0:n0}", statistics.DirectoryEnumeratedCount);
       var sourceFilesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
-      var sourceFilesExtraText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
+      var sourceFilesExtraText = $"({FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize)})";
       var sourceLinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesCompactedText = string.Format("{0:n0}", statistics.FileClonedCount);
-      var filesCompactedExtraText = string.Format("({0:n0} MB)", fileCloneTotalSizeMb);
+      var filesCompactedExtraText = $"({FormatHelpers.FormatSize(statistics.FileClonedTotalSize)})";
       var filesSkippedText = string.Format("{0:n0}", statistics.FileCloneSkippedCount);
-      var filesSkippedExtraText = string.Format("({0:n0} MB)", fileSkippedTotalSizeMb);
+      var filesSkippedExtraText = $"({FormatHelpers.FormatSize(statistics.FileCloneSkippedTotalSize)})";
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
