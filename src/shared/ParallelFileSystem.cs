@@ -323,42 +323,36 @@ namespace mtsuite.shared {
       }
 
       // 1. Process files in current directory (small files synchronously, large files in background tasks)
-      using var fileTaskList = _taskListPool.AllocateFrom();
+      using var taskList = _taskListPool.AllocateFrom();
       foreach (var entry in sourceEntries.Item) {
-        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, fileTaskList.Item, options);
+        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options);
       }
 
       // 2. Prepare subdirectories tasks without LINQ lambda allocations
-      using (var subDirTaskList = _taskListPool.AllocateFrom()) {
-        foreach (var sourceEntry in sourceEntries.Item) {
-          if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-            var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
-            var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
-            subDirTaskList.Item.Add(CopyDirectoryAsync(
-              sourceEntry,
-              destinationEntryPath,
-              destinationExists ? childDestEntry : (FileSystemEntry?)null,
-              options,
-              fileComparer,
-              !destinationExists,
-              false/*skipNotification*/));
-          }
+      foreach (var sourceEntry in sourceEntries.Item) {
+        if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+          var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
+          var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+          taskList.Item.Add(CopyDirectoryAsync(
+            sourceEntry,
+            destinationEntryPath,
+            destinationExists ? childDestEntry : (FileSystemEntry?)null,
+            options,
+            fileComparer,
+            !destinationExists,
+            false/*skipNotification*/));
         }
+      }
 
-        // 3. Recycle all pooled collections immediately before waiting
-        entriesToDelete.Dispose();
-        sourceEntries.Dispose();
-        destinationEntries.Dispose();
-        destinationSet.Dispose();
+      // 3. Recycle all pooled collections immediately before waiting
+      entriesToDelete.Dispose();
+      sourceEntries.Dispose();
+      destinationEntries.Dispose();
+      destinationSet.Dispose();
 
-        // 4. Await both large files in the current directory and all subdirectories
-        if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
-          await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
-        } else if (fileTaskList.Item.Count > 0) {
-          await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
-        } else if (subDirTaskList.Item.Count > 0) {
-          await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
-        }
+      // 4. Await both large files in the current directory and all subdirectories
+      if (taskList.Item.Count > 0) {
+        await Task.WhenAll(taskList.Item).ConfigureAwait(false);
       }
     }
 
@@ -546,7 +540,6 @@ namespace mtsuite.shared {
       FromPool<SmallSet<FileSystemEntry>> destinationSet = _entrySetPool.AllocateFrom();
       destinationSet.Item.SetList(destinationEntries.Item);
 
-      using var fileTaskList = _taskListPool.AllocateFrom();
       foreach (var sourceEntry in sourceEntries.Item) {
         if (sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
           if (destinationSet.Item.TryGet(sourceEntry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
@@ -570,26 +563,21 @@ namespace mtsuite.shared {
         }
       }
 
-      using (var subDirTaskList = _taskListPool.AllocateFrom()) {
-        foreach (var sourceEntry in sourceEntries.Item) {
-          if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-            if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
-              subDirTaskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer, dryRun));
-            }
+      using var taskList = _taskListPool.AllocateFrom();
+      foreach (var sourceEntry in sourceEntries.Item) {
+        if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
+          if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
+            taskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer, dryRun));
           }
         }
+      }
 
-        sourceEntries.Dispose();
-        destinationEntries.Dispose();
-        destinationSet.Dispose();
+      sourceEntries.Dispose();
+      destinationEntries.Dispose();
+      destinationSet.Dispose();
 
-        if (fileTaskList.Item.Count > 0 && subDirTaskList.Item.Count > 0) {
-          await Task.WhenAll(Task.WhenAll(fileTaskList.Item), Task.WhenAll(subDirTaskList.Item)).ConfigureAwait(false);
-        } else if (fileTaskList.Item.Count > 0) {
-          await Task.WhenAll(fileTaskList.Item).ConfigureAwait(false);
-        } else if (subDirTaskList.Item.Count > 0) {
-          await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
-        }
+      if (taskList.Item.Count > 0) {
+        await Task.WhenAll(taskList.Item).ConfigureAwait(false);
       }
     }
 
