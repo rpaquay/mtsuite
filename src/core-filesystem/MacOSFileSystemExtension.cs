@@ -51,41 +51,35 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
     _fullNameBufferPool = poolFactory.Create("MacOSFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
   }
 
-  public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
-    if (file1.FileSize != file2.FileSize) {
-      return false;
-    }
-    if (file1.FileSize == 0) {
-      return true;
-    }
-    return AreFilesCloned(file1.Path, file2.Path);
+  public bool AreFilesCloned(FullPath path1, FullPath path2) {
+    throw new NotImplementedException();
   }
 
-  public bool AreFilesCloned(FullPath path1, FullPath path2) {
+  public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
     if (!OperatingSystem.IsMacOS()) {
       return false;
     }
-
+    
+    if (file1.FileSize != file2.FileSize) {
+      return false;
+    }
+    
+    // We "lie" here, because we assume the caller is going to make a decision about where to clone file1 into file2
+    if (file1.FileSize == 0) {
+      return true;
+    }
+    
     try {
-      string p1 = path1.GetFullName(_fullNameBufferPool);
-      string p2 = path2.GetFullName(_fullNameBufferPool);
+      string path1 = file1.Path.GetFullName(_fullNameBufferPool);
+      string path2 = file2.Path.GetFullName(_fullNameBufferPool);
 
-      var fi1 = new FileInfo(p1);
-      var fi2 = new FileInfo(p2);
-      if (!fi1.Exists || !fi2.Exists || fi1.Length != fi2.Length) {
-        return false;
-      }
-      if (fi1.Length == 0) {
-        return true;
-      }
-
-      using var handle1 = File.OpenHandle(p1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-      using var handle2 = File.OpenHandle(p2, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      using var handle1 = File.OpenHandle(path1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      using var handle2 = File.OpenHandle(path2, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
       int fd1 = handle1.DangerousGetHandle().ToInt32();
       int fd2 = handle2.DangerousGetHandle().ToInt32();
 
-      long fileSize = fi1.Length;
+      long fileSize = file1.FileSize;
       long currentOffset = 0;
 
       while (currentOffset < fileSize) {
