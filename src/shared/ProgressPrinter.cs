@@ -102,7 +102,15 @@ public class ProgressPrinter {
         int maxLineLength = Math.Max(20, windowWidth - 1);
 
         var sb = new System.Text.StringBuilder();
-        sb.Append(FieldsPrinter.BuildMultiLineOutput(fields));
+
+        var fieldsText = FieldsPrinter.BuildMultiLineOutput(fields);
+        var fieldLines = fieldsText.Split('\n');
+        for (int i = 0; i < fieldLines.Length; i++) {
+            if (i > 0) {
+                sb.AppendLine();
+            }
+            sb.Append(AnsiEsc).Append("[K").Append(fieldLines[i].TrimEnd('\r'));
+        }
 
         if (additionalLines != null && additionalLines.Count > 0) {
             sb.AppendLine();
@@ -129,6 +137,18 @@ public class ProgressPrinter {
                 if (_lastLineCount > 1) {
                     Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
                 }
+            }
+
+            // If the new block has fewer lines than before, clear the leftover bottom lines
+            if (!_firstPrint && _lastLineCount > visualLineCount) {
+                var extraLines = _lastLineCount - visualLineCount;
+                var clearSb = new System.Text.StringBuilder(output);
+                for (int k = 0; k < extraLines; k++) {
+                    clearSb.AppendLine();
+                    clearSb.Append(AnsiEsc).Append("[K");
+                }
+                clearSb.AppendFormat(AnsiCursorUpFormat, extraLines);
+                output = clearSb.ToString();
             }
 
             _firstPrint = false;

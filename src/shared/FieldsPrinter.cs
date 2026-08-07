@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ namespace mtsuite.shared {
         }
 
         var value = field.Value ?? "";
-        sb.AppendFormat("{0} {1}{2}{3}         ",
+        sb.AppendFormat("{0} {1}{2}{3}",
           (new string(' ', field.Indent) + field.DisplayName + ":").PadRight(nameMaxWidth + 2),
           field.ValueAlign == Align.Left ? value.PadRight(valuesMaxWidth) : value.PadLeft(valuesMaxWidth),
           field.ValueUnit == null ? "" : (" " + field.ValueUnit),
