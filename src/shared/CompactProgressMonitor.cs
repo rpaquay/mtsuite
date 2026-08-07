@@ -28,8 +28,9 @@ namespace mtsuite.shared {
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(elapsed));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var sourceDirectoriesText = string.Format("{0:n0}", statistics.DirectoryEnumeratedCount);
-      var sourceFilesText = string.Format("{0:n0}", statistics.EntryEnumeratedCount);
+      var sourceFilesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var sourceFilesExtraText = string.Format("({0:n0} MB)", statistics.FileEnumeratedTotalSize / 1024 / 1024);
+      var sourceLinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesCompactedText = string.Format("{0:n0}", statistics.FileClonedCount);
       var filesCompactedExtraText = string.Format("({0:n0} MB)", fileCloneTotalSizeMb);
       var filesSkippedText = string.Format("{0:n0}", statistics.FileCloneSkippedCount);
@@ -46,6 +47,7 @@ namespace mtsuite.shared {
         new PrinterEntry("Source"),
         new PrinterEntry("# of directories", sourceDirectoriesText, indent: 2, shortName: "directories", valueAlign: Align.Right),
         new PrinterEntry("# of files", sourceFilesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: sourceFilesExtraText),
+        new PrinterEntry("# of links", sourceLinksText, indent: 2, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("Destination"),
         new PrinterEntry(compactedLabel, filesCompactedText, indent: 2, shortName: compactedShort, valueAlign: Align.Right, extraValue: filesCompactedExtraText),
         new PrinterEntry("# of files skipped", filesSkippedText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: filesSkippedExtraText),

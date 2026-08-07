@@ -153,7 +153,11 @@ namespace mtsuite.shared.CommandLine {
       }
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
-      Console.WriteLine("  # of directories:         {0:n0}", statistics.DirectoryTraversedCount);
+      Console.WriteLine("  # of source directories:  {0:n0}", statistics.DirectoryTraversedCount);
+      Console.WriteLine("  # of source files:        {0:n0}", statistics.FileEnumeratedCount);
+      Console.WriteLine("  # of source links:        {0:n0}", statistics.SymlinkEnumeratedCount);
+      var sourceFileSizeMb = statistics.FileEnumeratedTotalSize / 1024 / 1024;
+      Console.WriteLine("  Total source files size:  {0:n0} MB", sourceFileSizeMb);
       if (isDryRun) {
         Console.WriteLine("  Identical entries (Potential clones)");
         var fileClonedMb = statistics.FileClonedTotalSize / 1024 / 1024;
