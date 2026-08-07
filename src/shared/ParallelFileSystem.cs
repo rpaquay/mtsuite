@@ -551,7 +551,7 @@ namespace mtsuite.shared {
         if (sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
           if (destinationSet.Item.TryGet(sourceEntry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
             try {
-              if (sourceEntry.FileSize == destinationEntry.FileSize && _fileSystem.Extension.AreFilesCloned(sourceEntry, destinationEntry)) {
+              if (AreFilesCloned(sourceEntry, destinationEntry)) {
                 OnFileAlreadyCloned(sourceEntry);
               } else {
                 var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
@@ -591,6 +591,17 @@ namespace mtsuite.shared {
           await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
         }
       }
+    }
+
+    private bool AreFilesCloned(FileSystemEntry entry, FileSystemEntry destinationEntry) {
+      if (entry.FileSize != destinationEntry.FileSize) {
+        return false;
+      }
+      var sw = _stopwatchFactory.Create();
+      OnFileComparing(entry);
+      bool areEqual = _fileSystem.Extension.AreFilesCloned(entry, destinationEntry);
+      OnFileCompared(entry, sw.Elapsed, entry.FileSize);
+      return areEqual;
     }
 
     private bool CompareFiles(IFileComparer fileComparer, FileSystemEntry entry, FileSystemEntry destinationEntry) {
