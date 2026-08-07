@@ -31,18 +31,6 @@ namespace mtsuite.CoreFileSystem {
       _bufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
     }
 
-    public FileContentsFileComparer(IFileSystem fileSystem, IPool<byte[]> bufferPool) {
-      ArgumentNullException.ThrowIfNull(fileSystem);
-      ArgumentNullException.ThrowIfNull(bufferPool);
-      _fileSystem = fileSystem;
-      _bufferPool = bufferPool;
-    }
-
-    public bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2) {
-      object? dummy = null;
-      return CompareFiles(file1, file2, dummy, null);
-    }
-
     public bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback) {
       var sameKind =
         (file1.IsFile == file2.IsFile) &&

@@ -15,45 +15,36 @@
 
 using System;
 
-namespace mtsuite.CoreFileSystem {
-  public class LastWriteTimeFileComparer : IFileComparer {
-    private readonly IFileSystem _fileSystem;
+namespace mtsuite.CoreFileSystem;
 
-    public LastWriteTimeFileComparer(IFileSystem fileSystem) {
-      _fileSystem = fileSystem;
+public class LastWriteTimeFileComparer(IFileSystem fileSystem) : IFileComparer {
+  public bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback) {
+    bool sameKind =
+      (file1.IsFile == file2.IsFile) &&
+      (file1.IsDirectory == file2.IsDirectory) &&
+      (file1.IsReparsePoint == file2.IsReparsePoint) &&
+      (file1.FileSize == file2.FileSize);
+    if (!sameKind)
+      return false;
+
+    // We only need to compare the names, as we know the parent directory
+    // are equivalent (although not same paths).
+    if (!PathHelpers.FileNameComparer.Equals(file1.Name, file2.Name)) {
+      return false;
     }
 
-    public bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2) {
-      bool sameKind =
-          (file1.IsFile == file2.IsFile) &&
-          (file1.IsDirectory == file2.IsDirectory) &&
-          (file1.IsReparsePoint == file2.IsReparsePoint) &&
-          (file1.FileSize == file2.FileSize);
-      if (!sameKind)
-        return false;
-
-      // We only need to compare the names, as we know the parent directory
-      // are equivalent (although not same paths).
-      if (!PathHelpers.FileNameComparer.Equals(file1.Name, file2.Name)) {
-        return false;
-      }
-
-      if (!DateTime.Equals(file1.LastWriteTimeUtc, file2.LastWriteTimeUtc)) {
-        return false;
-      }
-
-      if (file1.IsReparsePoint) {
-        var info1 = _fileSystem.GetReparsePointInfo(file1.Path);
-        var info2 = _fileSystem.GetReparsePointInfo(file2.Path);
-        if (info1.Target != info2.Target) {
-          return false;
-        }
-      }
-      return true;
+    if (!DateTime.Equals(file1.LastWriteTimeUtc, file2.LastWriteTimeUtc)) {
+      return false;
     }
 
-    public bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback) {
-      return CompareFiles(file1, file2);
+    if (file1.IsReparsePoint) {
+      var info1 = fileSystem.GetReparsePointInfo(file1.Path);
+      var info2 = fileSystem.GetReparsePointInfo(file2.Path);
+      if (info1.Target != info2.Target) {
+        return false;
+      }
     }
+
+    return true;
   }
 }
