@@ -242,7 +242,7 @@ namespace mtsuite.shared {
     }
 
     public virtual void OnFileCloning(FileSystemEntry entry) {
-      _threadTracker.Current.SetCompacting(entry);
+      _threadTracker.Current.SetCloning(entry);
     }
 
     public virtual void OnFileCloned(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {

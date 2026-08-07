@@ -31,17 +31,17 @@ namespace mtsuite.shared {
       var sourceFilesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var sourceFilesExtraText = $"({FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize)})";
       var sourceLinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
-      var filesCompactedText = string.Format("{0:n0}", statistics.FileClonedCount);
-      var filesCompactedExtraText = $"({FormatHelpers.FormatSize(statistics.FileClonedTotalSize)})";
-      var filesAlreadyCompactedText = string.Format("{0:n0}", statistics.FileAlreadyClonedCount);
-      var filesAlreadyCompactedExtraText = $"({FormatHelpers.FormatSize(statistics.FileAlreadyClonedTotalSize)})";
+      var filesClonedText = string.Format("{0:n0}", statistics.FileClonedCount);
+      var filesClonedExtraText = $"({FormatHelpers.FormatSize(statistics.FileClonedTotalSize)})";
+      var filesAlreadyClonedText = string.Format("{0:n0}", statistics.FileAlreadyClonedCount);
+      var filesAlreadyClonedExtraText = $"({FormatHelpers.FormatSize(statistics.FileAlreadyClonedTotalSize)})";
       var filesSkippedText = string.Format("{0:n0}", statistics.FileCloneSkippedCount);
       var filesSkippedExtraText = $"({FormatHelpers.FormatSize(statistics.FileCloneSkippedTotalSize)})";
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
-      var compactedLabel = IsDryRun ? "# of files to compact" : "# of files compacted";
-      var compactedShort = IsDryRun ? "to-compact" : "compacted";
+      var clonedLabel = IsDryRun ? "# of files to clone" : "# of files cloned";
+      var clonedShort = IsDryRun ? "to-clone" : "cloned";
 
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText),
@@ -51,8 +51,8 @@ namespace mtsuite.shared {
         new PrinterEntry("# of files", sourceFilesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: sourceFilesExtraText),
         new PrinterEntry("# of links", sourceLinksText, indent: 2, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("Destination"),
-        new PrinterEntry(compactedLabel, filesCompactedText, indent: 2, shortName: compactedShort, valueAlign: Align.Right, extraValue: filesCompactedExtraText),
-        new PrinterEntry("# of files already compacted", filesAlreadyCompactedText, indent: 2, shortName: "already", valueAlign: Align.Right, extraValue: filesAlreadyCompactedExtraText),
+        new PrinterEntry(clonedLabel, filesClonedText, indent: 2, shortName: clonedShort, valueAlign: Align.Right, extraValue: filesClonedExtraText),
+        new PrinterEntry("# of files already cloned", filesAlreadyClonedText, indent: 2, shortName: "already", valueAlign: Align.Right, extraValue: filesAlreadyClonedExtraText),
         new PrinterEntry("# of files skipped", filesSkippedText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: filesSkippedExtraText),
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),

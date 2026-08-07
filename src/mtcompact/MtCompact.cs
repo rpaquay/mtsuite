@@ -136,7 +136,7 @@ namespace mtcompact {
         Console.WriteLine("Analyzing identical files between \"{0}\" and \"{1}\"",
           sourcePath.FullName, destinationPath.FullName);
       } else {
-        Console.WriteLine("Compacting identical files from \"{0}\" to \"{1}\"",
+        Console.WriteLine("Cloning identical files from \"{0}\" to \"{1}\"",
           sourcePath.FullName, destinationPath.FullName);
       }
 

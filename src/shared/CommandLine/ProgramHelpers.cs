@@ -157,14 +157,14 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("  Total source files size:  {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
       if (isDryRun) {
         Console.WriteLine("  Identical entries (Potential clones)");
-        Console.WriteLine("    # of files to compact:  {0:n0}", statistics.FileClonedCount);
+        Console.WriteLine("    # of files to clone:    {0:n0}", statistics.FileClonedCount);
         Console.WriteLine("    Potential space savings:{0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
       } else {
-        Console.WriteLine("  Compacted entries");
-        Console.WriteLine("    # of files compacted:   {0:n0}", statistics.FileClonedCount);
-        Console.WriteLine("    Total bytes compacted:  {0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
+        Console.WriteLine("  Cloned entries");
+        Console.WriteLine("    # of files cloned:      {0:n0}", statistics.FileClonedCount);
+        Console.WriteLine("    Total bytes cloned:     {0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
       }
-      Console.WriteLine("  Already compacted entries");
+      Console.WriteLine("  Already cloned entries");
       Console.WriteLine("    # of files:             {0:n0}", statistics.FileAlreadyClonedCount);
       Console.WriteLine("    Total bytes:            {0}", FormatHelpers.FormatSize(statistics.FileAlreadyClonedTotalSize));
       Console.WriteLine("  Skipped entries");
