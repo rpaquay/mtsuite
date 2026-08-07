@@ -107,11 +107,10 @@ namespace mtsuite.shared {
     public int ManagedThreadId { get; }
 
     public volatile ThreadOperation Operation;
-    public volatile FullPath? CurrentPath;
-    public long BytesCopied;
-    public long TotalBytes;
-    public long StartTimestamp;
-    public long PreviousBytes;
+    private volatile FullPath? CurrentPath;
+    private long BytesCopied;
+    private long TotalBytes;
+    private long StartTimestamp;
 
     public ThreadProgressState(int threadIndex, int managedThreadId) {
       ThreadIndex = threadIndex;
@@ -124,7 +123,6 @@ namespace mtsuite.shared {
       StartTimestamp = Stopwatch.GetTimestamp();
       BytesCopied = 0;
       TotalBytes = 0;
-      PreviousBytes = 0;
       Operation = ThreadOperation.TraversingDirectory;
     }
 
@@ -133,17 +131,7 @@ namespace mtsuite.shared {
       StartTimestamp = Stopwatch.GetTimestamp();
       BytesCopied = 0;
       TotalBytes = file.FileSize;
-      PreviousBytes = 0;
       Operation = ThreadOperation.CopyingFile;
-    }
-
-    public void SetCompacting(FileSystemEntry file) {
-      CurrentPath = file.Path;
-      StartTimestamp = Stopwatch.GetTimestamp();
-      BytesCopied = 0;
-      TotalBytes = file.FileSize;
-      PreviousBytes = 0;
-      Operation = ThreadOperation.CompactingFile;
     }
 
     public void SetComparing(FileSystemEntry file) {
@@ -151,16 +139,23 @@ namespace mtsuite.shared {
       StartTimestamp = Stopwatch.GetTimestamp();
       BytesCopied = 0;
       TotalBytes = file.FileSize;
-      PreviousBytes = 0;
       Operation = ThreadOperation.ComparingFile;
     }
 
-    public void UpdateCopyProgress(long bytesCopied) {
-      BytesCopied = bytesCopied;
+    public void SetCompacting(FileSystemEntry file) {
+      CurrentPath = file.Path;
+      StartTimestamp = Stopwatch.GetTimestamp();
+      BytesCopied = 0;
+      TotalBytes = file.FileSize;
+      Operation = ThreadOperation.CompactingFile;
     }
 
-    public void UpdateCompareProgress(long bytesCompared) {
-      BytesCopied = bytesCompared;
+    public void UpdateCopyProgress(long bytesCopiedSoFar) {
+      BytesCopied = bytesCopiedSoFar;
+    }
+
+    public void UpdateCompareProgress(long bytesComparedSoFar) {
+      BytesCopied = bytesComparedSoFar;
     }
 
     public void SetDeleting(FileSystemEntry entry) {
@@ -168,7 +163,6 @@ namespace mtsuite.shared {
       StartTimestamp = Stopwatch.GetTimestamp();
       BytesCopied = 0;
       TotalBytes = 0;
-      PreviousBytes = 0;
       Operation = ThreadOperation.DeletingEntry;
     }
 
@@ -178,7 +172,6 @@ namespace mtsuite.shared {
       StartTimestamp = 0;
       BytesCopied = 0;
       TotalBytes = 0;
-      PreviousBytes = 0;
     }
 
     public ThreadProgressSnapshot CreateSnapshot() {

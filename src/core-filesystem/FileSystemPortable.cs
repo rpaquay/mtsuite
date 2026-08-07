@@ -271,7 +271,7 @@ public class FileSystemPortable : IFileSystem {
       }
 
       // Notify callback that file copy is complete
-      callback(ref sourceEntry, sourceEntry.FileSize, sourceEntry.FileSize, ref param);
+      callback(ref sourceEntry, 0, sourceEntry.FileSize, sourceEntry.FileSize, ref param);
       return true;
     }
 
@@ -292,22 +292,22 @@ public class FileSystemPortable : IFileSystem {
           }
         }
 
-        long totalBytesRead = 0;
+        long totalBytesReadSoFar = 0;
         int bytesRead;
         while ((bytesRead = sourceStream.Read(buffer.Item, 0, buffer.Item.Length)) > 0) {
           destinationStream.Write(buffer.Item, 0, bytesRead);
-          totalBytesRead += bytesRead;
-          callback(ref sourceEntry, totalBytesRead, sourceEntry.FileSize, ref param);
+          totalBytesReadSoFar += bytesRead;
+          callback(ref sourceEntry, bytesRead, totalBytesReadSoFar, sourceEntry.FileSize, ref param);
         }
 
         // If file was empty, invoke callback at least once
-        if (totalBytesRead == 0) {
-          callback(ref sourceEntry, 0, 0, ref param);
+        if (totalBytesReadSoFar == 0) {
+          callback(ref sourceEntry, 0, 0, 0, ref param);
         }
 
         // File may have changed size during copy, this is an error
-        if (totalBytesRead != sourceEntry.FileSize) {
-          throw new IOException($"Size of source file has changed during copy ({totalBytesRead} != {sourceEntry.FileSize})");
+        if (totalBytesReadSoFar != sourceEntry.FileSize) {
+          throw new IOException($"Size of source file has changed during copy ({totalBytesReadSoFar} != {sourceEntry.FileSize})");
         }
       }
 

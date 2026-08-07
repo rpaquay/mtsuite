@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using mtcompact;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.ObjectPool;
@@ -64,7 +65,7 @@ namespace tests {
         if (File.Exists(destinationPath.FullName)) {
           File.Delete(destinationPath.FullName);
         }
-        _inner.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, (object)null, static (ref FileSystemEntry s, long c, long t, ref object p) => { });
+        _inner.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, (object)null, static (ref FileSystemEntry s, long v, long c, long t, ref object p) => { });
       }
     }
 
@@ -360,6 +361,44 @@ namespace tests {
       Assert.AreEqual(10, stats.FileCompactedCount); // 10 even files
       Assert.AreEqual(10, stats.FileCompactSkippedCount); // 10 odd files
       Assert.AreEqual(10, testFs.ClonedPairs.Count);
+    }
+
+    [TestMethod]
+    public void FileComparerIsFastPropertyWorks() {
+      var fastComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
+      var slowComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
+
+      Assert.IsTrue(fastComparer.IsFast);
+      Assert.IsFalse(slowComparer.IsFast);
+    }
+
+    [TestMethod]
+    public void ParallelFileSystemShouldSkipComparingEventsForFastComparer() {
+      _sourcefs.Root.CreateFile("file1.txt", 100);
+      _destfs.Root.CreateFile("file1.txt", 100);
+
+      var parallelFs = new ParallelFileSystem(_sourcefs.FileSystem, _poolFactory);
+      int comparingEventCount = 0;
+      int comparedEventCount = 0;
+      parallelFs.FileComparing += _ => Interlocked.Increment(ref comparingEventCount);
+      parallelFs.FileCompared += (_, _, _) => Interlocked.Increment(ref comparedEventCount);
+
+      // Fast comparer (LastWriteTime) should not trigger FileComparing / FileCompared events
+      var fastComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
+      var sourceDir = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
+      var task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, fastComparer, true);
+      parallelFs.WaitForTask(task);
+
+      Assert.AreEqual(0, comparingEventCount);
+      Assert.AreEqual(0, comparedEventCount);
+
+      // Slow comparer (FileContents) should trigger FileComparing / FileCompared events
+      var slowComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
+      task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, slowComparer, true);
+      parallelFs.WaitForTask(task);
+
+      Assert.AreEqual(1, comparingEventCount);
+      Assert.AreEqual(1, comparedEventCount);
     }
   }
 }

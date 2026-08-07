@@ -29,10 +29,10 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/> EntryDeleted;
     event Action<FileSystemEntry> FileCopySkipped;
     event Action<FileSystemEntry> FileComparing;
-    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesThisChunk*/> FileComparingProgress;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesFromPreviousCall*/, long /*bytesSoFar*/> FileComparingProgress;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCompared;
     event Action<FileSystemEntry> FileCopying;
-    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesThisChunk*/> FileCopyingProgress;
+    event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesFromPreviousCall*/, long /*bytesSoFar*/> FileCopyingProgress;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCopied;
     event Action<FileSystemEntry> FileCompacting;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/, long /*bytesTotal*/> FileCompacted;

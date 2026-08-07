@@ -207,9 +207,8 @@ namespace mtsuite.shared {
       Pulse();
     }
 
-    public virtual void OnFileComparingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk) {
-      var state = _threadTracker.Current;
-      state.UpdateCompareProgress(bytesThisChunk);
+    public virtual void OnFileComparingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesFromPreviousCall, long bytesSoFar) {
+      _threadTracker.Current.UpdateCompareProgress(bytesSoFar);
       Pulse();
     }
 
@@ -222,30 +221,19 @@ namespace mtsuite.shared {
       _threadTracker.Current.SetCopying(entry);
     }
 
-    public virtual void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk) {
-      var state = _threadTracker.Current;
-      long delta = bytesThisChunk - state.PreviousBytes;
-      state.PreviousBytes = bytesThisChunk;
-      state.UpdateCopyProgress(bytesThisChunk);
-      if (delta > 0) {
-        Interlocked.Add(ref _fileCopiedTotalSize, delta);
-      }
+    public virtual void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesFromPreviousCall, long bytesSoFar) {
+      _threadTracker.Current.UpdateCopyProgress(bytesSoFar);
+      Interlocked.Add(ref _fileCopiedTotalSize, bytesFromPreviousCall);
       Pulse();
     }
 
     public virtual void OnFileCopied(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
-      var state = _threadTracker.Current;
-      long remaining = bytesTotal - state.PreviousBytes;
-      if (remaining > 0) {
-        Interlocked.Add(ref _fileCopiedTotalSize, remaining);
-      }
-      state.SetIdle();
+      _threadTracker.Current.SetIdle();
       if (entry.IsReparsePoint) {
         Interlocked.Increment(ref _symlinkCopiedCount);
       } else if (entry.IsFile) {
         Interlocked.Increment(ref _fileCopiedCount);
       }
-
       Pulse();
     }
 

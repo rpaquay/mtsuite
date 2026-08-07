@@ -31,6 +31,8 @@ namespace mtsuite.CoreFileSystem {
       _bufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
     }
 
+    public bool IsFast => false;
+
     public bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback) {
       var sameKind =
         (file1.IsFile == file2.IsFile) &&
@@ -60,7 +62,7 @@ namespace mtsuite.CoreFileSystem {
 
       // If both files are 0 bytes, they are equal without reading streams
       if (file1.FileSize == 0) {
-        callback?.Invoke(ref file1, 0, 0, ref param);
+        callback?.Invoke(ref file1, 0, 0, 0, ref param);
         return true;
       }
 
@@ -81,25 +83,25 @@ namespace mtsuite.CoreFileSystem {
       byte[] bytes1 = buf1.Item;
       byte[] bytes2 = buf2.Item;
       int bufferSize = Math.Min(bytes1.Length, bytes2.Length);
-      long totalBytesRead = 0;
+      long totalBytesReadSoFar = 0;
 
       while (true) {
-        var count1 = stream1.Read(bytes1, 0, bufferSize);
+        var bytesRead = stream1.Read(bytes1, 0, bufferSize);
         var count2 = stream2.Read(bytes2, 0, bufferSize);
-        if (count1 != count2) {
+        if (bytesRead != count2) {
           return false;
         }
 
-        if (count1 == 0) {
+        if (bytesRead == 0) {
           return true;
         }
 
-        if (!bytes1.AsSpan(0, count1).SequenceEqual(bytes2.AsSpan(0, count2))) {
+        if (!bytes1.AsSpan(0, bytesRead).SequenceEqual(bytes2.AsSpan(0, count2))) {
           return false;
         }
 
-        totalBytesRead += count1;
-        callback?.Invoke(ref file1, totalBytesRead, file1.FileSize, ref param);
+        totalBytesReadSoFar += bytesRead;
+        callback?.Invoke(ref file1, bytesRead, totalBytesReadSoFar, file1.FileSize, ref param);
       }
     }
   }

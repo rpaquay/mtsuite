@@ -46,11 +46,11 @@ namespace mtcopy {
 
       _parallelFileSystem.FileComparing += (entry) => _progressMonitor.OnFileComparing(entry);
       _parallelFileSystem.FileComparingProgress +=
-        (entry, elapsed, bytes) => _progressMonitor.OnFileComparingProgress(entry, elapsed, bytes);
+        (entry, elapsed, bytesFromPreviousCall, bytesSoFar) => _progressMonitor.OnFileComparingProgress(entry, elapsed, bytesFromPreviousCall, bytesSoFar);
       _parallelFileSystem.FileCompared += (entry, elapsed, bytes) => _progressMonitor.OnFileCompared(entry, elapsed, bytes);
       _parallelFileSystem.FileCopying += (entry) => _progressMonitor.OnFileCopying(entry);
       _parallelFileSystem.FileCopyingProgress +=
-        (entry, elapsed, bytes) => _progressMonitor.OnFileCopyingProgress(entry, elapsed, bytes);
+        (entry, elapsed, bytesFromPreviousCall, bytesSoFar) => _progressMonitor.OnFileCopyingProgress(entry, elapsed, bytesFromPreviousCall, bytesSoFar);
       _parallelFileSystem.FileCopied += (entry, elapsed, bytes) => _progressMonitor.OnFileCopied(entry, elapsed, bytes);
 
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);

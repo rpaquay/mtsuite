@@ -56,12 +56,12 @@ namespace mtsuite.shared {
     /// Callback to <see cref="IFileSystem.CopyFile"/>, stored in a field to avoid GC allocation
     /// at every invocation.
     /// </summary>
-    private readonly CopyFileCallback<CopyFileData> _copyFileCallback = static (ref FileSystemEntry sourceEntry, long copiedBytes, long totalBytes, ref CopyFileData data) => {
-      data.Instance.OnFileCopyingProgress(sourceEntry, data.Stopwatch.Elapsed, copiedBytes);
+    private readonly CopyFileCallback<CopyFileData> _copyFileCallback = static (ref FileSystemEntry sourceEntry, long bytesFromPreviousCall, long bytesSoFar, long totalBytes, ref CopyFileData data) => {
+      data.Instance.OnFileCopyingProgress(sourceEntry, data.Stopwatch.Elapsed, bytesFromPreviousCall, bytesSoFar);
     };
 
-    private readonly CompareFileCallback<CompareFileData> _compareFileCallback = static (ref FileSystemEntry sourceEntry, long comparedBytes, long totalBytes, ref CompareFileData data) => {
-      data.Instance.OnFileComparingProgress(sourceEntry, data.Stopwatch.Elapsed, comparedBytes);
+    private readonly CompareFileCallback<CompareFileData> _compareFileCallback = static (ref FileSystemEntry sourceEntry, long bytesFromPreviousCall, long bytesSoFar, long totalBytes, ref CompareFileData data) => {
+      data.Instance.OnFileComparingProgress(sourceEntry, data.Stopwatch.Elapsed, bytesFromPreviousCall, bytesSoFar);
     };
 
     public ParallelFileSystem(
@@ -112,10 +112,10 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry, TimeSpan>? EntryDeleted;
     public event Action<FileSystemEntry>? FileCopySkipped;
     public event Action<FileSystemEntry>? FileComparing;
-    public event Action<FileSystemEntry, TimeSpan, long>? FileComparingProgress;
+    public event Action<FileSystemEntry, TimeSpan, long, long>? FileComparingProgress;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCompared;
     public event Action<FileSystemEntry>? FileCopying;
-    public event Action<FileSystemEntry, TimeSpan, long>? FileCopyingProgress;
+    public event Action<FileSystemEntry, TimeSpan, long, long>? FileCopyingProgress;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCopied;
     public event Action<FileSystemEntry>? FileCompacting;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCompacted;
@@ -464,11 +464,7 @@ namespace mtsuite.shared {
 
       if (destinationExists) {
         try {
-          var sw = _stopwatchFactory.Create();
-          OnFileComparing(sourceEntry);
-          var compareData = new CompareFileData(this, sw);
-          bool areEqual = fileComparer.CompareFiles(sourceEntry, destinationEntry, compareData, _compareFileCallback);
-          OnFileCompared(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
+          var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
           if (areEqual) {
             OnFileCopySkipped(sourceEntry);
             return;
@@ -546,25 +542,21 @@ namespace mtsuite.shared {
       destinationSet.Item.SetList(destinationEntries.Item);
 
       using var fileTaskList = _taskListPool.AllocateFrom();
-      foreach (var entry in sourceEntries.Item) {
-        if (entry.IsFile && !entry.IsReparsePoint) {
-          if (destinationSet.Item.TryGet(entry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
+      foreach (var sourceEntry in sourceEntries.Item) {
+        if (sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
+          if (destinationSet.Item.TryGet(sourceEntry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
             try {
-              var sw = _stopwatchFactory.Create();
-              OnFileComparing(entry);
-              var compareData = new CompareFileData(this, sw);
-              bool areEqual = fileComparer.CompareFiles(entry, destinationEntry, compareData, _compareFileCallback);
-              OnFileCompared(entry, sw.Elapsed, entry.FileSize);
+              var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
               if (areEqual) {
-                PerformCompactFile(entry, destinationEntry.Path, dryRun);
+                PerformCompactFile(sourceEntry, destinationEntry.Path, dryRun);
               } else {
-                OnFileCompactSkipped(entry);
+                OnFileCompactSkipped(sourceEntry);
               }
             } catch (Exception e) {
-              OnError(entry.Path, e);
+              OnError(sourceEntry.Path, e);
             }
           } else {
-            OnFileCompactSkipped(entry);
+            OnFileCompactSkipped(sourceEntry);
           }
         }
       }
@@ -590,6 +582,21 @@ namespace mtsuite.shared {
           await Task.WhenAll(subDirTaskList.Item).ConfigureAwait(false);
         }
       }
+    }
+
+    private bool CompareFiles(IFileComparer fileComparer, FileSystemEntry entry, FileSystemEntry destinationEntry) {
+      bool areEqual;
+      if (fileComparer.IsFast) {
+        areEqual = fileComparer.CompareFiles(entry, destinationEntry);
+      } else {
+        var sw = _stopwatchFactory.Create();
+        OnFileComparing(entry);
+        var compareData = new CompareFileData(this, sw);
+        areEqual = fileComparer.CompareFiles(entry, destinationEntry, compareData, _compareFileCallback);
+        OnFileCompared(entry, sw.Elapsed, entry.FileSize);
+      }
+
+      return areEqual;
     }
 
     private void PerformCompactFile(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
@@ -717,9 +724,9 @@ namespace mtsuite.shared {
       if (handler != null) handler(arg1);
     }
 
-    protected virtual void OnFileComparingProgress(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+    protected virtual void OnFileComparingProgress(FileSystemEntry arg1, TimeSpan arg2, long bytesFromPreviousCall, long arg3) {
       var handler = FileComparingProgress;
-      if (handler != null) handler(arg1, arg2, arg3);
+      if (handler != null) handler(arg1, arg2, bytesFromPreviousCall, arg3);
     }
 
     protected virtual void OnFileCompared(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
@@ -732,14 +739,14 @@ namespace mtsuite.shared {
       if (handler != null) handler(arg1);
     }
 
-    protected virtual void OnFileCopyingProgress(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+    protected virtual void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesFromPreviousCall, long bytesSoFar) {
       var handler = FileCopyingProgress;
-      if (handler != null) handler(arg1, arg2, arg3);
+      if (handler != null) handler(entry, elapsed, bytesFromPreviousCall, bytesSoFar);
     }
 
-    protected virtual void OnFileCopied(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+    protected virtual void OnFileCopied(FileSystemEntry sourceEntry, TimeSpan elapsed, long totalBytes) {
       var handler = FileCopied;
-      if (handler != null) handler(arg1, arg2, arg3);
+      if (handler != null) handler(sourceEntry, elapsed, totalBytes);
     }
 
     protected virtual void OnFileCompacting(FileSystemEntry arg1) {

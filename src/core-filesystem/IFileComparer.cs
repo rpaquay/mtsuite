@@ -14,9 +14,19 @@
 #nullable enable
 
 namespace mtsuite.CoreFileSystem {
-  public delegate void CompareFileCallback<T>(ref FileSystemEntry sourceEntry, long bytesSoFar, long totalBytes, ref T param);
+  public delegate void CompareFileCallback<T>(ref FileSystemEntry sourceEntry, long bytesFromPreviousCall, long bytesSoFar, long totalBytes, ref T param);
 
   public interface IFileComparer {
+    /// <summary>
+    /// Returns true if the file comparison implementation is fast (O(1) metadata check)
+    /// and does not warrant progress tracking/thread state overhead, or false if it is slow (O(N) data inspection).
+    /// </summary>
+    bool IsFast { get; }
+
     bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback);
+    
+    bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2) {
+      return CompareFiles(file1, file2, 0, null);
+    }
   }
 }

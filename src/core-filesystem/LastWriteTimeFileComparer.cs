@@ -18,6 +18,8 @@ using System;
 namespace mtsuite.CoreFileSystem;
 
 public class LastWriteTimeFileComparer(IFileSystem fileSystem) : IFileComparer {
+  public bool IsFast => true;
+
   public bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback) {
     bool sameKind =
       (file1.IsFile == file2.IsFile) &&

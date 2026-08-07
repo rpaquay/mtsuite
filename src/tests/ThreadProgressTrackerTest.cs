@@ -260,9 +260,9 @@ namespace tests {
       var fileEntry = new FileSystemEntry(new FullPath("/test/file.dat"), data);
 
       monitor.OnFileCopying(fileEntry);
-      monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(50), 1 * 1024 * 1024);
-      monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(100), 2 * 1024 * 1024);
-      monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(150), 3 * 1024 * 1024);
+      monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(50), 1 * 1024 * 1024, 1 * 1024 * 1024);
+      monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(100), 1 * 1024 * 1024, 2 * 1024 * 1024);
+      monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(150), 1 * 1024 * 1024, 3 * 1024 * 1024);
       monitor.OnFileCopied(fileEntry, TimeSpan.FromMilliseconds(150), 3 * 1024 * 1024);
 
       monitor.Stop();
