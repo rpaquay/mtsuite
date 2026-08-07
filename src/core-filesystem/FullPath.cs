@@ -10,6 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
+// limitations under the License.
 #nullable enable
 
 using mtsuite.CoreFileSystem.Utils;
@@ -23,12 +24,6 @@ namespace mtsuite.CoreFileSystem {
   /// Represents a fully qualified path.
   /// </summary>
   public sealed class FullPath : IEquatable<FullPath>, IComparable<FullPath> {
-    private static readonly IPool<StringBuffer> FullNameBufferPool = MtPoolFactory.Instance.Create(
-      "FullPath.FullNameBuffer",
-      static () => new StringBuffer(),
-      static sb => sb.Clear()
-    );
-      
     /// <summary>
     /// If there is a parent path, <see cref="_parent"/> is a reference to the parent <see cref="FullPath"/>.
     /// If there is no parent path (root), <see cref="_parent"/> is null.
@@ -85,10 +80,19 @@ namespace mtsuite.CoreFileSystem {
 
     public string FullName {
       get {
-        using var sb = FullNameBufferPool.AllocateFrom();
-        BuildPath(sb.Item);
-        return sb.Item.ToString();
+        var sb = new StringBuffer(Length);
+        BuildPath(sb);
+        return sb.ToString();
       }
+    }
+
+    public string GetFullName(IPool<StringBuffer>? bufferPool) {
+      if (bufferPool == null) {
+        return FullName;
+      }
+      using var sb = bufferPool.AllocateFrom();
+      BuildPath(sb.Item);
+      return sb.Item.ToString();
     }
 
     public string Name {
@@ -96,8 +100,6 @@ namespace mtsuite.CoreFileSystem {
         return _name;
       }
     }
-
-    public ReadOnlySpan<char> NameSpan => (_name ?? string.Empty).AsSpan();
 
     public FullPath? Parent {
       get {
@@ -184,9 +186,9 @@ namespace mtsuite.CoreFileSystem {
         return true;
       }
 
-      using var sb = FullNameBufferPool.AllocateFrom();
-      if (BuildRelativePath(sb.Item, root)) {
-        relativePath = sb.Item.ToString();
+      var sb = new StringBuffer();
+      if (BuildRelativePath(sb, root)) {
+        relativePath = sb.ToString();
         return true;
       }
 
@@ -278,10 +280,10 @@ namespace mtsuite.CoreFileSystem {
     }
 
     /// <summary>
-    /// Compares two <see cref="FullPath"/> instances hierarchically segment-by-segment from root to leaf.
-    /// Performance note: Rather than allocating List or array objects on the heap, this method aligns
-    /// both paths by depth and compares their segments recursively from root down to the common depth.
-    /// This achieves zero heap allocations and eliminates GC pressure during sorting and comparisons
+    /// High-performance, zero-allocation comparison between two <see cref="FullPath"/> instances.
+    /// It works by:
+    /// 1. Aligning both paths to the same tree depth.
+    /// 2. Finding their common ancestor and comparing the topmost differing segment names recursively
     /// by using the CPU call stack (typically only 3 to 10 frames deep) instead of heap memory.
     /// </summary>
     public static int ComparePaths(FullPath x, FullPath y) {
@@ -317,7 +319,7 @@ namespace mtsuite.CoreFileSystem {
       if (cmp != 0)
         return cmp;
 
-      // If the common prefix is identical, the path with fewer segments comes first.
+      // If segments match up to the shared depth, the shallower path comes first (parent before child).
       return depthX.CompareTo(depthY);
     }
 

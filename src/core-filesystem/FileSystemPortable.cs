@@ -30,11 +30,13 @@ public class FileSystemPortable : IFileSystem {
 
     private readonly IPool<List<FileSystemEntry>> _entryListPool;
     private readonly IPool<byte[]> _copyFileBufferPool;
+    private readonly IPool<StringBuffer> _fullNameBufferPool;
 
     public FileSystemPortable(MtPoolFactory poolFactory) {
       ArgumentNullException.ThrowIfNull(poolFactory);
       _entryListPool = poolFactory.CreateList<FileSystemEntry>("FileSystemPortable.EntryList");
       _copyFileBufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
+      _fullNameBufferPool = poolFactory.Create("FileSystemPortable.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
     }
 
     public bool AllowCloning { get; set; } = true;
@@ -48,13 +50,13 @@ public class FileSystemPortable : IFileSystem {
 
     public FileSystemEntry GetEntry(FullPath path) {
       if (!TryGetEntry(path, out var entry)) {
-        throw new FileNotFoundException("Entry not found", path.FullName);
+        throw new FileNotFoundException("Entry not found", path.GetFullName(_fullNameBufferPool));
       }
       return entry;
     }
 
     public bool TryGetEntry(FullPath path, out FileSystemEntry entry) {
-      var fullName = path.FullName;
+      var fullName = path.GetFullName(_fullNameBufferPool);
       var fileInfo = new FileInfo(fullName);
       var attributes = fileInfo.Attributes;
 
@@ -85,7 +87,7 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public ReparsePointInfo GetReparsePointInfo(FullPath path) {
-      var fullName = path.FullName;
+      var fullName = path.GetFullName(_fullNameBufferPool);
       var info = new FileInfo(fullName);
 
       // On .NET 6+, LinkTarget retrieves the link target even for broken symlinks
@@ -114,8 +116,8 @@ public class FileSystemPortable : IFileSystem {
     private sealed class DirectoryEntriesEnumerator : FileSystemEnumerator<FileSystemEntry> {
       private readonly FullPath _basePath;
 
-      public DirectoryEntriesEnumerator(FullPath basePath, EnumerationOptions options)
-        : base(basePath.FullName, options) {
+      public DirectoryEntriesEnumerator(FullPath basePath, IPool<StringBuffer> fullNameBufferPool, EnumerationOptions options)
+        : base(basePath.GetFullName(fullNameBufferPool), options) {
         _basePath = basePath;
       }
 
@@ -141,7 +143,7 @@ public class FileSystemPortable : IFileSystem {
     public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
       var list = _entryListPool.AllocateFrom();
       try {
-        using var enumerator = new DirectoryEntriesEnumerator(path, _enumerationOptions);
+        using var enumerator = new DirectoryEntriesEnumerator(path, _fullNameBufferPool, _enumerationOptions);
         while (enumerator.MoveNext()) {
           list.Item.Add(enumerator.Current);
         }
@@ -154,15 +156,15 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public void CreateDirectory(FullPath path) {
-      Directory.CreateDirectory(path.FullName);
+      Directory.CreateDirectory(path.GetFullName(_fullNameBufferPool));
     }
 
     public void DeleteEntry(FileSystemEntry entry) {
       RemoveAccessDeniedAttributes(entry);
       if (entry.IsDirectory) {
-        Directory.Delete(entry.Path.FullName, recursive: false);
+        Directory.Delete(entry.Path.GetFullName(_fullNameBufferPool), recursive: false);
       } else {
-        File.Delete(entry.Path.FullName);
+        File.Delete(entry.Path.GetFullName(_fullNameBufferPool));
       }
     }
 
@@ -225,17 +227,20 @@ public class FileSystemPortable : IFileSystem {
         return false;
       }
 
+      string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
+
       // If destination exists, clonefile fails with EEXIST unless deleted first
-      if (destinationEntry.HasValue || File.Exists(destinationPath.FullName)) {
+      if (destinationEntry.HasValue || File.Exists(dstFullName)) {
         try {
-          File.Delete(destinationPath.FullName);
+          File.Delete(dstFullName);
         } catch {
           // If destination cannot be deleted, fall back to streaming copy
           return false;
         }
       }
 
-      int res = clonefile(sourceEntry.Path.FullName, destinationPath.FullName, 0);
+      string srcFullName = sourceEntry.Path.GetFullName(_fullNameBufferPool);
+      int res = clonefile(srcFullName, dstFullName, 0);
       if (res != 0) {
         // clonefile failed (e.g. cross-volume copy or non-APFS volume), fall back to streaming copy
         return false;
@@ -243,15 +248,15 @@ public class FileSystemPortable : IFileSystem {
 
       // Preserve timestamps
       try {
-        File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
+        File.SetLastWriteTimeUtc(dstFullName, sourceEntry.LastWriteTimeUtc);
       } catch {
         // Best effort
       }
 
       // Preserve Unix file modes (POSIX permissions)
       try {
-        var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
-        File.SetUnixFileMode(destinationPath.FullName, mode);
+        var mode = File.GetUnixFileMode(srcFullName);
+        File.SetUnixFileMode(dstFullName, mode);
       } catch {
         // Best effort
       }
@@ -259,7 +264,7 @@ public class FileSystemPortable : IFileSystem {
       // Preserve FileAttributes
       try {
         if (sourceEntry.FileAttributes != FileAttributes.Normal) {
-          File.SetAttributes(destinationPath.FullName, sourceEntry.FileAttributes);
+          File.SetAttributes(dstFullName, sourceEntry.FileAttributes);
         }
       } catch {
         // Best effort
@@ -271,9 +276,12 @@ public class FileSystemPortable : IFileSystem {
     }
 
     private void CopyFileImpl<T>(FileSystemEntry sourceEntry, FullPath destinationPath, CopyFileOptions copyFileOptions, T param, CopyFileCallback<T> callback) {
+      string srcFullName = sourceEntry.Path.GetFullName(_fullNameBufferPool);
+      string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
+
       using (var buffer = _copyFileBufferPool.AllocateFrom())
-      using (var sourceStream = new FileStream(sourceEntry.Path.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.SequentialScan))
-      using (var destinationStream = new FileStream(destinationPath.FullName, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.SequentialScan)) {
+      using (var sourceStream = new FileStream(srcFullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.SequentialScan))
+      using (var destinationStream = new FileStream(dstFullName, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.SequentialScan)) {
         
         // Pre-allocate destination file size on SSD / filesystem
         if (sourceEntry.FileSize > 0) {
@@ -305,7 +313,7 @@ public class FileSystemPortable : IFileSystem {
 
       // Preserve timestamps
       try {
-        File.SetLastWriteTimeUtc(destinationPath.FullName, sourceEntry.LastWriteTimeUtc);
+        File.SetLastWriteTimeUtc(dstFullName, sourceEntry.LastWriteTimeUtc);
       } catch {
         // Best effort
       }
@@ -313,8 +321,8 @@ public class FileSystemPortable : IFileSystem {
       // Preserve Unix file modes (POSIX permissions)
       if (!OperatingSystem.IsWindows()) {
         try {
-          var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
-          File.SetUnixFileMode(destinationPath.FullName, mode);
+          var mode = File.GetUnixFileMode(srcFullName);
+          File.SetUnixFileMode(dstFullName, mode);
         } catch {
           // Best effort
         }
@@ -323,7 +331,7 @@ public class FileSystemPortable : IFileSystem {
       // Preserve FileAttributes (ReadOnly applied last so write streams aren't blocked)
       try {
         if (sourceEntry.FileAttributes != FileAttributes.Normal) {
-          File.SetAttributes(destinationPath.FullName, sourceEntry.FileAttributes);
+          File.SetAttributes(dstFullName, sourceEntry.FileAttributes);
         }
       } catch {
         // Best effort
@@ -336,15 +344,18 @@ public class FileSystemPortable : IFileSystem {
       }
 
       try {
-        if (!Directory.Exists(sourcePath.FullName) && !File.Exists(sourcePath.FullName)) {
+        string srcFullName = sourcePath.GetFullName(_fullNameBufferPool);
+        string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
+
+        if (!Directory.Exists(srcFullName) && !File.Exists(srcFullName)) {
           return false;
         }
-        if (!Directory.Exists(destinationPath.FullName) && !File.Exists(destinationPath.FullName)) {
+        if (!Directory.Exists(dstFullName) && !File.Exists(dstFullName)) {
           return false;
         }
 
-        string sourceDir = Directory.Exists(sourcePath.FullName) ? sourcePath.FullName : (Path.GetDirectoryName(sourcePath.FullName) ?? sourcePath.FullName);
-        string destDir = Directory.Exists(destinationPath.FullName) ? destinationPath.FullName : (Path.GetDirectoryName(destinationPath.FullName) ?? destinationPath.FullName);
+        string sourceDir = Directory.Exists(srcFullName) ? srcFullName : (Path.GetDirectoryName(srcFullName) ?? srcFullName);
+        string destDir = Directory.Exists(dstFullName) ? dstFullName : (Path.GetDirectoryName(dstFullName) ?? dstFullName);
 
         string probeSrc = Path.Combine(sourceDir, ".mtcompact_probe_" + Guid.NewGuid().ToString("N") + ".tmp");
         string probeDst = Path.Combine(destDir, ".mtcompact_probe_" + Guid.NewGuid().ToString("N") + ".tmp");
@@ -367,14 +378,16 @@ public class FileSystemPortable : IFileSystem {
         throw new PlatformNotSupportedException("File cloning is currently only supported on macOS (APFS).");
       }
 
-      string destDir = Path.GetDirectoryName(destinationPath.FullName) ?? destinationPath.FullName;
+      string srcFullName = sourceEntry.Path.GetFullName(_fullNameBufferPool);
+      string dstFullName = destinationPath.GetFullName(_fullNameBufferPool);
+      string destDir = Path.GetDirectoryName(dstFullName) ?? dstFullName;
       string tempDst = Path.Combine(destDir, ".mtcompact_tmp_" + Guid.NewGuid().ToString("N") + ".tmp");
 
-      int res = clonefile(sourceEntry.Path.FullName, tempDst, 0);
+      int res = clonefile(srcFullName, tempDst, 0);
       if (res != 0) {
         int errno = Marshal.GetLastPInvokeError();
         try { if (File.Exists(tempDst)) File.Delete(tempDst); } catch { }
-        throw new IOException($"Failed to clone file '{sourceEntry.Path}' to '{destinationPath}': errno {errno}");
+        throw new IOException($"Failed to clone file '{srcFullName}' to '{dstFullName}': errno {errno}");
       }
 
       // Preserve timestamps
@@ -384,7 +397,7 @@ public class FileSystemPortable : IFileSystem {
 
       // Preserve Unix file modes (POSIX permissions)
       try {
-        var mode = File.GetUnixFileMode(sourceEntry.Path.FullName);
+        var mode = File.GetUnixFileMode(srcFullName);
         File.SetUnixFileMode(tempDst, mode);
       } catch { }
 
@@ -396,44 +409,44 @@ public class FileSystemPortable : IFileSystem {
       } catch { }
 
       // Atomic replace
-      File.Move(tempDst, destinationPath.FullName, overwrite: true);
+      File.Move(tempDst, dstFullName, overwrite: true);
     }
 
     public FileStream OpenFile(FullPath path, FileAccess access) {
-      return File.Open(path.FullName, FileMode.Open, access, FileShare.Read);
+      return File.Open(path.GetFullName(_fullNameBufferPool), FileMode.Open, access, FileShare.Read);
     }
 
     public FileStream CreateFile(FullPath path) {
-      return new FileStream(path.FullName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+      return new FileStream(path.GetFullName(_fullNameBufferPool), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
     }
 
     public void CreateFileSymbolicLink(FullPath path, string target) {
-      File.CreateSymbolicLink(path.FullName, target);
+      File.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), target);
     }
 
     public void CreateDirectorySymbolicLink(FullPath path, string target) {
-      Directory.CreateSymbolicLink(path.FullName, target);
+      Directory.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), target);
     }
 
     public void CreateJunctionPoint(FullPath path, string target) {
-      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent?.Combine(target).FullName;
+      var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent?.Combine(target).GetFullName(_fullNameBufferPool);
       targetPath = PathHelpers.NormalizePath(targetPath);
-      Directory.CreateSymbolicLink(path.FullName, targetPath);
+      Directory.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), targetPath);
     }
     
     private void CopyDirectoryReparsePoint(FullPath sourcePath, FullPath destinationPath) {
       var info = GetReparsePointInfo(sourcePath);
 
       if (info.IsSymbolicLink) {
-        Directory.CreateSymbolicLink(destinationPath.FullName, info.Target);
+        Directory.CreateSymbolicLink(destinationPath.GetFullName(_fullNameBufferPool), info.Target);
         try {
-          Directory.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+          Directory.SetLastWriteTimeUtc(destinationPath.GetFullName(_fullNameBufferPool), info.LastWriteTimeUtc);
         } catch {
           // Best effort
         }
       } else {
         throw new NotSupportedException(
-          $"Error copying reparse point \"{sourcePath}\" (unsupported reparse point type?)");
+          $"Error copying reparse point \"{sourcePath.GetFullName(_fullNameBufferPool)}\" (unsupported reparse point type?)");
       }
     }
 
@@ -441,15 +454,15 @@ public class FileSystemPortable : IFileSystem {
       var info = GetReparsePointInfo(sourcePath);
 
       if (info.IsSymbolicLink) {
-        File.CreateSymbolicLink(destinationPath.FullName, info.Target);
+        File.CreateSymbolicLink(destinationPath.GetFullName(_fullNameBufferPool), info.Target);
         try {
-          File.SetLastWriteTimeUtc(destinationPath.FullName, info.LastWriteTimeUtc);
+          File.SetLastWriteTimeUtc(destinationPath.GetFullName(_fullNameBufferPool), info.LastWriteTimeUtc);
         } catch {
           // Best effort
         }
       } else {
         throw new NotSupportedException(
-          $"Error copying reparse point \"{sourcePath}\" (unsupported reparse point type?)");
+          $"Error copying reparse point \"{sourcePath.GetFullName(_fullNameBufferPool)}\" (unsupported reparse point type?)");
       }
     }
     
@@ -457,7 +470,7 @@ public class FileSystemPortable : IFileSystem {
       if (entry.IsReadOnly || entry.IsSystem) {
         try {
           var attrs = entry.FileAttributes & ~(FileAttributes.ReadOnly | FileAttributes.System);
-          File.SetAttributes(entry.Path.FullName, attrs);
+          File.SetAttributes(entry.Path.GetFullName(_fullNameBufferPool), attrs);
         } catch {
           // Best effort
         }
