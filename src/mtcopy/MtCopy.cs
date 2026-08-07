@@ -40,6 +40,7 @@ namespace mtcopy {
       _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
       _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
 
+      _parallelFileSystem.FileComparing += (entry) => _progressMonitor.OnFileComparing(entry);
       _parallelFileSystem.FileCopying += (entry) => _progressMonitor.OnFileCopying(entry);
       _parallelFileSystem.FileCopyingProgress +=
         (entry, elapsed, bytes) => _progressMonitor.OnFileCopyingProgress(entry, elapsed, bytes);

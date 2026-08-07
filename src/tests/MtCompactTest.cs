@@ -57,7 +57,9 @@ namespace tests {
       public FileStream OpenFile(FullPath path, FileAccess access) => _inner.OpenFile(path, access);
 
       public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
-        ClonedPairs.Add((sourceEntry.Path.FullName, destinationPath.FullName));
+        lock (ClonedPairs) {
+          ClonedPairs.Add((sourceEntry.Path.FullName, destinationPath.FullName));
+        }
         if (File.Exists(destinationPath.FullName)) {
           File.Delete(destinationPath.FullName);
         }
@@ -317,6 +319,44 @@ namespace tests {
       Assert.AreEqual(1, testFs.ClonedPairs.Count);
       Assert.AreEqual(srcPath, testFs.ClonedPairs[0].Source);
       Assert.AreEqual(dstPath, testFs.ClonedPairs[0].Destination);
+    }
+
+    [TestMethod]
+    public void MtCompactShouldProcessManyFilesInParallel() {
+      // Create 20 files with varying sizes and content matches
+      for (int i = 0; i < 20; i++) {
+        var srcPath = _sourcefs.Root.Path.Combine($"file_{i}.dat").FullName;
+        var dstPath = _destfs.Root.Path.Combine($"file_{i}.dat").FullName;
+
+        if (i % 2 == 0) {
+          // Identical content, different timestamp
+          byte[] content = new byte[1024];
+          Array.Fill(content, (byte)i);
+          File.WriteAllBytes(srcPath, content);
+          File.WriteAllBytes(dstPath, content);
+        } else {
+          // Different content
+          byte[] srcContent = new byte[1024];
+          byte[] dstContent = new byte[1024];
+          Array.Fill(srcContent, (byte)i);
+          Array.Fill(dstContent, (byte)(i + 100));
+          File.WriteAllBytes(srcPath, srcContent);
+          File.WriteAllBytes(dstPath, dstContent);
+        }
+        File.SetLastWriteTimeUtc(srcPath, DateTime.UtcNow.AddHours(-10));
+        File.SetLastWriteTimeUtc(dstPath, DateTime.UtcNow.AddHours(-1));
+      }
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem) {
+        SupportsCloningValue = true
+      };
+      var mtcompact = new MtCompact(testFs);
+      var contentComparer = new FileContentsFileComparer(testFs);
+
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
+      Assert.AreEqual(10, stats.FileCompactedCount); // 10 even files
+      Assert.AreEqual(10, stats.FileCompactSkippedCount); // 10 odd files
+      Assert.AreEqual(10, testFs.ClonedPairs.Count);
     }
   }
 }

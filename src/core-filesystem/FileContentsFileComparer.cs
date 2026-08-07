@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#nullable enable
+
 using System;
 using System.Diagnostics;
 using System.IO;
+using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtsuite.CoreFileSystem {
   public class FileContentsFileComparer : IFileComparer {
     private readonly IFileSystem _fileSystem;
+    private readonly IPool<byte[]> _bufferPool;
 
-    public FileContentsFileComparer(IFileSystem fileSystem) {
+    public FileContentsFileComparer(IFileSystem fileSystem, IPool<byte[]>? bufferPool = null) {
       _fileSystem = fileSystem;
+      _bufferPool = bufferPool ?? FileIOByteArrayPool.Instance;
     }
 
     public bool CompareFiles(FileSystemEntry file1, FileSystemEntry file2) {
@@ -51,6 +56,11 @@ namespace mtsuite.CoreFileSystem {
         return info1.Target == info2.Target;
       }
 
+      // If both files are 0 bytes, they are equal without reading streams
+      if (file1.FileSize == 0) {
+        return true;
+      }
+
       // If same modification date, assume they are equal
       if (DateTime.Equals(file1.LastWriteTimeUtc, file2.LastWriteTimeUtc)) {
         return true;
@@ -62,35 +72,28 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
-    private static bool CompareStreamContents(Stream stream1, Stream stream2) {
-      var bytes1 = new byte[8192];
-      var bytes2 = new byte[8192];
+    private bool CompareStreamContents(Stream stream1, Stream stream2) {
+      using var buf1 = _bufferPool.AllocateFrom();
+      using var buf2 = _bufferPool.AllocateFrom();
+      byte[] bytes1 = buf1.Item;
+      byte[] bytes2 = buf2.Item;
+      int bufferSize = Math.Min(bytes1.Length, bytes2.Length);
+
       while (true) {
-        var count1 = stream1.Read(bytes1, 0, bytes1.Length);
-        var count2 = stream2.Read(bytes2, 0, bytes2.Length);
-        if (!CompareByteArrays(bytes1, count1, bytes2, count2)) {
+        var count1 = stream1.Read(bytes1, 0, bufferSize);
+        var count2 = stream2.Read(bytes2, 0, bufferSize);
+        if (count1 != count2) {
           return false;
         }
 
         if (count1 == 0) {
-          Debug.Assert(count2 == 0);
           return true;
         }
-      }
-    }
 
-    private static bool CompareByteArrays(byte[] bytes1, int count1, byte[] bytes2, int count2) {
-      if (count1 != count2) {
-        return false;
-      }
-
-      for (var i = 0; i < count1; i++) {
-        if (bytes1[i] != bytes2[i]) {
+        if (!bytes1.AsSpan(0, count1).SequenceEqual(bytes2.AsSpan(0, count2))) {
           return false;
         }
       }
-
-      return true;
     }
   }
 }

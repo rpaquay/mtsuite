@@ -202,6 +202,11 @@ namespace mtsuite.shared {
       }
     }
 
+    public virtual void OnFileComparing(FileSystemEntry entry) {
+      _threadTracker.Current.SetComparing(entry);
+      Pulse();
+    }
+
     public virtual void OnFileCopying(FileSystemEntry entry) {
       _threadTracker.Current.SetCopying(entry);
     }
@@ -245,6 +250,7 @@ namespace mtsuite.shared {
     }
 
     public virtual void OnFileCompactSkipped(FileSystemEntry entry, long bytes) {
+      _threadTracker.Current.SetIdle();
       Interlocked.Increment(ref _fileCompactSkippedCount);
       Interlocked.Add(ref _fileCompactSkippedTotalSize, bytes);
       Pulse();

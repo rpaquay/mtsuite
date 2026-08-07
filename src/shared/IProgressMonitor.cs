@@ -46,6 +46,7 @@ namespace mtsuite.shared {
 
     void OnFileSkipped(FileSystemEntry sourceEntry, long size);
 
+    void OnFileComparing(FileSystemEntry entry);
     void OnFileCopying(FileSystemEntry entry);
     void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk);
     void OnFileCopied(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal);

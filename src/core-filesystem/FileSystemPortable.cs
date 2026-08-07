@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -27,7 +29,11 @@ public class FileSystemPortable : IFileSystem {
     private static extern int clonefile(string src, string dst, uint flags);
 
     private readonly IPool<List<FileSystemEntry>> _entryListPool = new ListPool<FileSystemEntry>();
-    private readonly IPool<byte[]> _copyFileBufferPool = PoolFactory<byte[]>.Create(() => new byte[1024 * 1024]);
+    private readonly IPool<byte[]> _copyFileBufferPool;
+
+    public FileSystemPortable(IPool<byte[]>? copyFileBufferPool = null) {
+      _copyFileBufferPool = copyFileBufferPool ?? FileIOByteArrayPool.Instance;
+    }
 
     public bool AllowCloning { get; set; } = true;
 
