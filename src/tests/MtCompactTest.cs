@@ -69,6 +69,9 @@ namespace tests {
         _inner.CopyFile(sourceEntry, destinationPath, CopyFileOptions.Default, (object)null, static (ref FileSystemEntry s, long v, long c, long t, ref object p) => { });
       }
 
+      public bool AreFilesCloned(FullPath path1, FullPath path2) => false;
+      public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
+
       public bool TryCloneFile<T>(
         FileSystemEntry sourceEntry,
         FullPath destinationPath,

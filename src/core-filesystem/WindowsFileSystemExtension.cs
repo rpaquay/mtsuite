@@ -35,6 +35,10 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     return false;
   }
 
+  public bool AreFilesCloned(FullPath path1, FullPath path2) => false;
+
+  public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
+
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not yet implemented for Windows (ReFS block cloning).");
   }

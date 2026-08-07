@@ -25,6 +25,10 @@ namespace mtsuite.CoreFileSystem;
 public class NullFileSystemExtension : IFileSystemExtension {
   public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) => false;
 
+  public bool AreFilesCloned(FullPath path1, FullPath path2) => false;
+
+  public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
+
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not supported on this platform/filesystem.");
   }

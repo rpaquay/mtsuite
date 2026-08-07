@@ -222,6 +222,8 @@ namespace tests {
     public void NullFileSystemExtensionBehavesSafely() {
       var nullExt = new mtsuite.CoreFileSystem.NullFileSystemExtension();
       Assert.IsFalse(nullExt.IsCloningSupported(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
+      Assert.IsFalse(nullExt.AreFilesCloned(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
+      Assert.IsFalse(nullExt.AreFilesCloned(default(mtsuite.CoreFileSystem.FileSystemEntry), default(mtsuite.CoreFileSystem.FileSystemEntry)));
       Assert.ThrowsException<PlatformNotSupportedException>(() =>
         nullExt.CloneFile(default, new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
     }

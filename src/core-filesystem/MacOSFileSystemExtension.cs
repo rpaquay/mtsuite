@@ -29,11 +29,83 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
   [DllImport("libSystem", EntryPoint = "clonefile", SetLastError = true)]
   private static extern int clonefile(string src, string dst, uint flags);
 
+  [DllImport("libSystem", EntryPoint = "fcntl", SetLastError = true)]
+  private static extern int fcntl(int fd, int cmd, ref log2phys_ext l2p);
+
+  private const int F_LOG2PHYS_EXT = 65;
+
+  [StructLayout(LayoutKind.Sequential)]
+  private struct log2phys_ext {
+    public uint l_flags;
+    public long l_contigbytes;
+    public long l_devoffset;
+    public long l_offset;
+  }
+
   private readonly IPool<StringBuffer> _fullNameBufferPool;
 
   public MacOSFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
     _fullNameBufferPool = poolFactory.Create("MacOSFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
+  }
+
+  public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
+    if (file1.FileSize != file2.FileSize) {
+      return false;
+    }
+    if (file1.FileSize == 0) {
+      return false;
+    }
+    return AreFilesCloned(file1.Path, file2.Path);
+  }
+
+  public bool AreFilesCloned(FullPath path1, FullPath path2) {
+    if (!OperatingSystem.IsMacOS()) {
+      return false;
+    }
+
+    try {
+      string p1 = path1.GetFullName(_fullNameBufferPool);
+      string p2 = path2.GetFullName(_fullNameBufferPool);
+
+      var fi1 = new FileInfo(p1);
+      var fi2 = new FileInfo(p2);
+      if (!fi1.Exists || !fi2.Exists || fi1.Length != fi2.Length || fi1.Length == 0) {
+        return false;
+      }
+
+      using var handle1 = File.OpenHandle(p1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+      using var handle2 = File.OpenHandle(p2, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+      int fd1 = handle1.DangerousGetHandle().ToInt32();
+      int fd2 = handle2.DangerousGetHandle().ToInt32();
+
+      long fileSize = fi1.Length;
+      long currentOffset = 0;
+
+      while (currentOffset < fileSize) {
+        var ext1 = new log2phys_ext { l_offset = currentOffset };
+        var ext2 = new log2phys_ext { l_offset = currentOffset };
+
+        if (fcntl(fd1, F_LOG2PHYS_EXT, ref ext1) != 0 || fcntl(fd2, F_LOG2PHYS_EXT, ref ext2) != 0) {
+          return false;
+        }
+
+        if (ext1.l_devoffset != ext2.l_devoffset) {
+          return false;
+        }
+
+        long step = Math.Min(ext1.l_contigbytes, ext2.l_contigbytes);
+        if (step <= 0) {
+          break;
+        }
+        currentOffset += step;
+      }
+
+      return currentOffset >= fileSize;
+    } catch {
+      return false;
+    }
   }
 
   public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) {

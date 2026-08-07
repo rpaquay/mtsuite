@@ -28,6 +28,16 @@ public interface IFileSystemExtension {
   bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath);
 
   /// <summary>
+  /// Checks whether two files are Copy-on-Write (CoW) clones of each other (sharing physical disk extents).
+  /// </summary>
+  bool AreFilesCloned(FullPath path1, FullPath path2);
+
+  /// <summary>
+  /// Checks whether two files are Copy-on-Write (CoW) clones of each other (sharing physical disk extents).
+  /// </summary>
+  bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2);
+
+  /// <summary>
   /// Clones a file using Copy-on-Write (CoW) filesystem semantics.
   /// Throws an exception if cloning is not supported or fails.
   /// </summary>
