@@ -36,6 +36,9 @@ namespace mtcompact {
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
 
       _parallelFileSystem.FileComparing += (entry) => _progressMonitor.OnFileComparing(entry);
+      _parallelFileSystem.FileComparingProgress +=
+        (entry, elapsed, bytes) => _progressMonitor.OnFileComparingProgress(entry, elapsed, bytes);
+      _parallelFileSystem.FileCompared += (entry, elapsed, bytes) => _progressMonitor.OnFileCompared(entry, elapsed, bytes);
       _parallelFileSystem.FileCompacting += (entry) => _progressMonitor.OnFileCompacting(entry);
       _parallelFileSystem.FileCompacted += (entry, elapsed, bytes) => _progressMonitor.OnFileCompacted(entry, elapsed, bytes);
       _parallelFileSystem.FileCompactSkipped += (entry) => _progressMonitor.OnFileCompactSkipped(entry, entry.FileSize);

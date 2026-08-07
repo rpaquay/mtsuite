@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
 using System;
 
@@ -49,6 +50,10 @@ namespace mtsuite.CoreFileSystem {
         }
       }
       return true;
+    }
+
+    public bool CompareFiles<T>(FileSystemEntry file1, FileSystemEntry file2, T param, CompareFileCallback<T>? callback) {
+      return CompareFiles(file1, file2);
     }
   }
 }

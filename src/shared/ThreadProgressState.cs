@@ -63,7 +63,9 @@ namespace mtsuite.shared {
       var elapsedText = FormatHelpers.FormatElapsedTime(Elapsed);
       switch (Operation) {
         case ThreadOperation.ComparingFile:
-          var compareSizeText = FormatHelpers.FormatSize(TotalBytes);
+          var compareSizeText = TotalBytes > 0
+            ? $"{FormatHelpers.FormatSize(BytesCopied)} / {FormatHelpers.FormatSize(TotalBytes)}"
+            : FormatHelpers.FormatSize(BytesCopied);
           return $"Thread {ThreadIndex,2}: Comparing {pathText} ({compareSizeText}, {elapsedText})";
 
         case ThreadOperation.CopyingFile:
@@ -155,6 +157,10 @@ namespace mtsuite.shared {
 
     public void UpdateCopyProgress(long bytesCopied) {
       BytesCopied = bytesCopied;
+    }
+
+    public void UpdateCompareProgress(long bytesCompared) {
+      BytesCopied = bytesCompared;
     }
 
     public void SetDeleting(FileSystemEntry entry) {

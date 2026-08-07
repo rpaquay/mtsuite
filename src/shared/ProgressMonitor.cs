@@ -207,6 +207,17 @@ namespace mtsuite.shared {
       Pulse();
     }
 
+    public virtual void OnFileComparingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesThisChunk) {
+      var state = _threadTracker.Current;
+      state.UpdateCompareProgress(bytesThisChunk);
+      Pulse();
+    }
+
+    public virtual void OnFileCompared(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal) {
+      _threadTracker.Current.SetIdle();
+      Pulse();
+    }
+
     public virtual void OnFileCopying(FileSystemEntry entry) {
       _threadTracker.Current.SetCopying(entry);
     }

@@ -110,17 +110,17 @@ namespace tests {
         ThreadIndex = 2,
         Operation = ThreadOperation.ComparingFile,
         CurrentPath = sourceRoot.Combine("file.dat"),
-        BytesCopied = 0,
+        BytesCopied = 10 * 1024 * 1024,
         TotalBytes = 50 * 1024 * 1024,
         Elapsed = TimeSpan.FromSeconds(0.75)
       };
       // Without root
       var formatted = snapshot.Format();
-      StringAssert.Contains(formatted, "Thread  2: Comparing /path/to/file.dat (50.0 MB, 0.75s)");
+      StringAssert.Contains(formatted, "Thread  2: Comparing /path/to/file.dat (10.0 MB / 50.0 MB, 0.75s)");
 
       // With root
       var formattedWithRoot = snapshot.Format(sourceRoot);
-      StringAssert.Contains(formattedWithRoot, "Thread  2: Comparing file.dat (50.0 MB, 0.75s)");
+      StringAssert.Contains(formattedWithRoot, "Thread  2: Comparing file.dat (10.0 MB / 50.0 MB, 0.75s)");
     }
 
     [TestMethod]

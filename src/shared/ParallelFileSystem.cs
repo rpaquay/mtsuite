@@ -72,6 +72,10 @@ namespace mtsuite.shared {
       data.Instance.OnFileCopyingProgress(sourceEntry, data.Stopwatch.Elapsed, copiedBytes);
     };
 
+    private readonly CompareFileCallback<CompareFileData> _compareFileCallback = static (ref FileSystemEntry sourceEntry, long comparedBytes, long totalBytes, ref CompareFileData data) => {
+      data.Instance.OnFileComparingProgress(sourceEntry, data.Stopwatch.Elapsed, comparedBytes);
+    };
+
     public ParallelFileSystem(
       IFileSystem fileSystem,
       INoAllocStopwatchFactory? stopwatchFactory = null,
@@ -105,6 +109,8 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry, TimeSpan>? EntryDeleted;
     public event Action<FileSystemEntry>? FileCopySkipped;
     public event Action<FileSystemEntry>? FileComparing;
+    public event Action<FileSystemEntry, TimeSpan, long>? FileComparingProgress;
+    public event Action<FileSystemEntry, TimeSpan, long>? FileCompared;
     public event Action<FileSystemEntry>? FileCopying;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCopyingProgress;
     public event Action<FileSystemEntry, TimeSpan, long>? FileCopied;
@@ -470,6 +476,11 @@ namespace mtsuite.shared {
       public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     }
 
+    private struct CompareFileData(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
+      public ParallelFileSystem Instance { get; } = instance;
+      public NoAllocStopwatch Stopwatch { get; } = stopwatch;
+    }
+
     private readonly struct CompactFileItem(
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationEntry) {
@@ -530,8 +541,12 @@ namespace mtsuite.shared {
     private void ProcessCopyItem(CopyFileItem item, IFileComparer fileComparer) {
       if (item.NeedsComparison && item.DestinationEntry.HasValue) {
         try {
+          var sw = _stopwatchFactory.Create();
           OnFileComparing(item.SourceEntry);
-          if (fileComparer.CompareFiles(item.SourceEntry, item.DestinationEntry.Value)) {
+          var compareData = new CompareFileData(this, sw);
+          bool areEqual = fileComparer.CompareFiles(item.SourceEntry, item.DestinationEntry.Value, compareData, _compareFileCallback);
+          OnFileCompared(item.SourceEntry, sw.Elapsed, item.SourceEntry.FileSize);
+          if (areEqual) {
             OnFileCopySkipped(item.SourceEntry);
             return;
           }
@@ -688,8 +703,12 @@ namespace mtsuite.shared {
 
     private void ProcessCompactItem(CompactFileItem item, IFileComparer fileComparer, bool dryRun) {
       try {
+        var sw = _stopwatchFactory.Create();
         OnFileComparing(item.SourceEntry);
-        if (fileComparer.CompareFiles(item.SourceEntry, item.DestinationEntry)) {
+        var compareData = new CompareFileData(this, sw);
+        bool areEqual = fileComparer.CompareFiles(item.SourceEntry, item.DestinationEntry, compareData, _compareFileCallback);
+        OnFileCompared(item.SourceEntry, sw.Elapsed, item.SourceEntry.FileSize);
+        if (areEqual) {
           PerformCompactFile(item.SourceEntry, item.DestinationEntry.Path, dryRun);
         } else {
           OnFileCompactSkipped(item.SourceEntry);
@@ -822,6 +841,16 @@ namespace mtsuite.shared {
     protected virtual void OnFileComparing(FileSystemEntry arg1) {
       var handler = FileComparing;
       if (handler != null) handler(arg1);
+    }
+
+    protected virtual void OnFileComparingProgress(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+      var handler = FileComparingProgress;
+      if (handler != null) handler(arg1, arg2, arg3);
+    }
+
+    protected virtual void OnFileCompared(FileSystemEntry arg1, TimeSpan arg2, long arg3) {
+      var handler = FileCompared;
+      if (handler != null) handler(arg1, arg2, arg3);
     }
 
     protected virtual void OnFileCopying(FileSystemEntry arg1) {
