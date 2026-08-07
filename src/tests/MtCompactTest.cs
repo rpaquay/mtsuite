@@ -243,6 +243,31 @@ namespace tests {
     }
 
     [TestMethod]
+    public void MtCompactShouldNotCloneFilesWithSameTimestampAndSizeButDifferentContent() {
+      var srcPath = _sourcefs.Root.Path.Combine("same_time_diff_content.txt").FullName;
+      var dstPath = _destfs.Root.Path.Combine("same_time_diff_content.txt").FullName;
+
+      // Both files have 10 bytes and identical timestamp, but different byte contents
+      var sharedTimestamp = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+      File.WriteAllBytes(srcPath, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+      File.WriteAllBytes(dstPath, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 99 });
+      File.SetLastWriteTimeUtc(srcPath, sharedTimestamp);
+      File.SetLastWriteTimeUtc(dstPath, sharedTimestamp);
+
+      var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
+      var mtcompact = new MtCompact(testFs, _poolFactory);
+      var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
+
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
+
+      // Must NOT be cloned because contents differ
+      Assert.AreEqual(0, stats.FileClonedCount);
+      Assert.AreEqual(1, stats.FileCloneSkippedCount);
+      Assert.AreEqual(0, testFs.ClonedPairs.Count);
+      Assert.AreEqual(99, File.ReadAllBytes(dstPath)[9]);
+    }
+
+    [TestMethod]
     public void MtCompactShouldShareFilesInNestedDirectories() {
       var sourceSub = _sourcefs.Root.CreateDirectory("sub");
       var destSub = _destfs.Root.CreateDirectory("sub");

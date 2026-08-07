@@ -66,11 +66,6 @@ namespace mtsuite.CoreFileSystem {
         return true;
       }
 
-      // If same modification date, assume they are equal
-      if (DateTime.Equals(file1.LastWriteTimeUtc, file2.LastWriteTimeUtc)) {
-        return true;
-      }
-
       using (var stream1 = _fileSystem.OpenFile(file1.Path, FileAccess.Read))
       using (var stream2 = _fileSystem.OpenFile(file2.Path, FileAccess.Read)) {
         return CompareStreamContents(file1, stream1, stream2, param, callback);
