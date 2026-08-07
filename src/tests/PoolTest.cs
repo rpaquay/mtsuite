@@ -81,7 +81,6 @@ namespace tests {
       // IPool<T> directly inherits from INamedPool
       Assert.IsTrue(pool is INamedPool);
       Assert.AreEqual(poolName, pool.Name);
-      Assert.AreEqual(typeof(Entry), pool.ItemType);
       Assert.AreEqual(0, pool.RentCount);
       Assert.AreEqual(0, pool.ReturnCount);
       Assert.AreEqual(0, pool.CreatedCount);
@@ -120,12 +119,6 @@ namespace tests {
       pool.Recycle(reused2);
       Assert.AreEqual(4, pool.ReturnCount);
       Assert.AreEqual(0, pool.OutstandingCount);
-
-      // Test reset
-      pool.Reset();
-      Assert.AreEqual(0, pool.RentCount);
-      Assert.AreEqual(0, pool.ReturnCount);
-      Assert.AreEqual(0, pool.CreatedCount);
     }
 
     [TestMethod]

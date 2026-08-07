@@ -77,15 +77,4 @@ public class MtPoolFactory {
   public IPool<List<T>> CreateList<T>(string name, int initialCapacity = 256) {
     return Create(name, () => new List<T>(initialCapacity), static list => list.Clear());
   }
-
-  /// <summary>
-  /// Resets all statistics across all registered pools.
-  /// </summary>
-  public void ResetStatistics() {
-    lock (_lock) {
-      foreach (var pool in _pools) {
-        pool.Reset();
-      }
-    }
-  }
 }

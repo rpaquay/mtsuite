@@ -27,11 +27,6 @@ public interface INamedPool {
   string Name { get; }
 
   /// <summary>
-  /// Type of objects stored in the pool.
-  /// </summary>
-  Type ItemType { get; }
-
-  /// <summary>
   /// Total number of allocations requested from the pool.
   /// </summary>
   long RentCount { get; }
@@ -60,9 +55,4 @@ public interface INamedPool {
   /// Current number of outstanding rented objects (RentCount - ReturnCount).
   /// </summary>
   long OutstandingCount => Math.Max(0, RentCount - ReturnCount);
-
-  /// <summary>
-  /// Resets statistics counters for this pool.
-  /// </summary>
-  void Reset();
 }

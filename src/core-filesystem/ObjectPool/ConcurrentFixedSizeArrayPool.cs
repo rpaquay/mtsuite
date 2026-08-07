@@ -30,11 +30,14 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : cl
   }
 
   /// <summary>
-  /// Per-thread state holding a small local stack of pooled instances for zero-contention access.
+  /// Per-thread state holding a small local stack of pooled instances and zero-contention metrics counters.
   /// </summary>
   private sealed class ThreadState {
     public readonly T?[] Items;
     public int Count;
+    public long RentCount;
+    public long ReturnCount;
+    public long CreatedCount;
 
     public ThreadState(int capacity) {
       Items = new T?[capacity];
@@ -47,18 +50,38 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : cl
   /// </summary>
   public string Name { get; }
 
-  /// <summary>
-  /// Type of objects stored in this pool.
-  /// </summary>
-  public Type ItemType => typeof(T);
+  public long RentCount {
+    get {
+      long total = 0;
+      var values = _threadState.Values;
+      for (int i = 0; i < values.Count; i++) {
+        total += Volatile.Read(ref values[i].RentCount);
+      }
+      return total;
+    }
+  }
 
-  private long _rentCount;
-  private long _returnCount;
-  private long _createdCount;
+  public long ReturnCount {
+    get {
+      long total = 0;
+      var values = _threadState.Values;
+      for (int i = 0; i < values.Count; i++) {
+        total += Volatile.Read(ref values[i].ReturnCount);
+      }
+      return total;
+    }
+  }
 
-  public long RentCount => Volatile.Read(ref _rentCount);
-  public long ReturnCount => Volatile.Read(ref _returnCount);
-  public long CreatedCount => Volatile.Read(ref _createdCount);
+  public long CreatedCount {
+    get {
+      long total = 0;
+      var values = _threadState.Values;
+      for (int i = 0; i < values.Count; i++) {
+        total += Volatile.Read(ref values[i].CreatedCount);
+      }
+      return total;
+    }
+  }
 
   /// <summary>
   /// Instance creation function, used when pool is empty.
@@ -107,7 +130,7 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : cl
       throw new ArgumentException("Size must be >= 1", nameof(size));
 
     _localCapacity = Math.Max(1, localCapacityPerThread);
-    _threadState = new ThreadLocal<ThreadState>(() => new ThreadState(_localCapacity));
+    _threadState = new ThreadLocal<ThreadState>(() => new ThreadState(_localCapacity), trackAllValues: true);
 
     // Round up size to next power of 2 for fast bitwise indexing
     int capacity = 1;
@@ -129,17 +152,11 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : cl
     : this(typeof(T).Name, creator, recycler, size, localCapacityPerThread) {
   }
 
-  public void Reset() {
-    Interlocked.Exchange(ref _rentCount, 0);
-    Interlocked.Exchange(ref _returnCount, 0);
-    Interlocked.Exchange(ref _createdCount, 0);
-  }
-
   public T Allocate() {
-    Interlocked.Increment(ref _rentCount);
+    var state = _threadState.Value!;
+    state.RentCount++;
 
     // Fast path: thread-local stack (0 atomic operations, 0 bus contention, instance-isolated)
-    var state = _threadState.Value!;
     if (state.Count > 0) {
       state.Count--;
       var item = state.Items[state.Count]!;
@@ -162,7 +179,7 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : cl
       }
     }
 
-    Interlocked.Increment(ref _createdCount);
+    state.CreatedCount++;
     return _creator();
   }
 
@@ -170,11 +187,11 @@ public class ConcurrentFixedSizeArrayPool<T> : IPool<T>, INamedPool where T : cl
     if (item == null)
       return;
 
-    Interlocked.Increment(ref _returnCount);
+    var state = _threadState.Value!;
+    state.ReturnCount++;
     _recycler(item);
 
     // Fast path: recycle into thread-local stack if space is available
-    var state = _threadState.Value!;
     if (state.Count < _localCapacity) {
       state.Items[state.Count] = item;
       state.Count++;
