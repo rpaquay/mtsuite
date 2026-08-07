@@ -203,17 +203,23 @@ namespace mtsuite.shared.CommandLine {
       if (pools.Count == 0)
         return;
 
+      var activePools = pools.Where(p => p.RentCount > 0 || p.CreatedCount > 0).ToList();
+      if (activePools.Count == 0)
+        return;
+
+      int maxNameLength = Math.Max(activePools.Max(p => p.Name.Length), "Pool Name".Length);
+      int nameWidth = maxNameLength;
+
       Console.WriteLine();
       Console.WriteLine("Pool Statistics:");
-      Console.WriteLine("  {0,-38} {1,10} {2,10} {3,10} {4,8} {5,10}",
-        "Pool Name", "Rented", "Recycled", "Created", "Hit %", "In-Use");
-      Console.WriteLine("  {0}", new string('-', 92));
+      
+      string headerFormat = $"  {{0,-{nameWidth}}} {{1,10}} {{2,10}} {{3,10}} {{4,8}} {{5,10}}";
+      Console.WriteLine(headerFormat, "Pool Name", "Rented", "Recycled", "Created", "Hit %", "In-Use");
+      Console.WriteLine("  {0}", new string('-', nameWidth + 54));
 
-      foreach (var pool in pools.OrderBy(p => p.Name)) {
-        if (pool.RentCount == 0 && pool.CreatedCount == 0)
-          continue;
-
-        Console.WriteLine("  {0,-38} {1,10:n0} {2,10:n0} {3,10:n0} {4,7:F1}% {5,10:n0}",
+      string rowFormat = $"  {{0,-{nameWidth}}} {{1,10:n0}} {{2,10:n0}} {{3,10:n0}} {{4,7:F1}}% {{5,10:n0}}";
+      foreach (var pool in activePools.OrderBy(p => p.Name)) {
+        Console.WriteLine(rowFormat,
           pool.Name,
           pool.RentCount,
           pool.ReturnCount,
