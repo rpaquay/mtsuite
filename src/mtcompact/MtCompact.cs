@@ -125,10 +125,10 @@ namespace mtcompact {
 
       if (isDryRun) {
         Console.WriteLine("Analyzing identical files between \"{0}\" and \"{1}\"",
-          PathHelpers.StripLongPathPrefix(sourcePath.FullName), PathHelpers.StripLongPathPrefix(destinationPath.FullName));
+          sourcePath.FullName, destinationPath.FullName);
       } else {
         Console.WriteLine("Compacting identical files from \"{0}\" to \"{1}\"",
-          PathHelpers.StripLongPathPrefix(sourcePath.FullName), PathHelpers.StripLongPathPrefix(destinationPath.FullName));
+          sourcePath.FullName, destinationPath.FullName);
       }
 
       _progressMonitor.SourcePath = sourcePath;

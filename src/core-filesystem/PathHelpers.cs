@@ -22,9 +22,7 @@ namespace mtsuite.CoreFileSystem {
   public static class PathHelpers {
     public static readonly string DirectorySeparatorString = Path.DirectorySeparatorChar.ToString();
     public static readonly string AltDirectorySeparatorString = Path.AltDirectorySeparatorChar.ToString();
-    public static readonly string LongDiskPathPrefix = @"\\?\";
-    public static readonly string LongUncPathPrefix = @"\\?\UNC\";
-    private static readonly string UncPathPrefix  = @"\\";
+    private static readonly string UncPathPrefix = @"\\";
 
     /// <summary>
     /// Returns the appropriate StringComparer for file and path names on the current operating system
@@ -77,7 +75,7 @@ namespace mtsuite.CoreFileSystem {
     }
 
     /// <summary>
-    /// Return the <paramref name="path"/> with its last last component removed,
+    /// Return the <paramref name="path"/> with its last component removed,
     /// or the <code>null</code> string if the path is a "root" path (e.g. "c:\").
     /// Throws an exception if <paramref name="path"/> is not an absolute path.
     /// </summary>
@@ -99,7 +97,7 @@ namespace mtsuite.CoreFileSystem {
 
       // Keep the terminating '\' to avoid returned invalid root path (e.g. 'c:')
       var result = path.Substring(0, lastIndex + 1);
-      if (result == LongDiskPathPrefix || result == UncPathPrefix || result == LongUncPathPrefix)
+      if (result == UncPathPrefix)
         return null;
       return result;
     }
@@ -126,66 +124,10 @@ namespace mtsuite.CoreFileSystem {
 
       // Check the remaining prefix is not a root path prefix (e.g. "\\").
       var prefix = path.Substring(0, lastIndex + 1);
-      if (prefix == LongDiskPathPrefix || prefix == UncPathPrefix || prefix == LongUncPathPrefix)
+      if (prefix == UncPathPrefix)
         return null;
 
       return path.Substring(lastIndex + 1, count - lastIndex - 1);
-    }
-
-    /// <summary>
-    /// Return <paramref name="path"/> where the (optional) long path prefix is removed.
-    /// Note: An exception is thrown if <paramref name="path"/> is not an absolute path.
-    /// </summary>
-    public static string StripLongPathPrefix(string path) {
-      if (string.IsNullOrEmpty(path))
-        throw new ArgumentNullException("path");
-
-      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-
-      var info = GetPathRootPrefixInfo(path);
-      switch (info.RootPrefixKind) {
-        case RootPrefixKind.None:
-          throw new ArgumentException(string.Format("Path \"{0}\" should be absolute", path), "path");
-        case RootPrefixKind.LongDiskPath:
-          return path.Substring(LongDiskPathPrefix.Length);
-        case RootPrefixKind.LongUncPath:
-          return @"\\" + path.Substring(LongUncPathPrefix.Length);
-        case RootPrefixKind.UncPath:
-        case RootPrefixKind.DiskPath:
-        case RootPrefixKind.UnixPath:
-          return path;
-        default:
-          throw new ArgumentOutOfRangeException();
-      }
-    }
-
-    /// <summary>
-    /// Return <paramref name="path"/> with the appropriate long path prefix.
-    /// Note: An exception is thrown if <paramref name="path"/> is not an absolute path.
-    /// </summary>
-    public static string MakeLongPath(string path) {
-      if (string.IsNullOrEmpty(path))
-        throw new ArgumentNullException("path");
-
-      path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-
-      var info = GetPathRootPrefixInfo(path);
-      switch (info.RootPrefixKind) {
-        case RootPrefixKind.LongDiskPath:
-          return path;
-        case RootPrefixKind.LongUncPath:
-          return path;
-        case RootPrefixKind.DiskPath:
-          return LongDiskPathPrefix + path;
-        case RootPrefixKind.UncPath:
-          return LongUncPathPrefix + path.Substring(2);
-        case RootPrefixKind.UnixPath:
-          return path;
-        case RootPrefixKind.None:
-          throw new ArgumentException("Path should be absolute", path);
-        default:
-          throw new ArgumentOutOfRangeException();
-      }
     }
 
     /// <summary>
@@ -283,7 +225,7 @@ namespace mtsuite.CoreFileSystem {
     }
 
     /// <summary>
-    /// Normalize <paramref name="path"/> into an abolute path, by removing any occurrence
+    /// Normalize <paramref name="path"/> into an absolute path, by removing any occurrence
     /// of <code>.</code> or <code>..</code> inside the path.
     /// </summary>
     public static string NormalizePath(string path) {
@@ -300,23 +242,31 @@ namespace mtsuite.CoreFileSystem {
         lexer.Skip(prefixInfo.Length);
       }
 
-      var components = new Stack<string>();
-      foreach (var component in lexer.Split(Path.DirectorySeparatorChar)) {
-        if (component == ".") {
-          // skip it
-        } else if (component == "..") {
-          if (components.Count == 0)
-            throw new ArgumentException("Invalid path: too many '..'");
-          components.Pop();
-        } else {
-          components.Push(component);
+      var parts = lexer.Split(Path.DirectorySeparatorChar).ToList();
+      for (var i = 0; i < parts.Count;) {
+        if (parts[i] == ".") {
+          parts.RemoveAt(i);
+          continue;
         }
+
+        if (parts[i] == "..") {
+          if (i > 0) {
+            parts.RemoveAt(i);
+            parts.RemoveAt(i - 1);
+            i--;
+            continue;
+          }
+          parts.RemoveAt(i);
+          continue;
+        }
+
+        i++;
       }
 
-      foreach (var component in components.Reverse()) {
-        if (sb.Length > 0)
+      for (var i = 0; i < parts.Count; i++) {
+        if (i > 0)
           sb.Append(Path.DirectorySeparatorChar);
-        sb.Append(component);
+        sb.Append(parts[i]);
       }
       sb.Insert(0, path.Substring(0, prefixInfo.Length));
       return sb.ToString();
@@ -328,18 +278,6 @@ namespace mtsuite.CoreFileSystem {
     public static PathRootPrefixInfo GetPathRootPrefixInfo(string path) {
       if (string.IsNullOrEmpty(path))
         return default(PathRootPrefixInfo);
-
-      // Long path format (UNC)
-      if (path.StartsWith(LongUncPathPrefix, StringComparison.OrdinalIgnoreCase))
-        return new PathRootPrefixInfo(LongUncPathPrefix.Length, RootPrefixKind.LongUncPath);
-
-      // Long path format
-      if (path.StartsWith(LongDiskPathPrefix, StringComparison.OrdinalIgnoreCase)) {
-        int diskPrefix = GetDiskRootPrefix(path, LongDiskPathPrefix.Length);
-        if (diskPrefix == 0)
-          return default(PathRootPrefixInfo);
-        return new PathRootPrefixInfo(LongDiskPathPrefix.Length + diskPrefix, RootPrefixKind.LongDiskPath);
-      }
 
       // Device format: 'X:\' prefix
       int localDiskPrefix = GetDiskRootPrefix(path, 0);
@@ -384,8 +322,6 @@ namespace mtsuite.CoreFileSystem {
 
     public enum RootPrefixKind {
       None,
-      LongDiskPath,
-      LongUncPath,
       DiskPath,
       UncPath,
       UnixPath,

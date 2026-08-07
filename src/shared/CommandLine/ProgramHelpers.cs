@@ -42,7 +42,7 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public static FullPath MakeFullPath(string pathValue) {
-      return new FullPath(PathHelpers.MakeLongPath(PathHelpers.NormalizeUserInputPath(Environment.CurrentDirectory, pathValue)));
+      return new FullPath(PathHelpers.NormalizeUserInputPath(Environment.CurrentDirectory, pathValue));
     }
 
     public static void DisplayErrors(IEnumerable<Exception> errors) {

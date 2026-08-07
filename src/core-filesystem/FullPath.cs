@@ -153,11 +153,6 @@ namespace mtsuite.CoreFileSystem {
       }
     }
 
-    public enum LongPathPrefixKind {
-      None,
-      LongDiskPath,
-      LongUncPath,
-    }
 
     private void BuildPath(StringBuffer sb) {
       if (_parent != null) {

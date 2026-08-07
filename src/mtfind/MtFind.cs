@@ -107,7 +107,7 @@ namespace mtfind {
       }
 
       if (!isPlainOutput) {
-        Console.WriteLine("Searching files names matching pattern \"{0}\" under \"{1}\"", pattern, PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+        Console.WriteLine("Searching files names matching pattern \"{0}\" under \"{1}\"", pattern, sourcePath.FullName);
         Console.WriteLine();
       }
       _progressMonitor.Start();
@@ -158,7 +158,7 @@ namespace mtfind {
         .ToList();
 
       foreach (var entry in matchedEntries) {
-        Console.WriteLine(PathHelpers.StripLongPathPrefix(entry.Path.FullName));
+        Console.WriteLine(entry.Path.FullName);
       }
       if (!isPlainOutput) {
         Console.WriteLine();

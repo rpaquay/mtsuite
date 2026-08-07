@@ -25,35 +25,22 @@ namespace tests {
       Assert.IsTrue(PathHelpers.IsPathAbsolute(@"c:\gfdfg"));
       Assert.IsTrue(PathHelpers.IsPathAbsolute(@"\\gfdfg"));
       Assert.IsTrue(PathHelpers.IsPathAbsolute(@"\\gfdfg\fd"));
-      Assert.IsTrue(PathHelpers.IsPathAbsolute(@"\\?\C:\dfdsf"));
-      Assert.IsTrue(PathHelpers.IsPathAbsolute(@"\\?\UNC\fdsdf"));
-      Assert.IsTrue(PathHelpers.IsPathAbsolute(@"\\?\unc\fdsdf"));
+      Assert.IsTrue(PathHelpers.IsPathAbsolute(@"/"));
+      Assert.IsTrue(PathHelpers.IsPathAbsolute(@"/test"));
 
       Assert.IsFalse(PathHelpers.IsPathAbsolute(@"c:"));
       Assert.IsFalse(PathHelpers.IsPathAbsolute(@"c:fdsdf"));
       Assert.IsFalse(PathHelpers.IsPathAbsolute(@"\fdsdf"));
-      Assert.IsFalse(PathHelpers.IsPathAbsolute(@"\\?\C:dfdsf"));
-      Assert.IsFalse(PathHelpers.IsPathAbsolute(@"\\?\c:fdsdf"));
-      Assert.IsFalse(PathHelpers.IsPathAbsolute(@"\\?\\fdsdf"));
-    }
-
-    [TestMethod]
-    public void MakeLongPathTest() {
-      Assert.AreEqual(@"\\?\c:\", PathHelpers.MakeLongPath(@"c:\"));
-      Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.MakeLongPath(@"\\server\share"));
+      Assert.IsFalse(PathHelpers.IsPathAbsolute(@"test"));
     }
 
     [TestMethod]
     public void NormalizePathTest() {
       if (OperatingSystem.IsWindows()) {
         Assert.AreEqual(@"c:\", PathHelpers.NormalizePath(@"c:\test\.."));
-        Assert.AreEqual(@"\\?\c:\", PathHelpers.NormalizePath(@"\\?\c:\test\.."));
         Assert.AreEqual(@"\\server\share", PathHelpers.NormalizePath(@"\\server\share"));
-        Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.NormalizePath(@"\\?\UNC\server\share"));
         Assert.AreEqual(@"\\server\share", PathHelpers.NormalizePath(@"\\server\share\."));
-        Assert.AreEqual(@"\\?\UNC\server\share", PathHelpers.NormalizePath(@"\\?\UNC\server\share\."));
         Assert.AreEqual(@"\\server", PathHelpers.NormalizePath(@"\\server\share\.."));
-        Assert.AreEqual(@"\\?\UNC\server", PathHelpers.NormalizePath(@"\\?\UNC\server\share\.."));
       } else {
         Assert.AreEqual(@"/", PathHelpers.NormalizePath(@"/test/.."));
         Assert.AreEqual(@"/server/share", PathHelpers.NormalizePath(@"/server/share"));
@@ -63,47 +50,39 @@ namespace tests {
     }
 
     [TestMethod]
-    public void StripLongPathPrefixTest() {
-      Assert.AreEqual(@"c:\test", PathHelpers.StripLongPathPrefix(@"c:\test"));
-      Assert.AreEqual(@"c:\test", PathHelpers.StripLongPathPrefix(@"\\?\c:\test"));
-      Assert.AreEqual(@"\\server\share", PathHelpers.StripLongPathPrefix(@"\\server\share"));
-      Assert.AreEqual(@"\\server\share", PathHelpers.StripLongPathPrefix(@"\\?\UNC\server\share"));
-    }
-
-    [TestMethod]
     public void GetParentTest() {
-      Assert.AreEqual(@"c:\", PathHelpers.GetParent(@"c:\test"));
-      Assert.AreEqual(@"\\?\c:\", PathHelpers.GetParent(@"\\?\c:\test"));
-      Assert.AreEqual(@"\\server\", PathHelpers.GetParent(@"\\server\share"));
-      Assert.AreEqual(@"\\?\UNC\server\", PathHelpers.GetParent(@"\\?\UNC\server\share"));
-
-      Assert.AreEqual(@"c:\", PathHelpers.GetParent(@"c:\test\"));
-      Assert.AreEqual(@"\\?\c:\", PathHelpers.GetParent(@"\\?\c:\test\"));
-      Assert.AreEqual(@"\\server\", PathHelpers.GetParent(@"\\server\share\"));
-      Assert.AreEqual(@"\\?\UNC\server\", PathHelpers.GetParent(@"\\?\UNC\server\share\"));
-
-      Assert.AreEqual(null, PathHelpers.GetParent(@"c:\"));
-      Assert.AreEqual(null, PathHelpers.GetParent(@"\\?\c:\"));
-      Assert.AreEqual(null, PathHelpers.GetParent(@"\\server\"));
-      Assert.AreEqual(null, PathHelpers.GetParent(@"\\?\UNC\server\"));
+      if (OperatingSystem.IsWindows()) {
+        Assert.AreEqual(@"c:\", PathHelpers.GetParent(@"c:\test"));
+        Assert.AreEqual(@"\\server\", PathHelpers.GetParent(@"\\server\share"));
+        Assert.AreEqual(@"c:\", PathHelpers.GetParent(@"c:\test\"));
+        Assert.AreEqual(@"\\server\", PathHelpers.GetParent(@"\\server\share\"));
+        Assert.AreEqual(null, PathHelpers.GetParent(@"c:\"));
+        Assert.AreEqual(null, PathHelpers.GetParent(@"\\server\"));
+      } else {
+        Assert.AreEqual(@"/", PathHelpers.GetParent(@"/test"));
+        Assert.AreEqual(@"/server/", PathHelpers.GetParent(@"/server/share"));
+        Assert.AreEqual(@"/", PathHelpers.GetParent(@"/test/"));
+        Assert.AreEqual(@"/server/", PathHelpers.GetParent(@"/server/share/"));
+        Assert.AreEqual(null, PathHelpers.GetParent(@"/"));
+      }
     }
 
     [TestMethod]
     public void GetFileNameTest() {
-      Assert.AreEqual(@"test", PathHelpers.GetName(@"c:\test"));
-      Assert.AreEqual(@"test", PathHelpers.GetName(@"\\?\c:\test"));
-      Assert.AreEqual(@"share", PathHelpers.GetName(@"\\server\share"));
-      Assert.AreEqual(@"share", PathHelpers.GetName(@"\\?\UNC\server\share"));
-
-      Assert.AreEqual(@"test", PathHelpers.GetName(@"c:\test\"));
-      Assert.AreEqual(@"test", PathHelpers.GetName(@"\\?\c:\test\"));
-      Assert.AreEqual(@"share", PathHelpers.GetName(@"\\server\share\"));
-      Assert.AreEqual(@"share", PathHelpers.GetName(@"\\?\UNC\server\share\"));
-
-      Assert.AreEqual(null, PathHelpers.GetName(@"c:\"));
-      Assert.AreEqual(null, PathHelpers.GetName(@"\\?\c:\"));
-      Assert.AreEqual(null, PathHelpers.GetName(@"\\server\"));
-      Assert.AreEqual(null, PathHelpers.GetName(@"\\?\UNC\server\"));
+      if (OperatingSystem.IsWindows()) {
+        Assert.AreEqual(@"test", PathHelpers.GetName(@"c:\test"));
+        Assert.AreEqual(@"share", PathHelpers.GetName(@"\\server\share"));
+        Assert.AreEqual(@"test", PathHelpers.GetName(@"c:\test\"));
+        Assert.AreEqual(@"share", PathHelpers.GetName(@"\\server\share\"));
+        Assert.AreEqual(null, PathHelpers.GetName(@"c:\"));
+        Assert.AreEqual(null, PathHelpers.GetName(@"\\server\"));
+      } else {
+        Assert.AreEqual(@"test", PathHelpers.GetName(@"/test"));
+        Assert.AreEqual(@"share", PathHelpers.GetName(@"/server/share"));
+        Assert.AreEqual(@"test", PathHelpers.GetName(@"/test/"));
+        Assert.AreEqual(@"share", PathHelpers.GetName(@"/server/share/"));
+        Assert.AreEqual(null, PathHelpers.GetName(@"/"));
+      }
     }
 
     [TestMethod]

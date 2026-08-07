@@ -29,8 +29,6 @@ public class FileSystemSetup : IDisposable {
     _root = new Lazy<DirectorySetup>(CreateRootDirectory);
   }
 
-  public bool UseLongPaths { get; set; }
-
   public DirectorySetup Root {
     get { return _root.Value; }
   }
@@ -100,10 +98,6 @@ public class FileSystemSetup : IDisposable {
 
   private FullPath CreateTemporaryFolder() {
     var temporaryPath = Path.GetTempPath();
-    if (UseLongPaths) {
-      temporaryPath = PathHelpers.MakeLongPath(temporaryPath);
-    }
-
     var tempPath = new FullPath(temporaryPath);
     // Note: This is not 100% safe due to possible race conditions.
     for (var i = 0; i < 100; i++) {

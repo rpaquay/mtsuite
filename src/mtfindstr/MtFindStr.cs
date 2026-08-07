@@ -118,7 +118,7 @@ namespace mtfindstr {
         Console.WriteLine("Searching for string \"{0}\" in files matching pattern(s) {1} under \"{2}\"",
           searchPattern,
           FormatFileNamePatternList(fileNamePatterns),
-          PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+          sourcePath.FullName);
         Console.WriteLine();
       }
       _progressMonitor.Start();
@@ -188,7 +188,7 @@ namespace mtfindstr {
       foreach (var fileResult in sortedFileResults) {
         foreach (var entry in fileResult.Entries) {
           Console.WriteLine("{0}:{1}:{2}",
-            PathHelpers.StripLongPathPrefix(fileResult.Path.FullName),
+            fileResult.Path.FullName,
             entry.LineNumber,
             entry.ColumnNumber);
         }

@@ -169,8 +169,6 @@ namespace tests {
 
     [TestMethod]
     public void CreatedJunctionPointToLongPathWorks() {
-      _fileSystemSetup.UseLongPaths = true;
-
       // Prepare
       var fooTarget = _fileSystemSetup.Root.CreateDirectory("foo");
       while (fooTarget.Path.Length < 300) {

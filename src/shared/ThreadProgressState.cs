@@ -56,7 +56,7 @@ namespace mtsuite.shared {
       } else if (destinationPath != null && CurrentPath.TryGetRelativePath(destinationPath, out var relDest)) {
         pathText = relDest;
       } else {
-        pathText = PathHelpers.StripLongPathPrefix(CurrentPath.FullName);
+        pathText = CurrentPath.FullName;
       }
 
       var elapsedText = FormatHelpers.FormatElapsedTime(Elapsed);

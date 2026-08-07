@@ -149,7 +149,7 @@ namespace mtinfo {
         throw new CommandLineReturnValueException(8);
       }
 
-      Console.WriteLine("Collecting info from \"{0}\"", PathHelpers.StripLongPathPrefix(sourcePath.FullName));
+      Console.WriteLine("Collecting info from \"{0}\"", sourcePath.FullName);
       Console.WriteLine();
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(options);
@@ -293,7 +293,7 @@ namespace mtinfo {
 
       DisplayDirectoryEntries(displayInfo,
         directorySummary,
-        PathHelpers.StripLongPathPrefix(directorySummary.DirectoryEntry.Path.FullName),
+        directorySummary.DirectoryEntry.Path.FullName,
         sortingFunc,
         new List<bool>());
 
@@ -309,7 +309,7 @@ namespace mtinfo {
 
         while (summaryRoot.LongestPaths.Count > 0) {
           var lp = summaryRoot.LongestPaths.Remove();
-          var path = PathHelpers.StripLongPathPrefix(lp.Path.ToString());
+          var path = lp.Path.ToString();
           Console.WriteLine("{0}: {1:n0}", path, path.Length);
         }
       }
@@ -387,7 +387,7 @@ namespace mtinfo {
 
         // Root node is displayed as full path
         if (node.Depth == 0) {
-          return PathHelpers.StripLongPathPrefix(node.DirectorySummary.DirectoryEntry.Path.FullName).Length;
+          return node.DirectorySummary.DirectoryEntry.Path.FullName.Length;
         }
 
         // Other nodes are displayed as indent + file name
