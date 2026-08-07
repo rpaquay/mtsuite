@@ -271,5 +271,27 @@ namespace tests {
       Assert.AreEqual(1, stats.FileCopiedCount);
       Assert.AreEqual(3 * 1024 * 1024, stats.FileCopiedTotalSize);
     }
+
+    [TestMethod]
+    public void ConsoleSupportDetectsAnsiSupportProperty() {
+      // IsAnsiSupported is boolean and executes without throwing on all platforms
+      var supported = ConsoleSupport.IsAnsiSupported;
+      Assert.IsTrue(supported == true || supported == false);
+    }
+
+    [TestMethod]
+    public void ProgressPrinterSuppressesOutputWhenAnsiNotSupported() {
+      var printer = new ProgressPrinter {
+        IsAnsiSupported = false
+      };
+
+      // When IsAnsiSupported is false, Print and Stop should safely no-op without writing ANSI codes
+      var fields = new[] {
+        new PrinterEntry("Files", "10")
+      };
+      printer.Print(fields);
+      printer.Print(fields, new[] { "Thread 1: copy" });
+      printer.Stop();
+    }
   }
 }

@@ -35,6 +35,12 @@ public class ProgressPrinter {
     private bool _firstPrint = true;
     private int _lastLineCount = 0;
 
+    /// <summary>
+    /// Gets or sets whether ANSI escape sequences are supported in the current environment.
+    /// Defaults to <see cref="ConsoleSupport.IsAnsiSupported"/>.
+    /// </summary>
+    public bool IsAnsiSupported { get; set; } = ConsoleSupport.IsAnsiSupported;
+
     public static string StripAnsi(string input) {
         return AnsiRegex.Replace(input, "");
     }
@@ -70,6 +76,10 @@ public class ProgressPrinter {
     }
 
     public void Stop() {
+        if (!IsAnsiSupported) {
+            return;
+        }
+
         lock (_lock) {
             if (!_firstPrint) {
                 // Move cursor to start of the top line of the progress block
@@ -98,6 +108,9 @@ public class ProgressPrinter {
     }
 
     public void Print(ICollection<PrinterEntry> fields, IReadOnlyList<string>? additionalLines) {
+        if (!IsAnsiSupported) {
+            return;
+        }
         int windowWidth = GetWindowWidth();
         int maxLineLength = Math.Max(20, windowWidth - 1);
 
