@@ -81,7 +81,7 @@ foreach ($rid in $Platforms) {
 
   foreach ($app in $Apps) {
     $binName = if ($isWindows) { "$app.exe" } else { $app }
-    $binPath = Join-Path $ScriptDir "src\$app\bin\Release\net8.0\$rid\publish\$binName"
+    $binPath = Join-Path $ScriptDir "bin\Release\net8.0\$rid\publish\$binName"
 
     if (!(Test-Path $binPath)) {
       Write-Error "Expected binary not found: $binPath"

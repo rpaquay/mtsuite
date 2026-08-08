@@ -6,4 +6,9 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <OutputPath>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
+
+  <!-- Copy executable binaries to unified root bin/$(Configuration)/ directory -->
+  <Target Name="CopyToolToCommonBin" AfterTargets="Build" Condition="'$(OutputType)' == 'Exe' and '$(IsTestProject)' != 'true'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)..\bin\$(Configuration)\" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
