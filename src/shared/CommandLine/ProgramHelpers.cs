@@ -117,12 +117,21 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("  # of source files:        {0:n0}", statistics.FileEnumeratedCount);
       Console.WriteLine("  # of source links:        {0:n0}", statistics.SymlinkEnumeratedCount);
       Console.WriteLine("  Total source files size:  {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
-      Console.WriteLine("  Copied entries");
-      Console.WriteLine("    # of directories created: {0:n0}", statistics.DirectoryCreatedCount);
-      Console.WriteLine("    # of files copied:        {0:n0}", statistics.FileCopiedCount);
-      Console.WriteLine("    # of links copied:        {0:n0}", statistics.SymlinkCopiedCount);
-      Console.WriteLine("    Total bytes copied:       {0}", FormatHelpers.FormatSize(statistics.FileCopiedTotalSize));
-      Console.WriteLine("    Throughput:               {0}", FormatHelpers.FormatThroughput(statistics.FileCopiedTotalSize, statistics.ElapsedTime.TotalSeconds));
+      if (statistics.FileClonedCount > 0) {
+        Console.WriteLine("  Cloned entries");
+        Console.WriteLine("    # of directories created: {0:n0}", statistics.DirectoryCreatedCount);
+        Console.WriteLine("    # of files cloned:        {0:n0}", statistics.FileClonedCount);
+        Console.WriteLine("    # of links copied:        {0:n0}", statistics.SymlinkCopiedCount);
+        Console.WriteLine("    Total bytes cloned:       {0}", FormatHelpers.FormatSize(statistics.FileClonedTotalSize));
+        Console.WriteLine("    Throughput:               {0}", FormatHelpers.FormatThroughput(statistics.FileClonedTotalSize, statistics.ElapsedTime.TotalSeconds));
+      } else {
+        Console.WriteLine("  Copied entries");
+        Console.WriteLine("    # of directories created: {0:n0}", statistics.DirectoryCreatedCount);
+        Console.WriteLine("    # of files copied:        {0:n0}", statistics.FileCopiedCount);
+        Console.WriteLine("    # of links copied:        {0:n0}", statistics.SymlinkCopiedCount);
+        Console.WriteLine("    Total bytes copied:       {0}", FormatHelpers.FormatSize(statistics.FileCopiedTotalSize));
+        Console.WriteLine("    Throughput:               {0}", FormatHelpers.FormatThroughput(statistics.FileCopiedTotalSize, statistics.ElapsedTime.TotalSeconds));
+      }
 
       Console.WriteLine("  Deleted entries");
       Console.WriteLine("    # of directories deleted: {0:n0}", statistics.DirectoryDeletedCount);

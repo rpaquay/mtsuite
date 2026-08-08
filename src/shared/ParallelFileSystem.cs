@@ -214,7 +214,9 @@ namespace mtsuite.shared {
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew) {
-      return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, true);
+      bool useCloning = (options & CopyOptions.NoClone) == 0 &&
+                        _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path, destinationPath);
+      return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, useCloning, true);
     }
 
     private async Task CopyDirectoryAsync(
@@ -224,6 +226,7 @@ namespace mtsuite.shared {
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew,
+      bool useCloning,
       bool skipNotification) {
 
       await Task.Run(async () => {
@@ -236,7 +239,8 @@ namespace mtsuite.shared {
           destinationDirectoryEntry,
           options,
           fileComparer,
-          destinationDirectoryIsNew).ConfigureAwait(false);
+          destinationDirectoryIsNew,
+          useCloning).ConfigureAwait(false);
 
         if (!skipNotification)
           OnDirectoryTraversed(sourceDirectory);
@@ -249,7 +253,8 @@ namespace mtsuite.shared {
       FileSystemEntry? destinationDirectoryEntry,
       CopyOptions options,
       IFileComparer fileComparer,
-      bool destinationDirectoryIsNew) {
+      bool destinationDirectoryIsNew,
+      bool useCloning) {
 
       FileSystemEntry destinationDirectory;
       if (destinationDirectoryEntry.HasValue) {
@@ -304,7 +309,7 @@ namespace mtsuite.shared {
       using var taskList = _taskListPool.AllocateFrom();
       foreach (var entry in sourceEntries.Item) {
         if (entry.IsFile || entry.IsReparsePoint) {
-          PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options);
+          PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options, useCloning);
         }
         else if (entry.IsDirectory) {
           var destinationEntryPath = new FullPath(destinationDirectory.Path, entry.Name);
@@ -316,6 +321,7 @@ namespace mtsuite.shared {
             options,
             fileComparer,
             !destinationExists,
+            useCloning,
             false/*skipNotification*/));
         }
       }
@@ -415,7 +421,8 @@ namespace mtsuite.shared {
       IFileComparer fileComparer,
       SmallSet<FileSystemEntry> destinationSet,
       List<Task> fileTaskList,
-      CopyOptions options) {
+      CopyOptions options,
+      bool useCloning) {
 
       if (!sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
         return;
@@ -439,17 +446,35 @@ namespace mtsuite.shared {
         }
       }
 
-      var copyFileOptions = CopyFileOptions.Default;
-      if ((options & CopyOptions.NoClone) != 0) {
-        copyFileOptions |= CopyFileOptions.NoClone;
-      }
-
-      // If file size is >= threshold, offload copying to a background task
-      if (sourceEntry.IsFile && sourceEntry.FileSize >= LargeFileAsyncThreshold) {
-        fileTaskList.Add(Task.Run(() => PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions)));
+      if (useCloning && sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
+        // If file size is >= threshold, offload cloning to a background task
+        if (sourceEntry.FileSize >= LargeFileAsyncThreshold) {
+          fileTaskList.Add(Task.Run(() => PerformCloneFile(sourceEntry, destinationPath)));
+        } else {
+          PerformCloneFile(sourceEntry, destinationPath);
+        }
       } else {
-        PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions);
+        var copyFileOptions = CopyFileOptions.Default | CopyFileOptions.NoClone;
+        // If file size is >= threshold, offload copying to a background task
+        if (sourceEntry.IsFile && sourceEntry.FileSize >= LargeFileAsyncThreshold) {
+          fileTaskList.Add(Task.Run(() => PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions)));
+        } else {
+          PerformCopyFile(sourceEntry, destinationPath, destinationEntry, destinationExists, copyFileOptions);
+        }
       }
+    }
+
+    private void PerformCloneFile(
+      FileSystemEntry sourceEntry,
+      FullPath destinationPath) {
+      var sw = _stopwatchFactory.Create();
+      OnFileCloning(sourceEntry);
+      try {
+        _fileSystem.Extension.CloneFile(sourceEntry, destinationPath);
+      } catch (Exception e) {
+        OnError(sourceEntry.Path, e);
+      }
+      OnFileCloned(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
     }
 
     private void PerformCopyFile(

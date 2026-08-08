@@ -19,10 +19,9 @@ namespace mtsuite.shared {
     protected override void DisplayStatus(Statistics statistics) {
       var elapsed = statistics.ElapsedTime;
       var totalSeconds = elapsed.TotalSeconds;
-      var fileCopiedTotalSizeMb = statistics.FileCopiedTotalSize / 1024 / 1024;
-      var fileSkippedTotalSizeMb = statistics.FileSkippedTotalSize / 1024 / 1024;
+      var isCloning = statistics.FileClonedCount > 0 || (statistics.FileCopiedCount == 0 && statistics.FileClonedTotalSize > 0);
       var totalEntriesCount =
-        statistics.DirectoryTraversedCount + statistics.FileCopiedCount + statistics.SymlinkCopiedCount +
+        statistics.DirectoryTraversedCount + statistics.FileCopiedCount + statistics.FileClonedCount + statistics.SymlinkCopiedCount +
         statistics.DirectoryDeletedCount + statistics.FileDeletedCount + statistics.SymlinkDeletedCount +
         statistics.FileSkippedCount;
 
@@ -32,8 +31,12 @@ namespace mtsuite.shared {
       var sourceFilesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var sourceFilesExtraText = $"({FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize)})";
       var sourceLinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
-      var filesCopiedText = string.Format("{0:n0}", statistics.FileCopiedCount);
-      var filesCopiedExtraText = $"({FormatHelpers.FormatSize(statistics.FileCopiedTotalSize)})";
+      var filesCopiedOrClonedText = isCloning
+        ? string.Format("{0:n0}", statistics.FileClonedCount)
+        : string.Format("{0:n0}", statistics.FileCopiedCount);
+      var filesCopiedOrClonedExtraText = isCloning
+        ? $"({FormatHelpers.FormatSize(statistics.FileClonedTotalSize)})"
+        : $"({FormatHelpers.FormatSize(statistics.FileCopiedTotalSize)})";
       var linksCopiedText = string.Format("{0:n0}", statistics.SymlinkCopiedCount);
       var filesSkippedText = string.Format("{0:n0}", statistics.FileSkippedCount);
       var filesSkippedExtraText = $"({FormatHelpers.FormatSize(statistics.FileSkippedTotalSize)})";
@@ -45,6 +48,9 @@ namespace mtsuite.shared {
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
+      var copiedOrClonedLabel = isCloning ? "# of files cloned" : "# of files copied";
+      var copiedOrClonedShort = isCloning ? "cloned" : "copied";
+
       var fields = new[] {
         new PrinterEntry("Elapsed time", elapsedTimeText),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
@@ -53,7 +59,7 @@ namespace mtsuite.shared {
         new PrinterEntry("# of files", sourceFilesText, indent: 2, shortName: "files", valueAlign: Align.Right, extraValue: sourceFilesExtraText),
         new PrinterEntry("# of links", sourceLinksText, indent: 2, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("Destination"),
-        new PrinterEntry("# of files copied", filesCopiedText, indent: 2, shortName: "copied", valueAlign: Align.Right, extraValue: filesCopiedExtraText),
+        new PrinterEntry(copiedOrClonedLabel, filesCopiedOrClonedText, indent: 2, shortName: copiedOrClonedShort, valueAlign: Align.Right, extraValue: filesCopiedOrClonedExtraText),
         new PrinterEntry("# of links copied", linksCopiedText, indent: 2, shortName: "links copied", valueAlign: Align.Right),
         new PrinterEntry("# of files skipped", filesSkippedText, indent: 2, shortName: "skipped", valueAlign: Align.Right, extraValue: filesSkippedExtraText),
         new PrinterEntry("# of links skipped", linksSkippedText, indent: 2, shortName: "links skipped", valueAlign: Align.Right),

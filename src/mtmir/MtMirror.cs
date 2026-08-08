@@ -51,6 +51,10 @@ namespace mtmir {
       _parallelFileSystem.FileCopyingProgress +=
         (entry, elapsed, bytesFromPreviousCall, bytesSoFar) => _progressMonitor.OnFileCopyingProgress(entry, elapsed, bytesFromPreviousCall, bytesSoFar);
       _parallelFileSystem.FileCopied += (entry, elapsed, bytes) => _progressMonitor.OnFileCopied(entry, elapsed, bytes);
+      _parallelFileSystem.FileCloning += (entry) => _progressMonitor.OnFileCloning(entry);
+      _parallelFileSystem.FileCloned += (entry, elapsed, bytes) => _progressMonitor.OnFileCloned(entry, elapsed, bytes);
+      _parallelFileSystem.FileCloneSkipped += (entry) => _progressMonitor.OnFileCloneSkipped(entry, entry.FileSize);
+      _parallelFileSystem.FileAlreadyCloned += (entry) => _progressMonitor.OnFileAlreadyCloned(entry, entry.FileSize);
 
 
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);

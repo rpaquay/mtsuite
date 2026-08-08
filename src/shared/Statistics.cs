@@ -34,7 +34,7 @@ namespace mtsuite.shared {
 
     public long FileCopiedCount { get; set; }
     public long SymlinkCopiedCount { get; set; }
-    public long EntryCopiedCount { get { return FileCopiedCount + SymlinkCopiedCount; } }
+    public long EntryCopiedCount { get { return FileCopiedCount + FileClonedCount + SymlinkCopiedCount; } }
     public long FileCopiedTotalSize { get; set; }
 
     public long DirectoryDeletedCount { get; set; }

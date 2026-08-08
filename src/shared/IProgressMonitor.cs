@@ -52,6 +52,10 @@ namespace mtsuite.shared {
     void OnFileCopying(FileSystemEntry entry);
     void OnFileCopyingProgress(FileSystemEntry entry, TimeSpan elapsed, long bytesFromPreviousCall, long bytesSoFar);
     void OnFileCopied(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal);
+    void OnFileCloning(FileSystemEntry entry);
+    void OnFileCloned(FileSystemEntry entry, TimeSpan elapsed, long bytesTotal);
+    void OnFileCloneSkipped(FileSystemEntry sourceEntry, long bytes);
+    void OnFileAlreadyCloned(FileSystemEntry sourceEntry, long bytes);
 
     void OnError(FullPath path, Exception e);
     #endregion
