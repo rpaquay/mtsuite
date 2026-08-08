@@ -162,10 +162,11 @@ namespace mtfind {
         .OrderBy(entry => entry.Path)
         .ToList();
 
-      foreach (var entry in matchedEntries) {
-        Console.WriteLine(entry.Path.FullName);
-      }
-      if (!isPlainOutput) {
+      if (isPlainOutput) {
+        foreach (var entry in matchedEntries) {
+          Console.WriteLine(entry.Path.FullName);
+        }
+      } else {
         Console.WriteLine();
         Console.WriteLine("Found {0} file names matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
       }

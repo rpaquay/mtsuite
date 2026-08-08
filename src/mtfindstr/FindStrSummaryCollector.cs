@@ -67,7 +67,7 @@ namespace mtfindstr {
             Entries = entries
           });
         }
-        _progressMonitor.OnFileMatchFound();
+        _progressMonitor.OnFileMatchFound(entry, entries);
       }
     }
 

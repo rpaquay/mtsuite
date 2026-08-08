@@ -297,8 +297,12 @@ namespace mtsuite.shared {
       _printer.Print(fields);
     }
 
-    protected virtual void Print(ICollection<PrinterEntry> fields, IReadOnlyList<string>? additionalLines) {
+    protected void Print(ICollection<PrinterEntry> fields, IReadOnlyList<string>? additionalLines) {
       _printer.Print(fields, additionalLines);
+    }
+
+    public void PrintMessage(Action action) {
+      _printer.PrintMessage(action);
     }
 
     private bool IsTimeToDisplayStatus() {

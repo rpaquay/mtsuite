@@ -43,5 +43,20 @@ namespace tests {
         "foo"
       });
     }
+
+    [TestMethod]
+    public void MtFindShouldFindMatchingFilesAndTriggerMatchEvent() {
+      _fileSystemSetup.Root.CreateFile("file1.txt", 10);
+      _fileSystemSetup.Root.CreateFile("file2.log", 20);
+      var sub = _fileSystemSetup.Root.CreateDirectory("sub");
+      sub.CreateFile("file3.txt", 30);
+
+      var mtfind = new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory());
+      var matches = mtfind.DoFind(_fileSystemSetup.Root.Path, "*.txt", isPlainOutput: false, noProgressOutput: true, followLinks: false, includeDir: false);
+
+      Assert.AreEqual(2, matches.Count);
+      Assert.IsTrue(matches.Exists(m => m.Name == "file1.txt"));
+      Assert.IsTrue(matches.Exists(m => m.Name == "file3.txt"));
+    }
   }
 }

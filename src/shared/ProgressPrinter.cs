@@ -76,30 +76,49 @@ public class ProgressPrinter {
     }
 
     public void Stop() {
+        ClearProgressBlock();
+    }
+
+    public void ClearProgressBlock() {
         if (!IsAnsiSupported) {
             return;
         }
 
         lock (_lock) {
-            if (!_firstPrint) {
-                // Move cursor to start of the top line of the progress block
-                Console.Write("\r");
-                if (_lastLineCount > 1) {
-                    Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
-                }
-                // Clear all lines that were drawn by the progress printer
-                for (int i = 0; i < _lastLineCount; i++) {
-                    Console.Write(AnsiEsc + "[K");
-                    if (i < _lastLineCount - 1) {
-                        Console.WriteLine();
-                    }
-                }
-                // Move back to the top line so next output directly overwrites it
-                Console.Write("\r");
-                if (_lastLineCount > 1) {
-                    Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
+            ClearProgressBlockLocked();
+        }
+    }
+
+    private void ClearProgressBlockLocked() {
+        if (!_firstPrint) {
+            // Move cursor to start of the top line of the progress block
+            Console.Write("\r");
+            if (_lastLineCount > 1) {
+                Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
+            }
+            // Clear all lines that were drawn by the progress printer
+            for (int i = 0; i < _lastLineCount; i++) {
+                Console.Write(AnsiEsc + "[K");
+                if (i < _lastLineCount - 1) {
+                    Console.WriteLine();
                 }
             }
+            // Move back to the top line so next output directly overwrites it
+            Console.Write("\r");
+            if (_lastLineCount > 1) {
+                Console.Write(AnsiCursorUpFormat, _lastLineCount - 1);
+            }
+            _firstPrint = true;
+            _lastLineCount = 0;
+        }
+    }
+
+    public void PrintMessage(Action action) {
+        lock (_lock) {
+            if (IsAnsiSupported) {
+                ClearProgressBlockLocked();
+            }
+            action();
         }
     }
 

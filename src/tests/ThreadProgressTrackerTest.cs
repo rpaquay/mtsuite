@@ -303,7 +303,37 @@ namespace tests {
       };
       printer.Print(fields);
       printer.Print(fields, new[] { "Thread 1: copy" });
+      printer.Print(fields);
+      printer.Print(fields, new[] { "Thread 1: copy" });
       printer.Stop();
+    }
+
+    [TestMethod]
+    public void ThreadProgressStateSearchingOperationFormatsCorrectly() {
+      var state = new ThreadProgressState(1, 100);
+      var entry = new FileSystemEntry(new FullPath("/src/file.txt"), new FileSystemEntryData(System.IO.FileAttributes.Normal, 1000, 0));
+
+      state.SetSearching(entry);
+      var snapshot = state.CreateSnapshot();
+
+      Assert.AreEqual(ThreadOperation.SearchingFile, snapshot.Operation);
+      Assert.IsTrue(snapshot.Format().Contains("Searching"));
+      Assert.IsTrue(snapshot.Format().Contains("file.txt"));
+    }
+
+    [TestMethod]
+    public void ProgressPrinterClearProgressBlockAndPrintMessageWork() {
+      var printer = new ProgressPrinter {
+        IsAnsiSupported = false
+      };
+
+      bool actionExecuted = false;
+      printer.PrintMessage(() => {
+        actionExecuted = true;
+      });
+
+      Assert.IsTrue(actionExecuted);
+      printer.ClearProgressBlock();
     }
   }
 }

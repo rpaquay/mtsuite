@@ -40,8 +40,8 @@ namespace mtfind {
         if (_nameMatcher(entry)) {
           lock (_matchedFiles) {
             _matchedFiles.Add(entry);
-            _progressMonitor.OnFileMatchFound();
           }
+          _progressMonitor.OnFileMatchFound(entry);
         }
       }
       return Task.CompletedTask;

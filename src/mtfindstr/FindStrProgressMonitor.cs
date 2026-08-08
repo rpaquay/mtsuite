@@ -62,6 +62,19 @@ namespace mtfindstr {
       Print(fields, threadLines);
     }
 
+    public void OnFileMatchFound(FileSystemEntry entry, System.Collections.Generic.IList<FindStrEntry> matches) {
+      Interlocked.Increment(ref _fileMatchedCount);
+      if (QuietMode) {
+        return;
+      }
+
+      PrintMessage(() => {
+        foreach (var match in matches) {
+          Console.WriteLine("{0}:{1}:{2}", entry.Path.FullName, match.LineNumber, match.ColumnNumber);
+        }
+      });
+    }
+
     public void OnFileMatchFound() {
       Interlocked.Increment(ref _fileMatchedCount);
     }

@@ -56,6 +56,17 @@ namespace mtfind {
       Print(fields, threadLines);
     }
 
+    public void OnFileMatchFound(FileSystemEntry entry) {
+      Interlocked.Increment(ref _fileMatchedCount);
+      if (QuietMode) {
+        return;
+      }
+
+      PrintMessage(() => {
+        Console.WriteLine(entry.Path.FullName);
+      });
+    }
+
     public void OnFileMatchFound() {
       Interlocked.Increment(ref _fileMatchedCount);
     }

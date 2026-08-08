@@ -188,14 +188,14 @@ namespace mtfindstr {
           sortedFileResults.Count,
           FormatFileNamePatternList(fileNamePatterns));
         Console.WriteLine();
-      }
-      
-      foreach (var fileResult in sortedFileResults) {
-        foreach (var entry in fileResult.Entries) {
-          Console.WriteLine("{0}:{1}:{2}",
-            fileResult.Path.FullName,
-            entry.LineNumber,
-            entry.ColumnNumber);
+      } else {
+        foreach (var fileResult in sortedFileResults) {
+          foreach (var entry in fileResult.Entries) {
+            Console.WriteLine("{0}:{1}:{2}",
+              fileResult.Path.FullName,
+              entry.LineNumber,
+              entry.ColumnNumber);
+          }
         }
       }
     }
