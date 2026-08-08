@@ -335,5 +335,16 @@ namespace tests {
       Assert.IsTrue(actionExecuted);
       printer.ClearProgressBlock();
     }
+
+    [TestMethod]
+    public void ProgressMonitorOnErrorPrintsErrorAsItComes() {
+      var monitor = new CopyProgressMonitor();
+      monitor.Start();
+      monitor.OnError(new FullPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
+      monitor.Stop();
+
+      var stats = monitor.GetStatistics();
+      Assert.AreEqual(1, stats.Errors.Count);
+    }
   }
 }

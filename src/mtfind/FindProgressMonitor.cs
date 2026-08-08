@@ -23,8 +23,6 @@ namespace mtfind {
   public class FindProgressMonitor : ProgressMonitor<FindStatistics> {
     private long _fileMatchedCount;
 
-    public bool QuietMode { get; set; }
-
     protected override void FillInStatistics(FindStatistics statistics) {
       base.FillInStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;

@@ -22,6 +22,7 @@ namespace mtsuite.shared {
   public interface IProgressMonitor<TStatistics> where TStatistics : Statistics {
     FullPath? SourcePath { get; set; }
     FullPath? DestinationPath { get; set; }
+    bool QuietMode { get; set; }
 
     #region single threaded methods
     void Start();

@@ -59,6 +59,27 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
+    public static void DisplaySingleError(Exception error) {
+      foreach (var err in FlattenErrors(error)) {
+        if (IsInternalError(err)) {
+          Console.Error.WriteLine("Internal error: {0}", err.Message);
+          if (err.StackTrace != null) {
+            foreach (var line in err.StackTrace.Replace("\r\n", "\n").Split('\n')) {
+              Console.Error.WriteLine("    {0}", line);
+            }
+          }
+        } else {
+          Console.Error.WriteLine("Error: {0}", err.Message);
+        }
+      }
+    }
+
+    public static void DisplaySingleWarning(Exception warning) {
+      foreach (var err in FlattenErrors(warning)) {
+        Console.Error.WriteLine("Warning: {0}", err.Message);
+      }
+    }
+
     public static void DisplayWarnings(IEnumerable<Exception> warnings) {
       foreach (var error in FlattenErrors(warnings)) {
         Console.Error.WriteLine("Warning: {0}", error.Message);

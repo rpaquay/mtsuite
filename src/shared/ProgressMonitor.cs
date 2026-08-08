@@ -274,11 +274,19 @@ namespace mtsuite.shared {
       _threadTracker.Current.SetIdle();
     }
 
+    public bool QuietMode { get; set; }
+
     public virtual void OnError(FullPath path, Exception e) {
       if (IsWarning(path, e)) {
         _warnings.Enqueue(e);
+        if (!QuietMode) {
+          PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleWarning(e));
+        }
       } else {
         _errors.Enqueue(e);
+        if (!QuietMode) {
+          PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleError(e));
+        }
       }
       Pulse();
     }

@@ -24,8 +24,6 @@ namespace mtfindstr {
     private long _fileMatchedCount;
     private long _fileSearchedCount;
 
-    public bool QuietMode { get; set; }
-
     protected override void FillInStatistics(FindStrStatistics statistics) {
       base.FillInStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;
