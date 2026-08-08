@@ -66,7 +66,8 @@ namespace mtfindstr {
       Interlocked.Increment(ref _fileMatchedCount);
     }
 
-    public void OnFileSearched() {
+    public override void OnFileSearched(FileSystemEntry entry) {
+      base.OnFileSearched(entry);
       Interlocked.Increment(ref _fileSearchedCount);
     }
 

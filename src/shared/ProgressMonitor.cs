@@ -266,6 +266,14 @@ namespace mtsuite.shared {
       Pulse();
     }
 
+    public virtual void OnFileSearching(FileSystemEntry entry) {
+      _threadTracker.Current.SetSearching(entry);
+    }
+
+    public virtual void OnFileSearched(FileSystemEntry entry) {
+      _threadTracker.Current.SetIdle();
+    }
+
     public virtual void OnError(FullPath path, Exception e) {
       if (IsWarning(path, e)) {
         _warnings.Enqueue(e);

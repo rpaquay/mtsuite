@@ -46,12 +46,14 @@ namespace mtfindstr {
       }
 
       var tasks = filesWithMatchingName.Select(entry => Task.Run(() => {
+        _progressMonitor.OnFileSearching(entry);
         try {
-          _progressMonitor.OnFileSearched();
           var findStrEntries = _findStrMatcher(fileSystem, entry);
           AddFindStrResult(entry, findStrEntries);
         } catch (Exception e) {
           AddError(entry, e);
+        } finally {
+          _progressMonitor.OnFileSearched(entry);
         }
       }));
       return Task.WhenAll(tasks);
