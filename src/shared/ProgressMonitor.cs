@@ -18,7 +18,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using mtsuite.CoreFileSystem;
 
@@ -72,13 +71,15 @@ namespace mtsuite.shared {
       set => _threadTracker.DestinationPath = value;
     }
 
+    public bool ShowProgress { get; set; }
+    
     public void Start() {
       _stopWatch.Restart();
       _displayTimer.Restart();
     }
 
     public void Pulse() {
-      if (IsTimeToDisplayStatus()) {
+      if (ShowProgress && IsTimeToDisplayStatus()) {
         DisplayStatus(GetStatistics());
       }
     }
@@ -86,7 +87,9 @@ namespace mtsuite.shared {
     public void Stop() {
       _stopWatch.Stop();
       _displayTimer.Stop();
-      DisplayStatus(GetStatistics());
+      if (ShowProgress) {
+        DisplayStatus(GetStatistics());
+      }
       _printer.Stop();
     }
 
@@ -274,19 +277,13 @@ namespace mtsuite.shared {
       _threadTracker.Current.SetIdle();
     }
 
-    public bool QuietMode { get; set; }
-
     public virtual void OnError(FullPath path, Exception e) {
       if (IsWarning(path, e)) {
         _warnings.Enqueue(e);
-        if (!QuietMode) {
-          PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleWarning(e));
-        }
+        PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleWarning(e));
       } else {
         _errors.Enqueue(e);
-        if (!QuietMode) {
-          PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleError(e));
-        }
+        PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleError(e));
       }
       Pulse();
     }

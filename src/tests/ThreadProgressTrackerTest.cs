@@ -346,5 +346,20 @@ namespace tests {
       var stats = monitor.GetStatistics();
       Assert.AreEqual(1, stats.Errors.Count);
     }
+
+    [TestMethod]
+    public void ProgressMonitorNoProgressOptionSuppressesPeriodicUpdatesButPreservesStatsAndErrors() {
+      var monitor = new CopyProgressMonitor();
+      monitor.ShowProgress = false;
+      monitor.Start();
+
+      monitor.OnError(new FullPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
+      monitor.Pulse();
+      monitor.Stop();
+
+      var stats = monitor.GetStatistics();
+      Assert.AreEqual(1, stats.Errors.Count);
+      Assert.IsFalse(monitor.ShowProgress);
+    }
   }
 }

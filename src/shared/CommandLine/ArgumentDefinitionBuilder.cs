@@ -105,6 +105,10 @@ namespace mtsuite.shared.CommandLine {
       return WithSwitch("gc", "Display .NET Garbage Collector statistics", "gc");
     }
 
+    public ArgumentDefinitionBuilder WithNoProgressSwitch() {
+      return WithSwitch("no-progress", "Don't display progress status as the application runs", "np", "", "no-progress");
+    }
+
     public ArgumentDefinitionBuilder WithThreadCountSwitch() {
       return WithIntFlag(
         "thread-count",

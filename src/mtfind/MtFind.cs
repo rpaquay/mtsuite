@@ -60,6 +60,7 @@ namespace mtfind {
       var sourcePath = ProgramHelpers.MakeFullPath(arguments.Values.Directory);
       var pattern = arguments.Values.Pattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
+      _progressMonitor.ShowProgress = !arguments.Values.NoProgress;
       bool followLinks = !arguments.Values.NoFollowLinks;
       bool isPlainOutput = arguments.Values.PlainOutput;
       bool includeDir = arguments.Values.IncludeDir;
@@ -67,17 +68,15 @@ namespace mtfind {
         DisplayBanner();
       }
 
-      var matchedFiles = DoFind(sourcePath, pattern, isPlainOutput, arguments.Values.NoProgress, followLinks, includeDir);
+      var matchedFiles = DoFind(sourcePath, pattern, isPlainOutput, followLinks, includeDir);
 
       DisplayMatchesFiles(matchedFiles, pattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
-#if false
       if (!isPlainOutput) {
         DisplayStatistics(statistics);
         Console.WriteLine();
       }
-#endif
 
       if (arguments.Values.GarbageCollect) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
@@ -92,15 +91,13 @@ namespace mtfind {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTFIND :: Multi-Threaded File Search for Windows - version {0}",
+      Console.WriteLine("MTFIND :: Multi-Threaded File Search - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version);
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
     }
 
-    public List<FileSystemEntry> DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool noProgressOutput, bool followLinks, bool includeDir) {
-      _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
-
+    public List<FileSystemEntry> DoFind(FullPath sourcePath, string pattern, bool isPlainOutput, bool followLinks, bool includeDir) {
       // Check source exists
       FileSystemEntry sourceDirectory;
       try {

@@ -1,4 +1,4 @@
-// Copyright 2026 Renaud Paquay All Rights Reserved.
+﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ namespace tests {
       sub.CreateFile("file3.txt", 30);
 
       var mtfind = new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory());
-      var matches = mtfind.DoFind(_fileSystemSetup.Root.Path, "*.txt", isPlainOutput: false, noProgressOutput: true, followLinks: false, includeDir: false);
+      var matches = mtfind.DoFind(_fileSystemSetup.Root.Path, "*.txt", isPlainOutput: false, followLinks: false, includeDir: false);
 
       Assert.AreEqual(2, matches.Count);
       Assert.IsTrue(matches.Exists(m => m.Name == "file1.txt"));

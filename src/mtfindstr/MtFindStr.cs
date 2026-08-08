@@ -62,29 +62,21 @@ namespace mtfindstr {
       var filePatterns = arguments.Values.FileNamePatterns;
       var searchPattern = arguments.Values.SearchPattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
+      _progressMonitor.ShowProgress = !arguments.Values.NoProgress;
       var followLinks = !arguments.Values.NoFollowLinks;
       var isPlainOutput = arguments.Values.PlainOutput;
       if (!isPlainOutput) {
         DisplayBanner();
       }
 
-      var findStrResult = DoFindStr(sourcePath, filePatterns, searchPattern, isPlainOutput, arguments.Values.NoProgress, followLinks);
+      var findStrResult = DoFindStr(sourcePath, filePatterns, searchPattern, isPlainOutput, followLinks);
 
       DisplayMatchesFiles(findStrResult, filePatterns, searchPattern, isPlainOutput);
 
       var statistics = _progressMonitor.GetStatistics();
-#if false
       if (!isPlainOutput) {
         DisplayStatistics(statistics);
         Console.WriteLine();
-      }
-#endif
-
-      if (!isPlainOutput) {
-        if (arguments.Values.ShowWarnings) {
-          ProgramHelpers.DisplayWarnings(statistics.Warnings);
-        }
-        ProgramHelpers.DisplayErrors(statistics.Errors);
       }
 
       if (arguments.Values.GarbageCollect) {
@@ -100,15 +92,13 @@ namespace mtfindstr {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTFIND :: Multi-Threaded File String Search for Windows - version {0}",
+      Console.WriteLine("MTFIND :: Multi-Threaded File String Search - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version);
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
     }
 
-    public List<FindStrFileResult> DoFindStr(FullPath sourcePath, IList<string> fileNamePatterns, string searchPattern, bool isPlainOutput, bool noProgressOutput, bool followLinks) {
-      _progressMonitor.QuietMode = isPlainOutput || noProgressOutput;
-
+    public List<FindStrFileResult> DoFindStr(FullPath sourcePath, IList<string> fileNamePatterns, string searchPattern, bool isPlainOutput, bool followLinks) {
       // Check source exists
       FileSystemEntry sourceDirectory;
       try {

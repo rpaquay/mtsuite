@@ -29,16 +29,13 @@ namespace mtfind {
     }
 
     protected override void DisplayStatus(FindStatistics statistics) {
-      if (QuietMode) {
-        return;
-      }
-
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var linksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
+      var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new[] {
@@ -48,6 +45,7 @@ namespace mtfind {
         new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right),
         new PrinterEntry("# of links", linksText, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("# of files matching pattern", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
+        new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       var threadLines = GetThreadProgressLines();
@@ -56,17 +54,9 @@ namespace mtfind {
 
     public void OnFileMatchFound(FileSystemEntry entry) {
       Interlocked.Increment(ref _fileMatchedCount);
-      if (QuietMode) {
-        return;
-      }
-
       PrintMessage(() => {
         Console.WriteLine(entry.Path.FullName);
       });
-    }
-
-    public void OnFileMatchFound() {
-      Interlocked.Increment(ref _fileMatchedCount);
     }
 
     /// <summary>

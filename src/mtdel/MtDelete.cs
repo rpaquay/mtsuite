@@ -39,7 +39,6 @@ namespace mtdel {
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
-      //_parallelFileSystem.EntriesToDeleteDiscovering += entry => _progressMonitor.OnEntriesToDeleteDiscovering(entry);
       _parallelFileSystem.EntriesToDeleteDiscovered += (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
       _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
       _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
@@ -57,6 +56,7 @@ H  Hidden files               A  Files ready for archiving
 I  Not content indexed Files  L  Reparse Points
 -  Prefix meaning not", "a", "attributes", null, value => new AttributesFilterParser().Parse(value).Error)
         .WithThreadCountSwitch()
+        .WithNoProgressSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
         .Build();
@@ -76,6 +76,7 @@ I  Not content indexed Files  L  Reparse Points
 
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
+      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
 
       var options = new Options {
         QuietMode = parser.Contains("quiet"),
@@ -102,8 +103,8 @@ I  Not content indexed Files  L  Reparse Points
     }
 
     public class Options {
-      public bool QuietMode { get; set; }
-      public AttributesFilterParserResult Attributes { get; set; }
+      public bool QuietMode { get; init; }
+      public AttributesFilterParserResult Attributes { get; init; }
     }
 
     public Statistics DoDelete(FullPath sourcePath, Options options) {
@@ -135,7 +136,6 @@ I  Not content indexed Files  L  Reparse Points
         sourcePath.FullName);
 
       var includeFilter = CreateFilter(options);
-      _progressMonitor.QuietMode = options.QuietMode;
       _progressMonitor.Start();
       // HACK: Notify of an extra directory discovered to get counters right.
       _progressMonitor.OnEntriesToDeleteDiscovered(rootEntry, new List<FileSystemEntry>(new[] {rootEntry}));
@@ -165,7 +165,7 @@ I  Not content indexed Files  L  Reparse Points
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTDEL :: Multi-threaded Delete for Windows - version {0}",
+      Console.WriteLine("MTDEL :: Multi-threaded Delete - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version.ToString());
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();

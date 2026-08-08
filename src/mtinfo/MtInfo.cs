@@ -78,6 +78,7 @@ namespace mtinfo {
           "",
           "longestpath")
         .WithThreadCountSwitch()
+        .WithNoProgressSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
         .Build();
@@ -98,6 +99,7 @@ namespace mtinfo {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       var levelCount = parser["depth"].IntValue;
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
+      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
 
       var options = new CollectOptions {
         LevelCount = levelCount,
@@ -123,7 +125,7 @@ namespace mtinfo {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTINFO :: Multi-Threaded Directory Information for Windows - version {0}",
+      Console.WriteLine("MTINFO :: Multi-Threaded Directory Information - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version);
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();

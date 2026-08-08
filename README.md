@@ -1,107 +1,59 @@
 # mtsuite
 
-**mtsuite** is a collection of disk utilities for Windows, optimized for
-high performance on Solid State Drives (SSD).
+**mtsuite** is a collection of high-performance multi-threaded command-line disk utilities for macOS, Linux, and Windows, optimized for Solid State Drives (SSDs).
 
-Each program in the collection
+Each utility in the suite:
 
-* Uses all the available CPU cores to achieve maximum disk throughput, making
-  it typically much faster than other disk utilities, espcecially when run
-  on Solid State Drives (SSD).
+* **Leverages all available CPU cores** for maximum disk throughput and concurrent I/O.
+* **Displays real-time worker thread progress** and live status updates during operation.
+* **Supports macOS APFS file cloning** (`fclonefile`/`clonefile`) for instant zero-copy file duplication in `mtcopy` and `mtmir`.
+* **Preserves Symbolic Links and Junction Points** (Junction Points are a Windows-only feature), copying and deleting links as link objects rather than following target content.
+* **Supports long paths** (> 260 characters).
 
-* Supports long paths, i.e. paths greater than 260 characters.
+---
 
-* Supports Symbolic Links.
+## Included Utilities
 
-## Included utilities
+* **`mtcopy`**: Recursively copies a source directory to a destination directory in parallel. Similar to `ROBOCOPY /S`, `xcopy /S`, or `rsync -r`, with automatic APFS cloning support on macOS.
+* **`mtmir`**: Mirrors a source directory to a destination directory, copying new/modified files and deleting extra destination files not present in the source. Similar to `ROBOCOPY /MIR` or `rsync -a --delete`. Supports APFS cloning on macOS.
+* **`mtdel`**: Recursively deletes a directory tree in parallel. Significantly faster than `rm -rf` or `rmdir /s /q`.
+* **`mtinfo`**: Recursively examines a directory tree and displays comprehensive statistics (file counts, directory counts, total size, symlink counts, and depth summaries).
+* **`mtfind`**: Recursively searches for files and directories matching file name wildcard patterns (similar to `find`), displaying matching paths in real-time alongside live progress tracking.
+* **`mtfindstr`**: Recursively searches inside file contents for text strings in parallel (similar to `grep` or `findstr`), displaying matching line and column hits in real-time.
+* **`mtcompact`**: Recursively compares directory entries and compacts/deduplicates identical files using file cloning (turning duplicate file content into copy-on-write file clones to reclaim disk space).
 
-The 4 programs included are
+---
 
-* **mtdel**: deletes a directory recursively. This is much faster than
-               using *Windows Explorer* or even `rmdir /s /q`.
+## Symbolic Links & Junction Points Support
 
-* **mtcopy**: copies a source directory recursively to a destination
-                directory. This is similar to using `XCOPY /S` or
-                `ROBOCOPY /S`.
+A Symbolic Link (or Junction Point on Windows) points to another file or directory on disk. 
 
-* **mtmir**: same as mtcopy, except extra files not present in the
-               source are deleted from the destination. This is
-               similar to `ROBOCOPY /MIR`.
-
-* **mtinfo**: displays file system statistics of a directory: number
-                of files, number of subdirectories, size, etc. This can
-                be 20x faster than using the *Properties* menu 
-                in *Windows Explorer* to find the size of a folder.
-
-## Symbolic Links support
-
-A File Symbolic Link is a special file on disk that points to a another
-file in a different location on disk (the "target"). When reading the
-"contents" of a symbolic link, Windows actually reads the contents on
-the target file.
-
-Similarly, a Directory Symbolic Link is a special file on disk that points
-to another directory on disk (the "target"). When enumerating files
-in a directory symbolic link, Windows actually enumerates files from
-the target directory.
-
-In both cases, what is stored on disk by Windows for Symbolic Links is
-
-* The type of link (file/directory)
-* The path to the target file/directory, either as an absolute or relative
-  path. A relative path is relative to the location of the link itself.
-
-File and Directory Symbolic Links have been available since *Windows Vista*.
+Unlike traditional tools (`XCOPY`, `ROBOCOPY`, `rsync`) that default to expanding link targets into full duplicate files unless special flags are provided, **mtsuite** tools (`mtcopy`, `mtmir`, `mtdel`) preserve link semantics:
+- **`mtcopy` / `mtmir`** replicate symbolic links and Windows Junction Points as links rather than copying the target contents.
+- **`mtdel`** safely unlinks directory/file symbolic links and Windows Junction Points without accidentally resolving or recursively deleting into target directories.
 
 ### Example
 
-Suppose we have the directory structure below and we want to copy it
-into another directory, let's say `c:\test-copy`.
+Given the following folder structure:
 
 ```
-c:\test (directory)
-  foo (directory)
-    bar.rlink.txt (symbolic link to "..\bar.txt")
-  foo2 (directory)
-      foo.link (symbolic link to "..\foo")
-  bar.txt (file)
+c:\test
+├── foo
+│   └── bar.rlink.txt (symbolic link -> "..\bar.txt")
+├── foo2
+│   └── foo.link (symbolic link -> "..\foo")
+└── bar.txt (file)
 ```
 
-Both `XCOPY /S` and `ROBOCOPY /MIR` will copy the target of the symbolic
-links, so the result of a copy would be:
+Running `mtcopy c:\test c:\test-copy` results in:
 
 ```
-c:\test-copy (directory)
-  foo (directory)
-    bar.rlink.txt (file, same content as "c:\test\bar.txt")
-  foo2 (directory)
-      foo.link (directory, same content as c:\foo)
-        bar.rlink.txt (file, same content as "c:\test\bar.txt")
-  bar.txt (file)
+c:\test-copy
+├── foo
+│   └── bar.rlink.txt (symbolic link -> "..\bar.txt")
+├── foo2
+│   └── foo.link (symbolic link -> "..\foo")
+└── bar.txt (file)
 ```
 
-So, in essence, Symblic Links have been "expanded" to their target
-content, and are not Symbolic Links anymore in the new copy.
-
-With mtcopy and mtmir, Symbolic Links are copied as links, not as
-their target contents, so the end result of running the command
-
-```
-mtcopy c:\test c:\test-copy
-```
-
-will be:
-
-```
-c:\test-copy (directory)
-  foo (directory)
-    bar.rlink.txt (symbolic link to "..\bar.txt")
-  foo2 (directory)
-      foo.link (symbolic link to "..\foo")
-  bar.txt (file)
-```
-
-
-## Coming soon:
-
-* Benchmarks
+The symbolic links (and Junction Points on Windows) are preserved as relative links in the target directory rather than expanding their target content.

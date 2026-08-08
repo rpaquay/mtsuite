@@ -73,6 +73,7 @@ namespace mtmir {
         .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
         .WithSwitch("ft", "Compare file modification time (default)", "ft")
         .WithSwitch("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
+        .WithNoProgressSwitch()
         .WithThreadCountSwitch()
         .WithGcSwitch()
         .WithHelpSwitch()
@@ -94,6 +95,7 @@ namespace mtmir {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["source-path"].StringValue);
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
+      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
       IFileComparer fileComparer;
       if (parser.Contains("fc")) {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
@@ -170,7 +172,7 @@ namespace mtmir {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTMIR :: Multi-Threaded Directory Mirroring for Windows - version {0}",
+      Console.WriteLine("MTMIR :: Multi-Threaded Directory Mirroring - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version.ToString());
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();

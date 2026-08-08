@@ -31,10 +31,6 @@ namespace mtfindstr {
     }
 
     protected override void DisplayStatus(FindStrStatistics statistics) {
-      if (QuietMode) {
-        return;
-      }
-
       var elapsedTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       var cpuTimeText = string.Format("{0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
@@ -42,6 +38,7 @@ namespace mtfindstr {
       var linksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
+      var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds) : "0";
       var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
@@ -53,6 +50,7 @@ namespace mtfindstr {
         new PrinterEntry("# of links discovered", linksText, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right),
         new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
+        new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
         new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
@@ -62,19 +60,11 @@ namespace mtfindstr {
 
     public void OnFileMatchFound(FileSystemEntry entry, System.Collections.Generic.IList<FindStrEntry> matches) {
       Interlocked.Increment(ref _fileMatchedCount);
-      if (QuietMode) {
-        return;
-      }
-
       PrintMessage(() => {
         foreach (var match in matches) {
           Console.WriteLine("{0}:{1}:{2}", entry.Path.FullName, match.LineNumber, match.ColumnNumber);
         }
       });
-    }
-
-    public void OnFileMatchFound() {
-      Interlocked.Increment(ref _fileMatchedCount);
     }
 
     public override void OnFileSearched(FileSystemEntry entry) {

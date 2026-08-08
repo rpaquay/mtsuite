@@ -19,10 +19,21 @@ using mtsuite.CoreFileSystem;
   #nullable enable
 
 namespace mtsuite.shared {
-  public interface IProgressMonitor<TStatistics> where TStatistics : Statistics {
+  public interface IProgressMonitor<out TStatistics> where TStatistics : Statistics {
+    /**
+     * The source <see cref="FullPath"/> of the current operation
+     */
     FullPath? SourcePath { get; set; }
+    
+    /**
+     * The destination <see cref="FullPath"/> of the current operation (optional)
+     */
     FullPath? DestinationPath { get; set; }
-    bool QuietMode { get; set; }
+    
+    /// <summary>
+    /// Show intermediate progress on <see cref="Pulse"/>
+    /// </summary>
+    bool ShowProgress { get; set; }
 
     #region single threaded methods
     void Start();

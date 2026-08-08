@@ -51,7 +51,7 @@ namespace tests {
       System.IO.File.WriteAllText(file1.Path.FullName, "hello world\nsecond hello");
 
       var findStr = new MtFindStr(_fileSystemSetup.FileSystem, new MtPoolFactory());
-      var results = findStr.DoFindStr(_fileSystemSetup.Root.Path, new[] { "*.txt" }, "hello", isPlainOutput: false, noProgressOutput: true, followLinks: false);
+      var results = findStr.DoFindStr(_fileSystemSetup.Root.Path, new[] { "*.txt" }, "hello", isPlainOutput: false, followLinks: false);
 
       Assert.AreEqual(1, results.Count);
       Assert.AreEqual(2, results[0].Entries.Count);
