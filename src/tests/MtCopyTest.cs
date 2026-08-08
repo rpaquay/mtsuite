@@ -548,4 +548,20 @@ public class MtCopyTest {
     Assert.AreEqual(2000, stats.FileCopiedTotalSize + stats.FileClonedTotalSize);
     Assert.AreEqual(0, stats.Errors.Count);
   }
+
+  [TestMethod]
+  public void MtCopyShouldUseCloningWhenDestinationDirectoryDoesNotExistInitially() {
+    _sourcefs.Root.CreateFile("file.txt", 100);
+    var nonExistingDest = _destfs.Root.Path.Combine("new_sub_dir");
+
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, _poolFactory);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, nonExistingDest, _fileComparer);
+
+    Assert.AreEqual(0, stats.Errors.Count);
+    Assert.IsTrue(File.Exists(nonExistingDest.Combine("file.txt").FullName));
+    if (_sourcefs.FileSystem.Extension.IsCloningSupported(_sourcefs.Root.Path, _destfs.Root.Path)) {
+      Assert.AreEqual(1, stats.FileClonedCount);
+      Assert.AreEqual(0, stats.FileCopiedCount);
+    }
+  }
 }

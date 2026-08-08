@@ -214,9 +214,7 @@ namespace mtsuite.shared {
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew) {
-      bool useCloning = (options & CopyOptions.NoClone) == 0 &&
-                        _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path, destinationPath);
-      return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, useCloning, true);
+      return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, null, true);
     }
 
     private async Task CopyDirectoryAsync(
@@ -226,7 +224,7 @@ namespace mtsuite.shared {
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew,
-      bool useCloning,
+      bool? useCloning,
       bool skipNotification) {
 
       await Task.Run(async () => {
@@ -254,7 +252,7 @@ namespace mtsuite.shared {
       CopyOptions options,
       IFileComparer fileComparer,
       bool destinationDirectoryIsNew,
-      bool useCloning) {
+      bool? useCloning) {
 
       FileSystemEntry destinationDirectory;
       if (destinationDirectoryEntry.HasValue) {
@@ -265,6 +263,9 @@ namespace mtsuite.shared {
           return;
         destinationDirectory = destinationDirectoryOpt.Value;
       }
+
+      bool isCloningActive = useCloning ?? ((options & CopyOptions.NoClone) == 0 &&
+                                            _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path, destinationDirectory.Path));
 
       OnEntriesDiscovering(sourceDirectory);
       var sourceReadSuccess = TryGetDirectoryEntries(sourceDirectory.Path, out var sourceEntries);
@@ -309,7 +310,7 @@ namespace mtsuite.shared {
       using var taskList = _taskListPool.AllocateFrom();
       foreach (var entry in sourceEntries.Item) {
         if (entry.IsFile || entry.IsReparsePoint) {
-          PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options, useCloning);
+          PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options, isCloningActive);
         }
         else if (entry.IsDirectory) {
           var destinationEntryPath = new FullPath(destinationDirectory.Path, entry.Name);
@@ -321,7 +322,7 @@ namespace mtsuite.shared {
             options,
             fileComparer,
             !destinationExists,
-            useCloning,
+            isCloningActive,
             false/*skipNotification*/));
         }
       }
