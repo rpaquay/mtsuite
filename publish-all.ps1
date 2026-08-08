@@ -58,7 +58,7 @@ $Apps = @(
   "mtmir"
 )
 
-$PublishRoot = Join-Path $ScriptDir "src\publish"
+$PublishRoot = Join-Path $ScriptDir "publish"
 if (!(Test-Path $PublishRoot)) {
   New-Item -ItemType Directory -Path $PublishRoot -Force | Out-Null
 }
@@ -70,7 +70,7 @@ foreach ($rid in $Platforms) {
   Write-Host "-----------------------------------------------------------------" -ForegroundColor Yellow
 
   # Run dotnet publish
-  dotnet publish "src\mtsuite.sln" -c Release -r $rid --nologo
+  dotnet publish "mtsuite.sln" -c Release -r $rid --nologo
 
   $packageName = "mtsuite-$Version-$rid"
   $outDir = Join-Path $PublishRoot $packageName

@@ -65,7 +65,7 @@ APPS=(
   "mtmir"
 )
 
-PUBLISH_ROOT="src/publish"
+PUBLISH_ROOT="publish"
 mkdir -p "$PUBLISH_ROOT"
 
 for RID in "${PLATFORMS[@]}"; do
@@ -75,7 +75,7 @@ for RID in "${PLATFORMS[@]}"; do
   echo "-----------------------------------------------------------------"
 
   # Publish solution for the target RID
-  $DOTNET publish src/mtsuite.sln -c Release -r "$RID" --nologo
+  $DOTNET publish mtsuite.sln -c Release -r "$RID" --nologo
 
   # Target directory per platform (unzipped folder)
   PACKAGE_NAME="mtsuite-${VERSION}-${RID}"

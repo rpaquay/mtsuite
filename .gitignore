@@ -5,7 +5,8 @@ Release/
 /Releases/
 /.dotnet/
 .idea/
+.DS_Store
 *.suo
 *.user
 .vs/
-/src/publish/*
+publish/
