@@ -425,22 +425,21 @@ namespace tests {
       parallelFs.FileComparing += _ => Interlocked.Increment(ref comparingEventCount);
       parallelFs.FileCompared += (_, _, _) => Interlocked.Increment(ref comparedEventCount);
 
-      // Fast comparer (LastWriteTime) should not trigger FileComparing / FileCompared events
-      var fastComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
-      var sourceDir = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
-      var task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, fastComparer, true);
-      parallelFs.WaitForTask(task);
-
-      Assert.AreEqual(0, comparingEventCount);
-      Assert.AreEqual(0, comparedEventCount);
-
+       // Fast comparer (LastWriteTime) will trigger 1 FileComparing / FileCompared event during AreFilesCloned
+       var fastComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
+       var sourceDir = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
+       var task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, fastComparer, true);
+       parallelFs.WaitForTask(task);
+        Assert.AreEqual(1, comparingEventCount);
+        Assert.AreEqual(1, comparedEventCount);
+ 
       // Slow comparer (FileContents) should trigger FileComparing / FileCompared events
-      var slowComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
-      task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, slowComparer, true);
-      parallelFs.WaitForTask(task);
-
-      Assert.AreEqual(1, comparingEventCount);
-      Assert.AreEqual(1, comparedEventCount);
+       var slowComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
+       task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, slowComparer, true);
+       parallelFs.WaitForTask(task);
+ 
+      Assert.AreEqual(2, comparingEventCount);
+      Assert.AreEqual(2, comparedEventCount);
     }
 
     [TestMethod]

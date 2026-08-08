@@ -129,23 +129,6 @@ namespace mtsuite.shared {
     public event Action<FileSystemEntry>? DirectoryTraversed;
     public event Action<FileSystemEntry>? DirectoryCreated;
 
-    private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
-      TryGetDirectoryEntries(directoryPath, out var entries);
-      return entries;
-    }
-
-    private bool TryGetDirectoryEntries(FullPath directoryPath, out FromPool<List<FileSystemEntry>> entries) {
-      try {
-        entries = _fileSystem.GetDirectoryFiles(directoryPath);
-        return true;
-      } catch (Exception e) {
-        OnError(directoryPath, e);
-        // Assume no entries available on error, so we can continue processing safely
-        entries = _entryListPool.AllocateFrom();
-        return false;
-      }
-    }
-
     public void WaitForTask(Task task) {
       while (true) {
         var completed = task.Wait(TimeSpan.FromMilliseconds(50));
@@ -156,7 +139,7 @@ namespace mtsuite.shared {
     }
 
     public Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector, bool followLinks = false) {
-      return TraverseDirectoryAsync<T>(directoryEntry, collector, followLinks, 0, true);
+      return TraverseDirectoryAsync(directoryEntry, collector, followLinks, 0, true);
     }
 
     private async Task<T> TraverseDirectoryAsync<T>(
@@ -303,17 +286,11 @@ namespace mtsuite.shared {
       }
 
       FromPool<List<FileSystemEntry>> entriesToDelete;
-      try {
-        OnEntriesToDeleteDiscovering(destinationDirectory);
-        entriesToDelete = ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
-        OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
-      } catch {
-        sourceEntries.Dispose();
-        destinationEntries.Dispose();
-        destinationSet.Dispose();
-        throw;
-      }
+      OnEntriesToDeleteDiscovering(destinationDirectory);
+      entriesToDelete = ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
+      OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
 
+      // 0. Process all deletions
       if (entriesToDelete.Item.Count > 0) {
         using var deleteTaskList = _taskListPool.AllocateFrom();
         foreach (var entry in entriesToDelete.Item) {
@@ -321,22 +298,21 @@ namespace mtsuite.shared {
         }
         await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
       }
+      entriesToDelete.Dispose(); // Not used after this
 
-      // 1. Process files in current directory (small files synchronously, large files in background tasks)
+      // Process files/reparse points and schedule subdirectories in current directory
       using var taskList = _taskListPool.AllocateFrom();
       foreach (var entry in sourceEntries.Item) {
-        PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options);
-      }
-
-      // 2. Prepare subdirectories tasks without LINQ lambda allocations
-      foreach (var sourceEntry in sourceEntries.Item) {
-        if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-          var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
-          var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+        if (entry.IsFile || entry.IsReparsePoint) {
+          PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options);
+        }
+        else if (entry.IsDirectory) {
+          var destinationEntryPath = new FullPath(destinationDirectory.Path, entry.Name);
+          var destinationExists = destinationSet.Item.TryGet(entry, out var childDestEntry);
           taskList.Item.Add(CopyDirectoryAsync(
-            sourceEntry,
+            entry,
             destinationEntryPath,
-            destinationExists ? childDestEntry : (FileSystemEntry?)null,
+            destinationExists ? childDestEntry : null,
             options,
             fileComparer,
             !destinationExists,
@@ -345,10 +321,9 @@ namespace mtsuite.shared {
       }
 
       // 3. Recycle all pooled collections immediately before waiting
-      entriesToDelete.Dispose();
       sourceEntries.Dispose();
-      destinationEntries.Dispose();
       destinationSet.Dispose();
+      destinationEntries.Dispose(); // destinationSet references destinationEntries
 
       // 4. Await both large files in the current directory and all subdirectories
       if (taskList.Item.Count > 0) {
@@ -432,16 +407,6 @@ namespace mtsuite.shared {
         }
       }
       return entriesToDelete;
-    }
-
-    private struct CopyFileData(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
-      public ParallelFileSystem Instance { get; } = instance;
-      public NoAllocStopwatch Stopwatch { get; } = stopwatch;
-    }
-
-    private struct CompareFileData(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
-      public ParallelFileSystem Instance { get; } = instance;
-      public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     }
 
     private void PerformOrScheduleFileEntryCopy(
@@ -540,56 +505,93 @@ namespace mtsuite.shared {
       FromPool<SmallSet<FileSystemEntry>> destinationSet = _entrySetPool.AllocateFrom();
       destinationSet.Item.SetList(destinationEntries.Item);
 
-      foreach (var sourceEntry in sourceEntries.Item) {
-        if (sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
-          if (destinationSet.Item.TryGet(sourceEntry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
-            try {
-              if (AreFilesCloned(sourceEntry, destinationEntry)) {
-                OnFileAlreadyCloned(sourceEntry);
-              } else {
-                var areEqual = CompareFiles(fileComparer, sourceEntry, destinationEntry);
-                if (areEqual) {
-                  PerformFileClone(sourceEntry, destinationEntry.Path, dryRun);
-                } else {
-                  OnFileCloneSkipped(sourceEntry);
-                }
-              }
-            } catch (Exception e) {
-              OnError(sourceEntry.Path, e);
-            }
-          } else {
-            OnFileCloneSkipped(sourceEntry);
-          }
-        }
-      }
-
+      // Process files and schedule subdirectories in current directory
       using var taskList = _taskListPool.AllocateFrom();
-      foreach (var sourceEntry in sourceEntries.Item) {
-        if (sourceEntry.IsDirectory && !sourceEntry.IsReparsePoint) {
-          if (destinationSet.Item.TryGet(sourceEntry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
-            taskList.Item.Add(CompactDirectoryAsync(sourceEntry, childDestEntry.Path, fileComparer, dryRun));
+      foreach (var entry in sourceEntries.Item) {
+        if (entry.IsFile && !entry.IsReparsePoint) {
+          PerformOrScheduleFileEntryClone(entry, destinationSet.Item, fileComparer, dryRun, taskList.Item);
+        }
+        else if (entry.IsDirectory && !entry.IsReparsePoint) {
+          if (destinationSet.Item.TryGet(entry, out var childDestEntry) && childDestEntry.IsDirectory && !childDestEntry.IsReparsePoint) {
+            taskList.Item.Add(CompactDirectoryAsync(entry, childDestEntry.Path, fileComparer, dryRun));
           }
         }
       }
 
       sourceEntries.Dispose();
-      destinationEntries.Dispose();
       destinationSet.Dispose();
+      destinationEntries.Dispose(); // destinationSet references destinationEntries
 
       if (taskList.Item.Count > 0) {
         await Task.WhenAll(taskList.Item).ConfigureAwait(false);
       }
     }
 
-    private bool AreFilesCloned(FileSystemEntry entry, FileSystemEntry destinationEntry) {
-      if (entry.FileSize != destinationEntry.FileSize) {
-        return false;
+    private void PerformOrScheduleFileEntryClone(FileSystemEntry sourceEntry,
+      SmallSet<FileSystemEntry> destinationSet,
+      IFileComparer fileComparer,
+      bool dryRun,
+      List<Task> fileTaskList) {
+
+      if (sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
+        if (destinationSet.TryGet(sourceEntry, out var destinationEntry) && destinationEntry.IsFile && !destinationEntry.IsReparsePoint) {
+          // If file size is >= threshold, offload copying to a background task
+          if (sourceEntry.IsFile && sourceEntry.FileSize >= LargeFileAsyncThreshold) {
+            fileTaskList.Add(Task.Run(() => PerformFileCloneIfNeeded(sourceEntry, destinationEntry, fileComparer, dryRun)));            
+          }
+          else {
+            PerformFileCloneIfNeeded(sourceEntry, destinationEntry, fileComparer, dryRun);
+          }
+        } else {
+          OnFileCloneSkipped(sourceEntry);
+        }
       }
+    }
+
+    private void PerformFileCloneIfNeeded(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, IFileComparer fileComparer, bool dryRun) {
+      try {
+        bool shouldClone;
+        // 1. Decide if we should clone
+        var sw = _stopwatchFactory.Create();
+        OnFileComparing(sourceEntry);
+        if (_fileSystem.Extension.AreFilesCloned(sourceEntry, destinationEntry)) {
+          OnFileAlreadyCloned(sourceEntry);
+          shouldClone = false;
+        }
+        else {
+          var compareData = new CompareFileData(this, sw);
+          var areEqual = fileComparer.CompareFiles(sourceEntry, destinationEntry, compareData, _compareFileCallback);
+          if (areEqual) {
+            shouldClone = true;
+          }
+          else {
+            OnFileCloneSkipped(sourceEntry);
+            shouldClone = false;
+          }
+        }
+        OnFileCompared(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
+
+        // 2. Perform clone
+        if (shouldClone) {
+          PerformFileClone(sourceEntry, destinationEntry.Path, dryRun);
+        }
+      }
+      catch (Exception e) {
+        OnError(sourceEntry.Path, e);
+      }
+    }
+
+    private void PerformFileClone(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
       var sw = _stopwatchFactory.Create();
-      OnFileComparing(entry);
-      bool areEqual = _fileSystem.Extension.AreFilesCloned(entry, destinationEntry);
-      OnFileCompared(entry, sw.Elapsed, entry.FileSize);
-      return areEqual;
+      OnFileCloning(sourceEntry);
+      if (!dryRun) {
+        try {
+          _fileSystem.Extension.CloneFile(sourceEntry, destinationPath);
+        } catch (Exception e) {
+          OnError(sourceEntry.Path, e);
+        }
+      }
+      OnFileCloned(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
     }
 
     private bool CompareFiles(IFileComparer fileComparer, FileSystemEntry entry, FileSystemEntry destinationEntry) {
@@ -606,20 +608,7 @@ namespace mtsuite.shared {
 
       return areEqual;
     }
-
-    private void PerformFileClone(FileSystemEntry sourceEntry, FullPath destinationPath, bool dryRun) {
-      var sw = _stopwatchFactory.Create();
-      OnFileCloning(sourceEntry);
-      if (!dryRun) {
-        try {
-          _fileSystem.Extension.CloneFile(sourceEntry, destinationPath);
-        } catch (Exception e) {
-          OnError(sourceEntry.Path, e);
-        }
-      }
-      OnFileCloned(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
-    }
-
+    
     /// <summary>
     /// Delete a file system entry. Recurse through directories if
     /// the entry is a directory.
@@ -800,6 +789,33 @@ namespace mtsuite.shared {
     protected virtual void OnDirectoryCreated(FileSystemEntry directoryEntry) {
       var handler = DirectoryCreated;
       if (handler != null) handler(directoryEntry);
+    }
+    
+    private FromPool<List<FileSystemEntry>> GetDirectoryEntries(FullPath directoryPath) {
+      TryGetDirectoryEntries(directoryPath, out var entries);
+      return entries;
+    }
+
+    private bool TryGetDirectoryEntries(FullPath directoryPath, out FromPool<List<FileSystemEntry>> entries) {
+      try {
+        entries = _fileSystem.GetDirectoryFiles(directoryPath);
+        return true;
+      } catch (Exception e) {
+        OnError(directoryPath, e);
+        // Assume no entries available on error, so we can continue processing safely
+        entries = _entryListPool.AllocateFrom();
+        return false;
+      }
+    }
+
+    private readonly struct CopyFileData(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
+      public ParallelFileSystem Instance { get; } = instance;
+      public NoAllocStopwatch Stopwatch { get; } = stopwatch;
+    }
+
+    private readonly struct CompareFileData(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
+      public ParallelFileSystem Instance { get; } = instance;
+      public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     }
   }
 }
