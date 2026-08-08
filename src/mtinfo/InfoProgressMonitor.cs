@@ -36,7 +36,8 @@ namespace mtinfo {
         new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
-      Print(fields);
+      var threadLines = GetThreadProgressLines();
+      Print(fields, threadLines);
     }
   }
 }

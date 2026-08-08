@@ -52,7 +52,8 @@ namespace mtfind {
         new PrinterEntry("# of files matching pattern", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
-      Print(fields);
+      var threadLines = GetThreadProgressLines();
+      Print(fields, threadLines);
     }
 
     public void OnFileMatchFound() {

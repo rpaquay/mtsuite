@@ -36,7 +36,8 @@ namespace mtdel {
         new PrinterEntry("# of entries deleted/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
-      Print(fields);
+      var threadLines = GetThreadProgressLines();
+      Print(fields, threadLines);
     }
   }
 }
