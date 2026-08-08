@@ -123,5 +123,31 @@ namespace tests {
       Assert.AreEqual(1, stats.DirectoryDeletedCount);
       Assert.AreEqual(1, stats.FileDeletedCount);
     }
+
+    [TestMethod]
+    public void MtDeleteShouldWorkWithDirectorySymbolicLinks() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      // Structure reproducing macOS framework bundle layout with directory symlinks and circular/relative references:
+      // root/
+      //   Versions/
+      //     A/
+      //       file.txt
+      //     Current -> A
+      //   Headers -> Versions/Current
+      var versions = _fileSystemSetup.Root.CreateDirectory("Versions");
+      var dirA = versions.CreateDirectory("A");
+      dirA.CreateFile("file.txt", 10);
+      versions.CreateDirectoryLink("Current", "A");
+      _fileSystemSetup.Root.CreateDirectoryLink("Headers", "Versions/Current");
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+
+      Assert.IsFalse(_fileSystemSetup.Root.Exists());
+      Assert.AreEqual(0, stats.Errors.Count);
+    }
   }
 }
