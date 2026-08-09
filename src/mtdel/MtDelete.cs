@@ -27,7 +27,7 @@ namespace mtdel {
   public class MtDelete {
     private readonly IFileSystem _fileSystem;
     private readonly MtPoolFactory _poolFactory;
-    private readonly ParallelFileSystem _parallelFileSystem;
+    private readonly IParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor<Statistics> _progressMonitor;
 
     public MtDelete(IFileSystem fileSystem, MtPoolFactory poolFactory) {

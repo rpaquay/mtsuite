@@ -25,7 +25,7 @@ namespace mtmir {
   public class MtMirror {
     private readonly IFileSystem _fileSystem;
     private readonly MtPoolFactory _poolFactory;
-    private readonly ParallelFileSystem _parallelFileSystem;
+    private readonly IParallelFileSystem _parallelFileSystem;
     private readonly IProgressMonitor<Statistics> _progressMonitor;
 
     public MtMirror(IFileSystem fileSystem, MtPoolFactory poolFactory) {

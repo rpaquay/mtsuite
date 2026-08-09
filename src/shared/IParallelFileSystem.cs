@@ -49,19 +49,23 @@ namespace mtsuite.shared {
 
     Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory, CopyOptions options, IFileComparer fileComparer);
 
+    /// <summary>
+    /// Look for all regular files in <paramref name="sourceDirectory"/> that are in
+    /// <paramref name="destinationDirectory"/>, at the same relative hierarchy, and replace the destination
+    /// with a clone from the source. 
+    /// </summary>
     Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory, IFileComparer fileComparer, bool dryRun);
 
     /// <summary>
-    /// Delete a file system entry. Recurse through directories if
-    /// the entry is a directory.
+    /// Delete a file system entry recursively the entry is a directory.
+    /// Directories are deleted only if <paramref name="includeFilter"/> matches all files in a given
+    /// directory. Returns whether all files and directories were deleted.
     /// </summary>
-    Task DeleteEntryAsync(FileSystemEntry entry);
+    Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter);
   }
 
-
   /// <summary>
-  /// Interface implemented by callers of <see
-  /// cref="IParallelFileSystem.TraverseDirectoryAsync{T}"/>
+  /// Interface implemented by callers of <see cref="IParallelFileSystem.TraverseDirectoryAsync{T}"/>
   /// </summary>
   /// <typeparam name="T">The implementation specific element used to track
   /// directories</typeparam>

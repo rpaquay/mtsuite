@@ -26,7 +26,7 @@ namespace mtcompact {
   public class MtCompact {
     private readonly IFileSystem _fileSystem;
     private readonly MtPoolFactory _poolFactory;
-    private readonly ParallelFileSystem _parallelFileSystem;
+    private readonly IParallelFileSystem _parallelFileSystem;
     private readonly CompactProgressMonitor _progressMonitor;
 
     public MtCompact(IFileSystem fileSystem, MtPoolFactory poolFactory) {

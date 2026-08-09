@@ -137,7 +137,7 @@ namespace tests {
       // Verify zero files were compacted or cloned
       Assert.AreEqual(0, stats.FileClonedCount);
       Assert.AreEqual(0, stats.FileClonedTotalSize);
-      Assert.AreEqual(2, stats.FileCloneSkippedCount); // source_a.txt and source_b.txt in root
+      Assert.AreEqual(0, stats.FileCloneSkippedCount); // source_a.txt and source_b.txt are not in destination!
       Assert.AreEqual(0, stats.Errors.Count);
       Assert.AreEqual(0, testFs.ClonedPairs.Count);
 
@@ -204,7 +204,7 @@ namespace tests {
       var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
       Assert.AreEqual(1, stats.FileClonedCount);
       Assert.AreEqual(300, stats.FileClonedTotalSize);
-      Assert.AreEqual(2, stats.FileCloneSkippedCount); // file1 (different) and file3 (missing in dest)
+      Assert.AreEqual(1, stats.FileCloneSkippedCount); // file1 (different)
       Assert.AreEqual(0, stats.Errors.Count);
 
       // Verify only file2 was cloned

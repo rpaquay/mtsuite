@@ -29,7 +29,7 @@ namespace mtfindstr {
   public class MtFindStr {
     private readonly IFileSystem _fileSystem;
     private readonly MtPoolFactory _poolFactory;
-    private readonly ParallelFileSystem _parallelFileSystem;
+    private readonly IParallelFileSystem _parallelFileSystem;
     private readonly FindStrProgressMonitor _progressMonitor;
 
     public MtFindStr(IFileSystem fileSystem, MtPoolFactory poolFactory) {

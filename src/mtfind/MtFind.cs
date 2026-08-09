@@ -28,7 +28,7 @@ namespace mtfind {
   public class MtFind {
     private readonly IFileSystem _fileSystem;
     private readonly MtPoolFactory _poolFactory;
-    private readonly ParallelFileSystem _parallelFileSystem;
+    private readonly IParallelFileSystem _parallelFileSystem;
     private readonly FindProgressMonitor _progressMonitor;
 
     public MtFind(IFileSystem fileSystem, MtPoolFactory poolFactory) {
