@@ -502,7 +502,7 @@ public class MtCopyTest {
     };
     var copyProgress = new mtsuite.shared.CopyProgressMonitor();
     var sourceEntry = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
-    var task = pfs.CopyDirectoryAsync(sourceEntry, _destfs.Root.Path, mtsuite.shared.CopyOptions.SkipIdenticalFiles, _fileComparer, true);
+    var task = pfs.CopyDirectoryAsync(sourceEntry, _destfs.Root.Path, mtsuite.shared.CopyOptions.SkipIdenticalFiles, _fileComparer);
     pfs.WaitForTask(task);
     var stats = copyProgress.GetStatistics();
 

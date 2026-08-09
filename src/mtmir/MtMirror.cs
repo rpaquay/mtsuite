@@ -150,20 +150,11 @@ namespace mtmir {
       _progressMonitor.DestinationPath = destinationPath;
       _progressMonitor.Start();
 
-      bool destinationIsNew;
-      try {
-        _fileSystem.GetEntry(destinationPath);
-        destinationIsNew = false;
-      } catch {
-        destinationIsNew = true;
-      }
-
       var task = _parallelFileSystem.CopyDirectoryAsync(
         sourceDirectory,
         destinationPath,
         copyOptions,
-        fileComparer,
-        destinationIsNew);
+        fileComparer);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return _progressMonitor.GetStatistics();

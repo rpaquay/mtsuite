@@ -150,18 +150,18 @@ namespace mtsuite.shared {
       bool skipNotification) {
 
       return await Task.Run(async () => {
-        if (!skipNotification) {
-          OnDirectoryTraversing(directoryEntry);
-        }
-        var result = await TraverseDirectoryEntriesAsync(
-          directoryEntry,
-          collector,
-          followLinks,
-          depth).ConfigureAwait(false);
-        if (!skipNotification) {
-          OnDirectoryTraversed(directoryEntry);
-        }
-        return result;
+      if (!skipNotification) {
+        OnDirectoryTraversing(directoryEntry);
+      }
+      var result = await TraverseDirectoryEntriesAsync(
+        directoryEntry,
+        collector,
+        followLinks,
+        depth).ConfigureAwait(false);
+      if (!skipNotification) {
+        OnDirectoryTraversed(directoryEntry);
+      }
+      return result;
       }).ConfigureAwait(false);
     }
 
@@ -212,9 +212,16 @@ namespace mtsuite.shared {
       FileSystemEntry sourceDirectory,
       FullPath destinationPath,
       CopyOptions options,
-      IFileComparer fileComparer,
-      bool destinationDirectoryIsNew) {
-      return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options, fileComparer, destinationDirectoryIsNew, null, true);
+      IFileComparer fileComparer) {
+      FileSystemEntry? destinationDirectory;
+      // Create destination directory if needed
+      try {
+        destinationDirectory = _fileSystem.GetEntry(destinationPath);
+      } catch {
+        destinationDirectory = null;
+      }
+
+      return CopyDirectoryAsync(sourceDirectory, destinationPath, destinationDirectory, options, fileComparer, null, true);
     }
 
     private async Task CopyDirectoryAsync(
@@ -223,10 +230,10 @@ namespace mtsuite.shared {
       FileSystemEntry? destinationDirectoryEntry,
       CopyOptions options,
       IFileComparer fileComparer,
-      bool destinationDirectoryIsNew,
       bool? useCloning,
       bool skipNotification) {
 
+      // CopyDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
       await Task.Run(async () => {
         if (!skipNotification)
           OnDirectoryTraversing(sourceDirectory);
@@ -237,8 +244,7 @@ namespace mtsuite.shared {
           destinationDirectoryEntry,
           options,
           fileComparer,
-          destinationDirectoryIsNew,
-          useCloning).ConfigureAwait(false);
+          useCloning);
 
         if (!skipNotification)
           OnDirectoryTraversed(sourceDirectory);
@@ -251,116 +257,78 @@ namespace mtsuite.shared {
       FileSystemEntry? destinationDirectoryEntry,
       CopyOptions options,
       IFileComparer fileComparer,
-      bool destinationDirectoryIsNew,
       bool? useCloning) {
-
-      FileSystemEntry destinationDirectory;
-      if (destinationDirectoryEntry.HasValue) {
-        destinationDirectory = destinationDirectoryEntry.Value;
-      } else {
-        var destinationDirectoryOpt = GetOrCreateDirectory(destinationPath, destinationDirectoryIsNew);
-        if (destinationDirectoryOpt == null)
-          return;
-        destinationDirectory = destinationDirectoryOpt.Value;
-      }
-
+      var destinationDirectory = destinationDirectoryEntry ?? CreateDirectory(destinationPath);
       bool isCloningActive = useCloning ?? ((options & CopyOptions.NoClone) == 0 &&
-                                            _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path, destinationDirectory.Path));
+                                            _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path,
+                                              destinationDirectory.Path));
 
-      OnEntriesDiscovering(sourceDirectory);
-      var sourceReadSuccess = TryGetDirectoryEntries(sourceDirectory.Path, out var sourceEntries);
-      OnEntriesDiscovered(sourceDirectory, sourceEntries.Item);
+      Task finalTask;
+      {
+        OnEntriesDiscovering(sourceDirectory);
+        using var sourceEntries = _fileSystem.GetDirectoryFiles(sourceDirectory.Path);
+        OnEntriesDiscovered(sourceDirectory, sourceEntries.Item);
 
-      // If source directory could not be read, do NOT proceed with deleting destination files.
-      if (!sourceReadSuccess) {
-        sourceEntries.Dispose();
-        return;
-      }
+        using var destinationEntries = destinationDirectoryEntry.HasValue
+          ? _fileSystem.GetDirectoryFiles(destinationPath)
+          : _entryListPool.AllocateFrom();
 
-      FromPool<List<FileSystemEntry>> destinationEntries;
-      FromPool<SmallSet<FileSystemEntry>> destinationSet;
+        using var destinationSet = _entrySetPool.AllocateFrom();
+        destinationSet.Item.SetList(destinationEntries.Item);
 
-      try {
-        destinationEntries = destinationDirectoryIsNew
-        ? _entryListPool.AllocateFrom()
-        : GetDirectoryEntries(destinationPath);
-        destinationSet = _entrySetPool.AllocateFrom();
-      destinationSet.Item.SetList(destinationEntries.Item);
-      } catch {
-        sourceEntries.Dispose();
-        throw;
-      }
-      
-      // 1. Compute and process deletion of extra files in destination
-      FromPool<List<FileSystemEntry>> entriesToDelete;
-      OnEntriesToDeleteDiscovering(destinationDirectory);
-      entriesToDelete = ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
-      OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
+        // 1. Compute and process deletion of extra files in destination
+        {
+          OnEntriesToDeleteDiscovering(destinationDirectory);
+          using var entriesToDelete =
+            ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
+          OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
 
-      if (entriesToDelete.Item.Count > 0) {
-        using var deleteTaskList = _taskListPool.AllocateFrom();
-        foreach (var entry in entriesToDelete.Item) {
-          deleteTaskList.Item.Add(DeleteEntryAsync(entry));
+          if (entriesToDelete.Item.Count > 0) {
+            using var deleteTaskList = _taskListPool.AllocateFrom();
+            foreach (var entry in entriesToDelete.Item) {
+              deleteTaskList.Item.Add(DeleteEntryAsync(entry));
+            }
+
+            await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
+          }
         }
-        await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
-      }
-      entriesToDelete.Dispose(); // Not used after this
 
-      // 2. Copy source files/reparse points, subdirectories
-      using var taskList = _taskListPool.AllocateFrom();
-      foreach (var entry in sourceEntries.Item) {
-        if (entry.IsFile || entry.IsReparsePoint) {
-          PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item, taskList.Item, options, isCloningActive);
-        }
-        else if (entry.IsDirectory) {
-          var destinationEntryPath = new FullPath(destinationDirectory.Path, entry.Name);
-          var destinationExists = destinationSet.Item.TryGet(entry, out var childDestEntry);
-          taskList.Item.Add(CopyDirectoryAsync(
-            entry,
-            destinationEntryPath,
-            destinationExists ? childDestEntry : null,
-            options,
-            fileComparer,
-            !destinationExists,
-            isCloningActive,
-            false/*skipNotification*/));
+        // 2. Copy source files/reparse points, subdirectories
+        {
+          using var taskList = _taskListPool.AllocateFrom();
+          foreach (var entry in sourceEntries.Item) {
+            if (entry.IsFile || entry.IsReparsePoint) {
+              PerformOrScheduleFileEntryCopy(entry, destinationDirectory, fileComparer, destinationSet.Item,
+                taskList.Item, isCloningActive);
+            }
+            else if (entry.IsDirectory) {
+              var destinationEntryPath = new FullPath(destinationDirectory.Path, entry.Name);
+              var destinationExists = destinationSet.Item.TryGet(entry, out var childDestEntry);
+              taskList.Item.Add(CopyDirectoryAsync(
+                entry,
+                destinationEntryPath,
+                destinationExists ? childDestEntry : null,
+                options,
+                fileComparer,
+                isCloningActive,
+                false /*skipNotification*/));
+            }
+          }
+
+          // The final task is to wait for all intermediate "copy" sub-tasks
+          finalTask = Task.WhenAll(taskList.Item);
         }
       }
-
-      // 3. Recycle all pooled collections immediately before waiting
-      sourceEntries.Dispose();
-      destinationSet.Dispose();
-      destinationEntries.Dispose(); // destinationSet references destinationEntries
 
       // 4. Await both large files in the current directory and all subdirectories
-      if (taskList.Item.Count > 0) {
-        await Task.WhenAll(taskList.Item).ConfigureAwait(false);
-      }
+      await finalTask.ConfigureAwait(false);
     }
 
-    private FileSystemEntry? GetOrCreateDirectory(FullPath destinationPath, bool destinationDirectoryIsNew) {
-      var directoryCreated = false;
+    private FileSystemEntry CreateDirectory(FullPath destinationPath) {
       // Create destination directory (throw if error)
-      if (destinationDirectoryIsNew) {
-        try {
-          _fileSystem.CreateDirectory(destinationPath);
-          directoryCreated = true;
-        } catch (Exception e) {
-          OnError(destinationPath, e);
-        }
-      }
-
-      FileSystemEntry destinationDirectory;
-      try {
-        destinationDirectory = _fileSystem.GetEntry(destinationPath);
-      } catch (Exception e) {
-        OnError(destinationPath, e);
-        // If we can't find the destination entry, give up this directory.
-        return null;
-      }
-
-      if (directoryCreated)
-        OnDirectoryCreated(destinationDirectory);
+      _fileSystem.CreateDirectory(destinationPath);
+      var destinationDirectory = _fileSystem.GetEntry(destinationPath);
+      OnDirectoryCreated(destinationDirectory);
       return destinationDirectory;
     }
 
@@ -420,9 +388,8 @@ namespace mtsuite.shared {
       FileSystemEntry sourceEntry,
       FileSystemEntry destinationDirectory,
       IFileComparer fileComparer,
-      SmallSet<FileSystemEntry> destinationSet,
+      SmallSet<FileSystemEntry> destinationDirectoryEntries,
       List<Task> fileTaskList,
-      CopyOptions options,
       bool useCloning) {
 
       // This method only copies regular files and reparse points
@@ -430,7 +397,7 @@ namespace mtsuite.shared {
         return;
       }
 
-      var destinationExists = destinationSet.TryGet(sourceEntry, out var destinationEntry);
+      var destinationExists = destinationDirectoryEntries.TryGet(sourceEntry, out var destinationEntry);
       var destinationPath = destinationExists
         ? destinationEntry.Path
         : new FullPath(destinationDirectory.Path, sourceEntry.Name);
@@ -505,6 +472,7 @@ namespace mtsuite.shared {
       FullPath destinationPath,
       IFileComparer fileComparer,
       bool dryRun = false) {
+      // CompactDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
       return Task.Run(async () => {
         OnDirectoryTraversing(sourceDirectory);
         await CompactDirectoryEntriesAsync(sourceDirectory, destinationPath, fileComparer, dryRun).ConfigureAwait(false);
