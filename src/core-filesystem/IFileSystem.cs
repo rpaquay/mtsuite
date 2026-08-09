@@ -1,4 +1,4 @@
-// Copyright 2026 Renaud Paquay All Rights Reserved.
+﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,11 @@ namespace mtsuite.CoreFileSystem {
   /// all tools of "mtsuite" to work.
   /// </summary>
   public interface IFileSystem {
+    
+    /// <summary>
+    /// Gets the platform- and filesystem-specific extension operations.
+    /// </summary>
+    IFileSystemExtension Extension { get; }
 
     /// <summary>
     /// Returns the <see cref="FileSystemEntry"/> corresponding to the <paramref
@@ -96,11 +101,6 @@ namespace mtsuite.CoreFileSystem {
     /// successfully.
     /// </summary>
     void CopyFile<T>(FileSystemEntry sourceEntry, FileSystemEntry destinationEntry, CopyFileOptions options, T param, CopyFileCallback<T> callback);
-    
-    /// <summary>
-    /// Gets the platform- and filesystem-specific extension operations.
-    /// </summary>
-    IFileSystemExtension Extension { get; }
 
     /// <summary>
     /// Open an existing file given its <paramref name="path"/>. Throws an

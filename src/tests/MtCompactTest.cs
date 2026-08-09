@@ -76,14 +76,6 @@ namespace tests {
           return AlreadyClonedPairs.Contains((file1.Path.FullName, file2.Path.FullName));
         }
       }
-
-      public bool TryCloneFile<T>(
-        FileSystemEntry sourceEntry,
-        FullPath destinationPath,
-        FileSystemEntry? destinationEntry,
-        CopyFileOptions copyFileOptions,
-        T param,
-        CopyFileCallback<T> callback) => false;
     }
 
     [TestInitialize]

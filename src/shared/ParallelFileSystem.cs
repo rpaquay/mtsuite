@@ -282,21 +282,21 @@ namespace mtsuite.shared {
 
       try {
         destinationEntries = destinationDirectoryIsNew
-          ? _entryListPool.AllocateFrom()
-          : GetDirectoryEntries(destinationPath);
+        ? _entryListPool.AllocateFrom()
+        : GetDirectoryEntries(destinationPath);
         destinationSet = _entrySetPool.AllocateFrom();
-        destinationSet.Item.SetList(destinationEntries.Item);
+      destinationSet.Item.SetList(destinationEntries.Item);
       } catch {
         sourceEntries.Dispose();
         throw;
       }
-
+      
+      // 1. Compute and process deletion of extra files in destination
       FromPool<List<FileSystemEntry>> entriesToDelete;
       OnEntriesToDeleteDiscovering(destinationDirectory);
       entriesToDelete = ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
       OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
 
-      // 0. Process all deletions
       if (entriesToDelete.Item.Count > 0) {
         using var deleteTaskList = _taskListPool.AllocateFrom();
         foreach (var entry in entriesToDelete.Item) {
@@ -306,7 +306,7 @@ namespace mtsuite.shared {
       }
       entriesToDelete.Dispose(); // Not used after this
 
-      // Process files/reparse points and schedule subdirectories in current directory
+      // 2. Copy source files/reparse points, subdirectories
       using var taskList = _taskListPool.AllocateFrom();
       foreach (var entry in sourceEntries.Item) {
         if (entry.IsFile || entry.IsReparsePoint) {
@@ -425,6 +425,7 @@ namespace mtsuite.shared {
       CopyOptions options,
       bool useCloning) {
 
+      // This method only copies regular files and reparse points
       if (!sourceEntry.IsFile && !sourceEntry.IsReparsePoint) {
         return;
       }

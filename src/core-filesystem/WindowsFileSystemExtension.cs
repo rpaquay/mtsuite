@@ -41,14 +41,4 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not yet implemented for Windows (ReFS block cloning).");
   }
-
-  public bool TryCloneFile<T>(
-    FileSystemEntry sourceEntry,
-    FullPath destinationPath,
-    FileSystemEntry? destinationEntry,
-    CopyFileOptions copyFileOptions,
-    T param,
-    CopyFileCallback<T> callback) {
-    return false;
-  }
 }

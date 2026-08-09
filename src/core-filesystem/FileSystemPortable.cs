@@ -39,8 +39,6 @@ public class FileSystemPortable : IFileSystem {
       _fullNameBufferPool = poolFactory.Create("FileSystemPortable.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
     }
 
-    public bool AllowCloning { get; set; } = true;
-
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions {
       RecurseSubdirectories = false,
       AttributesToSkip = FileAttributes.None,
@@ -205,12 +203,6 @@ public class FileSystemPortable : IFileSystem {
           }
         }
         
-        if (AllowCloning && (options & CopyFileOptions.NoClone) == 0) {
-          if (Extension.TryCloneFile(sourceEntry, destinationPath, destinationEntry, options, param, callback)) {
-            return;
-          }
-        }
-
         CopyFileImpl(sourceEntry, destinationPath, options, param, callback);
       }
     }

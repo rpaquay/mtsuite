@@ -26,8 +26,7 @@ public interface IFileSystemExtension {
   /// and <paramref name="destinationPath"/> (e.g. APFS on macOS within the same volume).
   /// </summary>
   bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath);
-
-
+  
   /// <summary>
   /// Checks whether two files are Copy-on-Write (CoW) clones of each other (sharing physical disk extents).
   /// </summary>
@@ -38,16 +37,4 @@ public interface IFileSystemExtension {
   /// Throws an exception if cloning is not supported or fails.
   /// </summary>
   void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath);
-
-  /// <summary>
-  /// Attempts to clone a file during copy operations.
-  /// Returns true if the file was successfully cloned and callback invoked, false otherwise.
-  /// </summary>
-  bool TryCloneFile<T>(
-    FileSystemEntry sourceEntry,
-    FullPath destinationPath,
-    FileSystemEntry? destinationEntry,
-    CopyFileOptions copyFileOptions,
-    T param,
-    CopyFileCallback<T> callback);
 }

@@ -31,12 +31,4 @@ public class NullFileSystemExtension : IFileSystemExtension {
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not supported on this platform/filesystem.");
   }
-
-  public bool TryCloneFile<T>(
-    FileSystemEntry sourceEntry,
-    FullPath destinationPath,
-    FileSystemEntry? destinationEntry,
-    CopyFileOptions copyFileOptions,
-    T param,
-    CopyFileCallback<T> callback) => false;
 }

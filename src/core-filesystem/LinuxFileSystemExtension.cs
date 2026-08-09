@@ -41,14 +41,4 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not yet implemented for Linux (FICLONE).");
   }
-
-  public bool TryCloneFile<T>(
-    FileSystemEntry sourceEntry,
-    FullPath destinationPath,
-    FileSystemEntry? destinationEntry,
-    CopyFileOptions copyFileOptions,
-    T param,
-    CopyFileCallback<T> callback) {
-    return false;
-  }
 }
