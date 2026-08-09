@@ -1,4 +1,4 @@
-// Copyright 2026 Renaud Paquay All Rights Reserved.
+﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,6 @@ namespace mtsuite.CoreFileSystem;
 public static class FileSystem {
   public static IFileSystem CreateDefault(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
-    return new FileSystemPortable(poolFactory);
+    return new FileSystemPortable(poolFactory, FileSystemExtension.Create(poolFactory));
   }
 }

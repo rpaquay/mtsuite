@@ -100,7 +100,7 @@ namespace tests {
     public void MtCompactShouldThrowWithNonExistingFolder() {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
       var mtcompact = new MtCompact(testFs, _poolFactory);
-      mtcompact.DoCompact(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer);
+      mtcompact.DoCompact(_sourcefs.Root.Path.Combine("fake"), _destfs.Root.Path, _fileComparer, isDryRun: false);
     }
 
     [TestMethod]
@@ -108,7 +108,7 @@ namespace tests {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
       Assert.AreEqual(0, stats.FileClonedCount);
       Assert.AreEqual(0, stats.FileCloneSkippedCount);
       Assert.AreEqual(0, stats.Errors.Count);
@@ -132,7 +132,7 @@ namespace tests {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
 
       // Verify zero files were compacted or cloned
       Assert.AreEqual(0, stats.FileClonedCount);
@@ -166,7 +166,7 @@ namespace tests {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
       Assert.AreEqual(2, stats.FileClonedCount);
       Assert.AreEqual(300, stats.FileClonedTotalSize);
       Assert.AreEqual(0, stats.FileCloneSkippedCount);
@@ -201,7 +201,7 @@ namespace tests {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
       Assert.AreEqual(1, stats.FileClonedCount);
       Assert.AreEqual(300, stats.FileClonedTotalSize);
       Assert.AreEqual(2, stats.FileCloneSkippedCount); // file1 (different) and file3 (missing in dest)
@@ -239,7 +239,7 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
       var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer, isDryRun: false);
       Assert.AreEqual(1, stats.FileClonedCount); // only same_content_diff_time.txt
       Assert.AreEqual(1, stats.FileCloneSkippedCount); // diff_content.txt
       Assert.AreEqual(1, testFs.ClonedPairs.Count);
@@ -267,7 +267,7 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
       var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer, isDryRun: false);
 
       // Must NOT be cloned because contents differ
       Assert.AreEqual(0, stats.FileClonedCount);
@@ -287,7 +287,7 @@ namespace tests {
       var testFs = new TestCompactFileSystem(_sourcefs.FileSystem);
       var mtcompact = new MtCompact(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
       Assert.AreEqual(1, stats.FileClonedCount);
       Assert.AreEqual(500, stats.FileClonedTotalSize);
       Assert.AreEqual(0, stats.Errors.Count);
@@ -391,7 +391,7 @@ namespace tests {
       var mtcompact = new MtCompact(testFs, _poolFactory);
       var contentComparer = new FileContentsFileComparer(testFs, _poolFactory);
 
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, contentComparer, isDryRun: false);
       Assert.AreEqual(10, stats.FileClonedCount); // 10 even files
       Assert.AreEqual(10, stats.FileCloneSkippedCount); // 10 odd files
       Assert.AreEqual(10, testFs.ClonedPairs.Count);
@@ -417,19 +417,20 @@ namespace tests {
       parallelFs.FileComparing += _ => Interlocked.Increment(ref comparingEventCount);
       parallelFs.FileCompared += (_, _, _) => Interlocked.Increment(ref comparedEventCount);
 
-       // Fast comparer (LastWriteTime) will trigger 1 FileComparing / FileCompared event during AreFilesCloned
-       var fastComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
-       var sourceDir = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
-       var task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, fastComparer, true);
-       parallelFs.WaitForTask(task);
-        Assert.AreEqual(1, comparingEventCount);
-        Assert.AreEqual(1, comparedEventCount);
- 
+      // Fast comparer (LastWriteTime) will trigger 1 FileComparing / FileCompared event during AreFilesCloned
+      var fastComparer = new LastWriteTimeFileComparer(_sourcefs.FileSystem);
+      var sourceDir = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
+      var desDir = _destfs.FileSystem.GetEntry(_destfs.Root.Path);
+      var task = parallelFs.CompactDirectoryAsync(sourceDir, desDir, fastComparer, true);
+      parallelFs.WaitForTask(task);
+      Assert.AreEqual(1, comparingEventCount);
+      Assert.AreEqual(1, comparedEventCount);
+
       // Slow comparer (FileContents) should trigger FileComparing / FileCompared events
-       var slowComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
-       task = parallelFs.CompactDirectoryAsync(sourceDir, _destfs.Root.Path, slowComparer, true);
-       parallelFs.WaitForTask(task);
- 
+      var slowComparer = new FileContentsFileComparer(_sourcefs.FileSystem, _poolFactory);
+      task = parallelFs.CompactDirectoryAsync(sourceDir, desDir, slowComparer, true);
+      parallelFs.WaitForTask(task);
+
       Assert.AreEqual(2, comparingEventCount);
       Assert.AreEqual(2, comparedEventCount);
     }
@@ -450,7 +451,7 @@ namespace tests {
       testFs.AlreadyClonedPairs.Add((srcFile2.Path.FullName, dstFile2.Path.FullName));
 
       var mtcompact = new MtCompact(testFs, _poolFactory);
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
 
       // Verify files were skipped from cloning and recorded as already cloned
       Assert.AreEqual(0, stats.FileClonedCount);
@@ -482,7 +483,7 @@ namespace tests {
       testFs.AlreadyClonedPairs.Add((srcFile1.Path.FullName, dstFile1.Path.FullName));
 
       var mtcompact = new MtCompact(testFs, _poolFactory);
-      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+      var stats = mtcompact.DoCompact(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, isDryRun: false);
 
       Assert.AreEqual(1, stats.FileClonedCount);
       Assert.AreEqual(200, stats.FileClonedTotalSize);

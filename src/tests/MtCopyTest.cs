@@ -497,9 +497,7 @@ public class MtCopyTest {
     sub.CreateFile("sublarge.dat", 1024 * 1024);
 
     // Act - copy with threshold lower than 1MB (e.g. 512KB) to exercise async task path
-    var pfs = new mtsuite.shared.ParallelFileSystem(_sourcefs.FileSystem, _poolFactory) {
-      LargeFileAsyncThreshold = 512 * 1024
-    };
+    var pfs = new mtsuite.shared.ParallelFileSystem(_sourcefs.FileSystem, _poolFactory, largeFileAsyncThreshold: 512 * 1024);
     var copyProgress = new mtsuite.shared.CopyProgressMonitor();
     var sourceEntry = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
     var task = pfs.CopyDirectoryAsync(sourceEntry, _destfs.Root.Path, mtsuite.shared.CopyOptions.SkipIdenticalFiles, _fileComparer);

@@ -40,7 +40,9 @@ namespace mtsuite.CoreFileSystem {
     public bool IsReparsePoint => _data.IsReparsePoint;
     public bool IsReadOnly => _data.IsReadOnly;
     public bool IsSystem => _data.IsSystem;
-
+    public bool IsRegularFile => IsFile && !IsReparsePoint;
+    public bool IsRegularDirectory => IsDirectory && !IsReparsePoint;
+    
     public override string ToString() {
       return string.Format("\"{0}\", {1}", _path.Name, _data);
     }

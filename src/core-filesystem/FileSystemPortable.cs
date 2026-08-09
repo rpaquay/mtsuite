@@ -18,26 +18,29 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.IO.Enumeration;
-using System.Runtime.InteropServices;
 using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem;
 
 public class FileSystemPortable : IFileSystem {
-    public IFileSystemExtension Extension { get; }
 
     private readonly IPool<List<FileSystemEntry>> _entryListPool;
     private readonly IPool<byte[]> _copyFileBufferPool;
     private readonly IPool<StringBuffer> _fullNameBufferPool;
+    private readonly IFileSystemExtension _extension;
 
-    public FileSystemPortable(MtPoolFactory poolFactory, IFileSystemExtension? extension = null) {
+
+    public FileSystemPortable(MtPoolFactory poolFactory, IFileSystemExtension extension) {
       ArgumentNullException.ThrowIfNull(poolFactory);
-      Extension = extension ?? FileSystemExtension.Create(poolFactory);
+      ArgumentNullException.ThrowIfNull(extension);
+      _extension = extension;
       _entryListPool = poolFactory.CreateList<FileSystemEntry>("FileSystemPortable.EntryList");
       _copyFileBufferPool = poolFactory.Create("FileIOByteArrayPool", static () => new byte[FileIOByteArrayPool.BufferSize]);
       _fullNameBufferPool = poolFactory.Create("FileSystemPortable.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
     }
+
+    public IFileSystemExtension Extension => _extension;
 
     private readonly EnumerationOptions _enumerationOptions = new EnumerationOptions {
       RecurseSubdirectories = false,
@@ -47,13 +50,16 @@ public class FileSystemPortable : IFileSystem {
     };
 
     public FileSystemEntry GetEntry(FullPath path) {
+      ArgumentNullException.ThrowIfNull(path);
       if (!TryGetEntry(path, out var entry)) {
-        throw new FileNotFoundException("Entry not found", path.GetFullName(_fullNameBufferPool));
+        var fullPath = path.GetFullName(_fullNameBufferPool);
+        throw new FileNotFoundException($"File or directory \"{fullPath}\" not found", fullPath);
       }
       return entry;
     }
 
     public bool TryGetEntry(FullPath path, out FileSystemEntry entry) {
+      ArgumentNullException.ThrowIfNull(path);
       var fullName = path.GetFullName(_fullNameBufferPool);
       var fileInfo = new FileInfo(fullName);
       var attributes = fileInfo.Attributes;
@@ -85,6 +91,7 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public ReparsePointInfo GetReparsePointInfo(FullPath path) {
+      ArgumentNullException.ThrowIfNull(path);
       var fullName = path.GetFullName(_fullNameBufferPool);
       var info = new FileInfo(fullName);
 
@@ -92,7 +99,7 @@ public class FileSystemPortable : IFileSystem {
       var target = info.LinkTarget ?? (Directory.Exists(fullName) ? new DirectoryInfo(fullName).LinkTarget : null);
 
       if (target == null && (info.Attributes & FileAttributes.ReparsePoint) == 0) {
-        throw new FileNotFoundException("Entry not found or not a reparse point", fullName);
+        throw new FileNotFoundException($"\"{fullName}\" was not found or was not a reparse point", fullName);
       }
 
       bool isSymLink = target != null;
@@ -139,6 +146,7 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public FromPool<List<FileSystemEntry>> GetDirectoryFiles(FullPath path) {
+      ArgumentNullException.ThrowIfNull(path);
       var list = _entryListPool.AllocateFrom();
       try {
         using var enumerator = new DirectoryEntriesEnumerator(path, _fullNameBufferPool, _enumerationOptions);
@@ -154,6 +162,7 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public void CreateDirectory(FullPath path) {
+      ArgumentNullException.ThrowIfNull(path);
       Directory.CreateDirectory(path.GetFullName(_fullNameBufferPool));
     }
 
@@ -271,22 +280,27 @@ public class FileSystemPortable : IFileSystem {
     }
 
     public FileStream OpenFile(FullPath path, FileAccess access) {
+      ArgumentNullException.ThrowIfNull(path);
       return File.Open(path.GetFullName(_fullNameBufferPool), FileMode.Open, access, FileShare.Read);
     }
 
     public FileStream CreateFile(FullPath path) {
+      ArgumentNullException.ThrowIfNull(path);
       return new FileStream(path.GetFullName(_fullNameBufferPool), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
     }
 
     public void CreateFileSymbolicLink(FullPath path, string target) {
+      ArgumentNullException.ThrowIfNull(path);
       File.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), target);
     }
 
     public void CreateDirectorySymbolicLink(FullPath path, string target) {
+      ArgumentNullException.ThrowIfNull(path);
       Directory.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), target);
     }
 
     public void CreateJunctionPoint(FullPath path, string target) {
+      ArgumentNullException.ThrowIfNull(path);
       var targetPath = PathHelpers.IsPathAbsolute(target) ? target : path.Parent?.Combine(target).GetFullName(_fullNameBufferPool);
       targetPath = PathHelpers.NormalizePath(targetPath);
       Directory.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), targetPath);

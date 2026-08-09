@@ -92,19 +92,7 @@ namespace mtcompact {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
       }
 
-      var explicitDryRun = parser.Contains("dry-run");
-      var supportsCloning = _fileSystem.Extension.IsCloningSupported(sourcePath, destinationPath);
-      var isDryRun = explicitDryRun || !supportsCloning;
-
-      if (!supportsCloning) {
-        Console.WriteLine("NOTICE: File cloning is not supported on this platform/filesystem.");
-        Console.WriteLine("Running in SIMULATION mode to compute potential space savings.");
-        Console.WriteLine();
-      } else if (explicitDryRun) {
-        Console.WriteLine("NOTICE: Running in SIMULATION mode (--dry-run). No files will be modified.");
-        Console.WriteLine();
-      }
-
+      var isDryRun = parser.Contains("dry-run");
       var statistics = DoCompact(sourcePath, destinationPath, fileComparer, isDryRun);
       DisplayResults(statistics, isDryRun);
       if (parser.Contains("gc")) {
@@ -125,7 +113,8 @@ namespace mtcompact {
       ArgumentsHelper.PrintArgumentUsageSummary(argumentDefinitions);
     }
 
-    public Statistics DoCompact(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer, bool isDryRun = false) {
+    public Statistics DoCompact(FullPath sourcePath, FullPath destinationPath, IFileComparer fileComparer, bool isDryRun) {
+      // Check source directory (fast exit)
       FileSystemEntry sourceDirectory;
       try {
         sourceDirectory = _fileSystem.GetEntry(sourcePath);
@@ -134,6 +123,25 @@ namespace mtcompact {
         throw new CommandLineReturnValueException(8);
       }
 
+      // Check destination directory (fast exit)
+      FileSystemEntry destinationDirectory;
+      try {
+        destinationDirectory = _fileSystem.GetEntry(destinationPath);
+      } catch (Exception e) {
+        Console.WriteLine(e.Message);
+        throw new CommandLineReturnValueException(8);
+      }
+
+      // If not dry run, check platform supports actual file cloning
+      if (!isDryRun) {
+        var supportsCloning = _fileSystem.Extension.IsCloningSupported(sourcePath, destinationPath);
+        if (!supportsCloning) {
+          Console.WriteLine("NOTICE: File cloning is not supported on this platform/filesystem.");
+          Console.WriteLine("Running in SIMULATION mode to compute potential space savings.");
+          isDryRun = true;
+        }
+      }
+      
       if (isDryRun) {
         Console.WriteLine("Analyzing identical files between \"{0}\" and \"{1}\"",
           sourcePath.FullName, destinationPath.FullName);
@@ -149,7 +157,7 @@ namespace mtcompact {
 
       var task = _parallelFileSystem.CompactDirectoryAsync(
         sourceDirectory,
-        destinationPath,
+        destinationDirectory,
         fileComparer,
         isDryRun);
       _parallelFileSystem.WaitForTask(task);
@@ -159,10 +167,10 @@ namespace mtcompact {
 
     private static void DisplayBanner() {
       Console.WriteLine();
-      Console.WriteLine("-------------------------------------------------------------------------------");
+      Console.WriteLine("-------------------------------------------------------------------------");
       Console.WriteLine("MTCOMPACT :: Multi-Threaded File Compacting (Cloning) - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0.0");
-      Console.WriteLine("-------------------------------------------------------------------------------");
+      Console.WriteLine("-------------------------------------------------------------------------");
       Console.WriteLine();
     }
 
