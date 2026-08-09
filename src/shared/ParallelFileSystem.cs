@@ -213,8 +213,6 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
 
-    entries.Dispose();
-
     if (additionalTask != null && !additionalTask.IsCompleted) {
       await additionalTask.ConfigureAwait(false);
     }
@@ -425,6 +423,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     }).ConfigureAwait(false);
   }
 
+  /// <summary>
+  /// Delete all entries of <paramref name="sourceDirectory"/>, but not <paramref name="sourceDirectory"/> iself
+  /// </summary>
   private async Task<bool> DeleteDirectoryEntriesAsync(FileSystemEntry sourceDirectory, Func<FileSystemEntry, bool> includeFilter) {
     //
     // Enumerate entries in source directory
@@ -439,12 +440,17 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var sourceEntries = optionalSourceEntries.Value;
     OnEntriesToDeleteDiscovered(sourceDirectory, sourceEntries.Item);
     
-    // Delete sub-directories
+    // Delete files, links and subdirectories
     var allEntriesDeleted = true;
     using (var deleteSubDirTaskList = _boolTaskListPool.AllocateFrom()) {
       foreach (var entry in sourceEntries.Item) {
-        if (entry.IsRegularDirectory) {
-          deleteSubDirTaskList.Item.Add(DeleteDirectoryEntriesAsync(entry, includeFilter));
+        if (entry.IsFile || entry.IsRegularFile) {
+          if (!DeleteSingleEntry(entry, includeFilter)) {
+            allEntriesDeleted = false;
+          }
+        }
+        else if (entry.IsRegularDirectory) {
+          deleteSubDirTaskList.Item.Add(DeleteDirectoryAsync(entry, includeFilter));
         }
       }
       if (deleteSubDirTaskList.Item.Count > 0) {
@@ -455,10 +461,6 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
 
-    // Delete files or links 
-    if (!DeleteSingleEntries(sourceEntries.Item, includeFilter)) {
-      allEntriesDeleted = false;
-    }
     OnEntriesToDeleteProcessed(sourceDirectory, sourceEntries.Item);
     return allEntriesDeleted;
   }
@@ -701,24 +703,14 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   }
     
 
-  private bool DeleteSingleEntries(List<FileSystemEntry> entries, Func<FileSystemEntry, bool> includeFilter) {
-    // Delete all entries
-    var allEntriesDeleted = true;
-    foreach (var entry in entries) {
-      if (!DeleteSingleEntry(entry, includeFilter)) {
-        allEntriesDeleted = false;
-      }
-    }
-    return allEntriesDeleted;
-  }
-
   /// <summary>
   /// Delete a single file or reparse point if allowed by <paramref name="includeFilter"/>, returning whether
   /// <paramref name="includeFilter"/> returned <code>true</code>. 
   /// </summary>
   private bool DeleteSingleEntry(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
-    if (!includeFilter(entry))
+    if (!includeFilter(entry)) {
       return false;
+    }
 
     var sw = _stopwatchFactory.Create();
     OnEntryDeleting(entry);
@@ -726,6 +718,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       _fileSystem.DeleteEntry(entry);
     } catch (Exception e) {
       OnError(entry.Path, e);
+      return false;
     }
     OnEntryDeleted(entry, sw.Elapsed);
     return true;
