@@ -117,21 +117,12 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     return TraverseDirectoryAsync(directoryEntry, collector, followLinks, 0, true);
   }
 
-  public Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options,
-    IFileComparer fileComparer) {
+  public Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
+    CopyOptions options, IFileComparer fileComparer) {
     ArgumentNullException.ThrowIfNull(fileComparer);
 
-    // Lookup destination directory
-    FileSystemEntry? destinationDirectory;
-    try {
-      destinationDirectory = _fileSystem.GetEntry(destinationPath);
-    }
-    catch {
-      destinationDirectory = null;
-    }
-
-    return CopyDirectoryAsync(sourceDirectory, destinationPath, destinationDirectory, options, fileComparer, null,
-      true);
+    return CopyDirectoryAsync(sourceDirectory, destinationDirectory.Path, destinationDirectory, options, fileComparer,
+      useCloning: null, skipNotification: true);
   }
 
   public Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory, IFileComparer fileComparer, bool dryRun) {

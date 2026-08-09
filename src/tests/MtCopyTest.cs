@@ -500,7 +500,8 @@ public class MtCopyTest {
     var pfs = new mtsuite.shared.ParallelFileSystem(_sourcefs.FileSystem, _poolFactory, largeFileAsyncThreshold: 512 * 1024);
     var copyProgress = new mtsuite.shared.CopyProgressMonitor();
     var sourceEntry = _sourcefs.FileSystem.GetEntry(_sourcefs.Root.Path);
-    var task = pfs.CopyDirectoryAsync(sourceEntry, _destfs.Root.Path, mtsuite.shared.CopyOptions.SkipIdenticalFiles, _fileComparer);
+    var destEntry = _destfs.FileSystem.GetEntry(_destfs.Root.Path);
+    var task = pfs.CopyDirectoryAsync(sourceEntry, destEntry, mtsuite.shared.CopyOptions.SkipIdenticalFiles, _fileComparer);
     pfs.WaitForTask(task);
     var stats = copyProgress.GetStatistics();
 

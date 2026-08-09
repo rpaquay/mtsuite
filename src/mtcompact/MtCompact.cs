@@ -138,6 +138,7 @@ namespace mtcompact {
         if (!supportsCloning) {
           Console.WriteLine("NOTICE: File cloning is not supported on this platform/filesystem.");
           Console.WriteLine("Running in SIMULATION mode to compute potential space savings.");
+          Console.WriteLine();
           isDryRun = true;
         }
       }
@@ -150,6 +151,8 @@ namespace mtcompact {
           sourcePath.FullName, destinationPath.FullName);
       }
 
+      Console.WriteLine();
+      
       _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.DestinationPath = destinationPath;
       _progressMonitor.IsDryRun = isDryRun;

@@ -144,6 +144,22 @@ namespace mtmir {
         throw new CommandLineReturnValueException(8);
       }
 
+      // Lookup or create destination directory
+      FileSystemEntry destinationDirectory;
+      try {
+        try {
+          destinationDirectory = _fileSystem.GetEntry(destinationPath);
+        }
+        catch {
+          _fileSystem.CreateDirectory(destinationPath);
+          destinationDirectory = _fileSystem.GetEntry(destinationPath);
+        }
+      } catch (Exception e) {
+        Console.WriteLine(e.Message);
+        // 8 = fail (to match robocopy)
+        throw new CommandLineReturnValueException(8);
+      }
+
       Console.WriteLine("Mirroring files and directories from \"{0}\" to \"{1}\"",
         sourcePath.FullName, destinationPath.FullName);
       _progressMonitor.SourcePath = sourcePath;
@@ -152,7 +168,7 @@ namespace mtmir {
 
       var task = _parallelFileSystem.CopyDirectoryAsync(
         sourceDirectory,
-        destinationPath,
+        destinationDirectory,
         copyOptions,
         fileComparer);
       _parallelFileSystem.WaitForTask(task);

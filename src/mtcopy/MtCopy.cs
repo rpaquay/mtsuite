@@ -143,6 +143,22 @@ namespace mtcopy {
         throw new CommandLineReturnValueException(8);
       }
 
+      // Lookup or create destination directory
+      FileSystemEntry destinationDirectory;
+      try {
+        try {
+          destinationDirectory = _fileSystem.GetEntry(destinationPath);
+        }
+        catch {
+          _fileSystem.CreateDirectory(destinationPath);
+          destinationDirectory = _fileSystem.GetEntry(destinationPath);
+        }
+      } catch (Exception e) {
+        Console.WriteLine(e.Message);
+        // 8 = fail (to match robocopy)
+        throw new CommandLineReturnValueException(8);
+      }
+
       Console.WriteLine("Copying files and subdirectories from \"{0}\" to \"{1}\"",
         sourcePath.FullName,
         destinationPath.FullName);
@@ -153,7 +169,7 @@ namespace mtcopy {
 
       var task = _parallelFileSystem.CopyDirectoryAsync(
         sourceDirectory,
-        destinationPath,
+        destinationDirectory,
         copyOptions,
         fileComparer);
       _parallelFileSystem.WaitForTask(task);
