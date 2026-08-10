@@ -180,7 +180,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       TaskScheduler.Default).Unwrap();
   }
 
-  private async Task<T> TraverseDirectoryEntriesAsync<T>(
+  private Task<T> TraverseDirectoryEntriesAsync<T>(
     FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
     IPool<List<Task<T>>> taskListPool,
@@ -196,7 +196,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       OnDirectoryTraversed(directoryEntry, optionalEntries?.Item);
       if (optionalEntries == null) {
         // If we did not find entries due to error, exit early
-        return collectorItem;
+        return Task.FromResult(collectorItem);
       }
 
       var entries = optionalEntries.Value;
@@ -227,14 +227,24 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
 
-    if (whenAllTasks != null) {
-      var childResults = await whenAllTasks.ConfigureAwait(false);
-      foreach (var childResult in childResults) {
-        collector.OnDirectoryTraversed(_fileSystem, collectorItem, childResult);
-      }
+    if (whenAllTasks == null) {
+      return Task.FromResult(collectorItem);
     }
 
-    return collectorItem;
+    var continuationState = new TraverseEntriesContinuationState<T>(this, collector, collectorItem);
+    return whenAllTasks.ContinueWith(
+      static (t, stateObj) => {
+        var s = (TraverseEntriesContinuationState<T>)stateObj!;
+        var childResults = t.GetAwaiter().GetResult();
+        foreach (var childResult in childResults) {
+          s.Collector.OnDirectoryTraversed(s.FileSystem._fileSystem, s.CollectorItem, childResult);
+        }
+        return s.CollectorItem;
+      },
+      continuationState,
+      CancellationToken.None,
+      TaskContinuationOptions.ExecuteSynchronously,
+      TaskScheduler.Default);
   }
 
   private async Task CopyDirectoryAsync(
@@ -949,4 +959,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     IPool<List<Task<T>>> TaskListPool,
     bool FollowLinks,
     int Depth);
+
+  private sealed record TraverseEntriesContinuationState<T>(
+    ParallelFileSystem FileSystem,
+    IDirectorCollector<T> Collector,
+    T CollectorItem);
 }
