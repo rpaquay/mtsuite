@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -39,13 +40,12 @@ namespace mtfindstr {
       return VoidValue.Instance;
     }
 
-    public Task OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries) {
-      var filesWithMatchingName = entries.Where(entry => MatchesFileName(entry)).ToList();
-      if (filesWithMatchingName.Count == 0) {
-        return Task.CompletedTask;
+    public Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, FileSystemEntry entry) {
+      if (!MatchesFileName(entry)) {
+        return null;
       }
 
-      var tasks = filesWithMatchingName.Select(entry => Task.Run(() => {
+      return () => {
         _progressMonitor.OnFileSearching(entry);
         try {
           var findStrEntries = _findStrMatcher(fileSystem, entry);
@@ -55,8 +55,7 @@ namespace mtfindstr {
         } finally {
           _progressMonitor.OnFileSearched(entry);
         }
-      }));
-      return Task.WhenAll(tasks);
+      };
     }
 
     private void AddFindStrResult(FileSystemEntry entry, IList<FindStrEntry> entries) {

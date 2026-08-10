@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -188,19 +189,17 @@ namespace mtinfo {
         return result;
       }
 
-      public Task OnDirectoryEntriesEnumerated(IFileSystem fileSystem, DirectorySummary summary, FileSystemEntry directory, List<FileSystemEntry> entries) {
-        foreach (var entry in entries) {
-          SetLongestPath(entry);
-          if (entry.IsFile && !entry.IsReparsePoint) {
-            summary.Stats.FileCount++;
-            summary.Stats.FileBytesTotal += entry.FileSize;
-          } else if (entry.IsDirectory && !entry.IsReparsePoint) {
-            summary.Stats.DirectoryCount++;
-          } else if (entry.IsReparsePoint) {
-            summary.Stats.SymlinkCount++;
-          }
+      public Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, DirectorySummary summary, FileSystemEntry directory, FileSystemEntry entry) {
+        SetLongestPath(entry);
+        if (entry.IsFile && !entry.IsReparsePoint) {
+          summary.Stats.FileCount++;
+          summary.Stats.FileBytesTotal += entry.FileSize;
+        } else if (entry.IsDirectory && !entry.IsReparsePoint) {
+          summary.Stats.DirectoryCount++;
+        } else if (entry.IsReparsePoint) {
+          summary.Stats.SymlinkCount++;
         }
-        return Task.CompletedTask;
+        return null;
       }
 
       private void SetLongestPath(FileSystemEntry entry) {

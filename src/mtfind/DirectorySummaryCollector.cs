@@ -11,7 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using mtsuite.shared;
@@ -35,16 +37,14 @@ namespace mtfind {
       return VoidValue.Instance;
     }
 
-    public Task OnDirectoryEntriesEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, List<FileSystemEntry> entries) {
-      foreach (var entry in entries) {
-        if (_nameMatcher(entry)) {
-          lock (_matchedFiles) {
-            _matchedFiles.Add(entry);
-          }
-          _progressMonitor.OnFileMatchFound(entry);
+    public Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, FileSystemEntry entry) {
+      if (_nameMatcher(entry)) {
+        lock (_matchedFiles) {
+          _matchedFiles.Add(entry);
         }
+        _progressMonitor.OnFileMatchFound(entry);
       }
-      return Task.CompletedTask;
+      return null;
     }
 
     public void OnDirectoryTraversed(IFileSystem fileSystem, VoidValue parentValue, VoidValue childValue) {

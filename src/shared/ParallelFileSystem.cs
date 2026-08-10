@@ -192,8 +192,14 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     }
     var entries = optionalEntries.Value;
 
-    // Notify collector
-    var additionalTask = collector.OnDirectoryEntriesEnumerated(_fileSystem, collectorItem, directoryEntry, entries.Item);
+    // Notify collector and collect tasks for any returned actions
+    using var actionTasks = _taskListPool.AllocateFrom();
+    foreach (var entry in entries.Item) {
+      var action = collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
+      if (action != null) {
+        actionTasks.Item.Add(Task.Run(action));
+      }
+    }
 
     // Create tasks for children directories
     using var childDirectoriesTasks = pool.AllocateFrom();
@@ -207,8 +213,8 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
 
-    if (!additionalTask.IsCompleted) {
-      await additionalTask.ConfigureAwait(false);
+    if (actionTasks.Item.Count > 0) {
+      await Task.WhenAll(actionTasks.Item).ConfigureAwait(false);
     }
 
     if (childDirectoriesTasks.Item.Count > 0) {
