@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtdel;
 using mtsuite.CoreFileSystem.ObjectPool;
@@ -49,6 +51,8 @@ namespace tests {
       var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+      AssertExt.IsEmpty(stats.Errors);  
+      AssertExt.IsEmpty(stats.Warnings);  
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(1, stats.DirectoryDeletedCount);
     }
@@ -62,6 +66,8 @@ namespace tests {
       var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+      AssertExt.IsEmpty(stats.Errors);  
+      AssertExt.IsEmpty(stats.Warnings);  
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(1, stats.DirectoryDeletedCount);
       Assert.AreEqual(3, stats.FileDeletedCount);
@@ -80,6 +86,8 @@ namespace tests {
       var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+      AssertExt.IsEmpty(stats.Errors);  
+      AssertExt.IsEmpty(stats.Warnings);  
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(3, stats.DirectoryDeletedCount);
       Assert.AreEqual(5, stats.FileDeletedCount);
@@ -92,6 +100,8 @@ namespace tests {
       var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
 
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
+      AssertExt.IsEmpty(stats.Errors);  
+      AssertExt.IsEmpty(stats.Warnings);  
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(5, stats.DirectoryDeletedCount);
     }
@@ -145,9 +155,20 @@ namespace tests {
 
       var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
       var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { QuietMode = true });
-
+      AssertExt.IsEmpty(stats.Errors);  
+      AssertExt.IsEmpty(stats.Warnings);  
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(0, stats.Errors.Count);
+    }
+
+  }
+  public static class AssertExt {
+    public static void IsEmpty<T>(IEnumerable<T> collection) {
+      var list = collection as IReadOnlyCollection<T> ?? collection.ToList();
+      if (list.Count > 0) {
+        Assert.Fail(
+          $"Expected collection to be empty, but contained ({list.Count} items): [{string.Join(", ", list)}]");
+      }
     }
   }
 }

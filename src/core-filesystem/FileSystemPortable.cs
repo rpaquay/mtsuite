@@ -168,7 +168,7 @@ public class FileSystemPortable : IFileSystem {
 
     public void DeleteEntry(FileSystemEntry entry) {
       RemoveAccessDeniedAttributes(entry);
-      if (entry.IsDirectory && !entry.IsReparsePoint) {
+      if (entry.IsRegularDirectory) {
         Directory.Delete(entry.Path.GetFullName(_fullNameBufferPool), recursive: false);
       } else {
         File.Delete(entry.Path.GetFullName(_fullNameBufferPool));
