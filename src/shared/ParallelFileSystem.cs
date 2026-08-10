@@ -134,11 +134,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     IFileComparer fileComparer, bool dryRun) {
     ArgumentNullException.ThrowIfNull(fileComparer);
 
-    // CompactDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Run(async () => {
-      await CompactDirectoryEntriesAsync(sourceDirectory, destinationDirectory, fileComparer, dryRun)
-        .ConfigureAwait(false);
-    });
+    return CompactDirectoryAsyncImpl(sourceDirectory, destinationDirectory, fileComparer, dryRun);
   }
 
   public Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
@@ -173,7 +169,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var state = new TraverseDirectoryState<T>(this, directoryEntry, collector, taskListPool, followLinks, depth);
 
     // TraverseDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartNewTask(state,
+    return Task.Factory.StartDetachedTask(state,
       static stateObj => {
         var s = (TraverseDirectoryState<T>)stateObj!;
         return s.FileSystem.TraverseDirectoryEntriesAsync(
@@ -272,7 +268,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       useCloneFile);
 
     // CopyDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartNewTask(state,
+    return Task.Factory.StartDetachedTask(state,
       static stateObj => {
         var s = (CopyDirectoryState)stateObj!;
         return s.FileSystem.CopyDirectoryEntriesAsync(
@@ -375,6 +371,24 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     await finalTask.ConfigureAwait(false);
   }
 
+  private Task CompactDirectoryAsyncImpl(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
+    IFileComparer fileComparer, bool dryRun) {
+    ArgumentNullException.ThrowIfNull(fileComparer);
+
+    var state = new CompactDirectoryState(this, sourceDirectory, destinationDirectory, fileComparer, dryRun);
+
+    // CompactDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
+    return Task.Factory.StartDetachedTask(state,
+      static stateObj => {
+        var s = (CompactDirectoryState)stateObj!;
+        return s.FileSystem.CompactDirectoryEntriesAsync(
+          s.SourceDirectory,
+          s.DestinationDirectory,
+          s.FileComparer,
+          s.DryRun);
+      }).Unwrap();
+  }
+
   private async Task CompactDirectoryEntriesAsync(
     FileSystemEntry sourceDirectory,
     FileSystemEntry destinationDirectory,
@@ -384,22 +398,18 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     Task? additionalTask = null;
     {
       OnDirectoryTraversing(sourceDirectory);
-
       // Enumerate entries in source directory
       using var optionalSourceEntries = GetDirectoryEntries(sourceDirectory);
-
       // Enumerate entries in destination directory
       using var optionalDestinationEntries = GetDirectoryEntries(destinationDirectory);
-
       OnDirectoryTraversed(sourceDirectory, optionalSourceEntries?.Item);
-
       if (optionalSourceEntries == null || optionalDestinationEntries == null) {
         // Bail out if error enumerating files in directories
         return;
       }
-
       var sourceEntries = optionalSourceEntries.Value;
       var destinationEntries = optionalDestinationEntries.Value;
+
       using var destinationSet = _entrySetPool.AllocateFrom();
       destinationSet.Item.SetList(destinationEntries.Item);
 
@@ -411,7 +421,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
             PerformOrScheduleCloneFileIfNeeded(sourceEntry, destinationEntry, fileComparer, dryRun, taskList.Item);
           }
           else if (sourceEntry.IsRegularDirectory && destinationEntry.IsRegularDirectory) {
-            taskList.Item.Add(CompactDirectoryAsync(sourceEntry, destinationEntry, fileComparer, dryRun));
+            taskList.Item.Add(CompactDirectoryAsyncImpl(sourceEntry, destinationEntry, fileComparer, dryRun));
           }
         }
       }
@@ -432,9 +442,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var continuationState = new DeleteDirectoryContinuationState(this, sourceDirectory, state);
 
     // DeleteDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartNewTask(continuationState,
+    return Task.Factory.StartDetachedTask(continuationState,
       static stateObj => {
-        var s = (DeleteDirectoryContinuationState)stateObj;
+        var s = (DeleteDirectoryContinuationState)stateObj!;
         return s.FileSystem.DeleteDirectoryEntriesAsync(s.SourceDirectory, s.State);
       }).Unwrap().ContinueWith(
       static (t, stateObj) => {
@@ -1029,10 +1039,17 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     CopyOptions Options,
     IFileComparer FileComparer,
     bool UseCloneFile);
+
+  private sealed record CompactDirectoryState(
+    ParallelFileSystem FileSystem,
+    FileSystemEntry SourceDirectory,
+    FileSystemEntry DestinationDirectory,
+    IFileComparer FileComparer,
+    bool DryRun);
 }
 
 public static class TaskFactoryExt {
-  public static Task<TResult> StartNewTask<TResult>(this TaskFactory taskFactory, object state, Func<object?, TResult> func) {
+  public static Task<TResult> StartDetachedTask<TResult>(this TaskFactory taskFactory, object state, Func<object?, TResult> func) {
     return taskFactory.StartNew(func, state, 
       CancellationToken.None,
       TaskCreationOptions.DenyChildAttach,
