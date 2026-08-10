@@ -139,16 +139,24 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     });
   }
   
-  public async Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
+  public Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
     if (entry.IsFile || entry.IsReparsePoint) {
       var deleted = DeleteSingleEntry(entry, includeFilter);
-      return deleted;
+      return Task.FromResult(deleted);
     } else if (entry.IsDirectory) {
       var state = new DeleteState(includeFilter);
-      await DeleteDirectoryAsync(entry, state).ConfigureAwait(false);
-      return state.AllEntriesDeleted;
+      return DeleteDirectoryAsync(entry, state).ContinueWith(
+        static (t, stateObj) => {
+          t.GetAwaiter().GetResult();
+          var s = (DeleteState)stateObj!;
+          return s.AllEntriesDeleted;
+        },
+        state,
+        CancellationToken.None,
+        TaskContinuationOptions.ExecuteSynchronously,
+        TaskScheduler.Default);
     } else {
-      return false;
+      return Task.FromResult(false);
     }
   }
 
@@ -406,16 +414,32 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   /// Delete all entries of <paramref name="sourceDirectory"/> recursively, including <paramref name="sourceDirectory"/> iself
   /// </summary>
   private Task DeleteDirectoryAsync(FileSystemEntry sourceDirectory, DeleteState state) {
+    var continuationState = new DeleteDirectoryContinuationState(this, sourceDirectory, state);
+
     // DeleteDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Run(async () => {
-      await DeleteDirectoryEntriesAsync(sourceDirectory, state).ConfigureAwait(false);
-      if (state.AllEntriesDeleted) {
-        var rootDeleted = DeleteSingleEntry(sourceDirectory, state.IncludeFilter);
-        if (!rootDeleted) {
-          state.ReportFailure();
-        }
-      }
-    });
+    return Task.Factory.StartNew(
+      static stateObj => {
+        var s = (DeleteDirectoryContinuationState)stateObj!;
+        return s.FileSystem.DeleteDirectoryEntriesAsync(s.SourceDirectory, s.State);
+      },
+      continuationState,
+      CancellationToken.None,
+      TaskCreationOptions.DenyChildAttach,
+      TaskScheduler.Default).Unwrap().ContinueWith(
+        static (t, stateObj) => {
+          t.GetAwaiter().GetResult();
+          var s = (DeleteDirectoryContinuationState)stateObj!;
+          if (s.State.AllEntriesDeleted) {
+            var rootDeleted = s.FileSystem.DeleteSingleEntry(s.SourceDirectory, s.State.IncludeFilter);
+            if (!rootDeleted) {
+              s.State.ReportFailure();
+            }
+          }
+        },
+        continuationState,
+        CancellationToken.None,
+        TaskContinuationOptions.ExecuteSynchronously,
+        TaskScheduler.Default);
   }
 
   /// <summary>
@@ -978,4 +1002,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
   }
+
+  private sealed record DeleteDirectoryContinuationState(
+    ParallelFileSystem FileSystem,
+    FileSystemEntry SourceDirectory,
+    DeleteState State);
 }
