@@ -111,6 +111,7 @@ namespace mtfind {
         Console.WriteLine("Searching files names matching pattern \"{0}\" under \"{1}\"", pattern, sourcePath.FullName);
         Console.WriteLine();
       }
+      _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(_progressMonitor, CreateFileNameMatcher(pattern, includeDir));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, followLinks);

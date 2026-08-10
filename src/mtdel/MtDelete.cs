@@ -138,6 +138,7 @@ I  Not content indexed Files  L  Reparse Points
         sourcePath.FullName);
 
       var includeFilter = CreateFilter(options);
+      _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
       // HACK: Notify of an extra directory discovered to get counters right.
       _progressMonitor.OnEntriesToDeleteDiscovered(rootEntry, new List<FileSystemEntry>(new[] {rootEntry}));

@@ -157,6 +157,7 @@ namespace mtinfo {
 
       Console.WriteLine("Collecting info from \"{0}\"", sourcePath.FullName);
       Console.WriteLine();
+      _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(options);
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector);

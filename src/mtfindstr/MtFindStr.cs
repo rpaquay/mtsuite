@@ -115,6 +115,7 @@ namespace mtfindstr {
           sourcePath.FullName);
         Console.WriteLine();
       }
+      _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
       var collector = new FindStrSummaryCollector(_progressMonitor, CreateFileNameMatchers(fileNamePatterns), CreateFindStrMatcher(searchPattern));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
