@@ -45,5 +45,5 @@ public interface IFileSystemExtension {
   /// <summary>
   /// Delete all entries of <paramref name="directory"/> that are allowed by <paramref name="entries"/>
   /// </summary>
-  void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries);
+  void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null);
 }

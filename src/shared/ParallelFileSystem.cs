@@ -441,50 +441,75 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var sourceEntries = optionalSourceEntries.Value;
     OnEntriesToDeleteDiscovered(sourceDirectory, sourceEntries.Item);
     
-    // Delete files, links and subdirectories
-#if false
     var allEntriesDeleted = true;
     using var deleteSubDirTaskList = _boolTaskListPool.AllocateFrom();
+    using var subDirEntries = _entryListPool.AllocateFrom();
+    using var batchDeleteList = _entryListPool.AllocateFrom();
+
     foreach (var entry in sourceEntries.Item) {
       if (entry.IsRegularDirectory) {
-        deleteSubDirTaskList.Item.Add(DeleteDirectoryEntriesAsync(entry, includeFilter));
+        subDirEntries.Item.Add(entry);
+        deleteSubDirTaskList.Item.Add(Task.Run(() => DeleteDirectoryEntriesAsync(entry, includeFilter)));
+      } else if (entry.IsFile || entry.IsReparsePoint) {
+        if (includeFilter(entry)) {
+          batchDeleteList.Item.Add(entry);
+        } else {
+          allEntriesDeleted = false;
+        }
       }
     }
+
     if (deleteSubDirTaskList.Item.Count > 0) {
       var results = await Task.WhenAll(deleteSubDirTaskList.Item).ConfigureAwait(false);
-      //TODO
-      //var allDeleted = results.All(static allEntriesDeleted => allEntriesDeleted);
-      //if (!allDeleted) {}
-    }
-    _fileSystem.Extension.DeleteDirectoryEntries(sourceDirectory, sourceEntries.Item);
-#else
-    var allEntriesDeleted = true;
-    Task<bool>? additionalTask = null;
-    {
-      using var deleteSubDirTaskList = _boolTaskListPool.AllocateFrom();
-      foreach (var entry in sourceEntries.Item) {
-        if (entry.IsFile || entry.IsReparsePoint) {
-          if (!DeleteSingleEntry(entry, includeFilter)) {
+      for (int i = 0; i < results.Length; i++) {
+        var dirEntry = subDirEntries.Item[i];
+        if (results[i]) {
+          if (includeFilter(dirEntry)) {
+            batchDeleteList.Item.Add(dirEntry);
+          } else {
             allEntriesDeleted = false;
           }
+        } else {
+          allEntriesDeleted = false;
         }
-        else if (entry.IsRegularDirectory) {
-          deleteSubDirTaskList.Item.Add(DeleteDirectoryAsync(entry, includeFilter));
-        }
-      }
-      if (deleteSubDirTaskList.Item.Count > 0) {
-        additionalTask = Task.WhenAll(deleteSubDirTaskList.Item).ContinueWith(static results => {
-          return results.Result.All(static allEntriesDeleted => allEntriesDeleted);
-        });
       }
     }
-    if (additionalTask != null) {
-      var additionalTaskAllEntriesDeleted = await additionalTask.ConfigureAwait(false);
-      if (!additionalTaskAllEntriesDeleted) {
+
+    if (batchDeleteList.Item.Count > 0) {
+      var sw = _stopwatchFactory.Create();
+      foreach (var entry in batchDeleteList.Item) {
+        OnEntryDeleting(entry);
+      }
+
+      using var failedEntries = _entryListPool.AllocateFrom();
+      try {
+        _fileSystem.Extension.DeleteDirectoryEntries(
+          sourceDirectory,
+          batchDeleteList.Item,
+          onError: (entry, ex) => {
+            failedEntries.Item.Add(entry);
+            OnError(entry.Path, ex);
+          });
+      } catch (Exception ex) {
+        OnError(sourceDirectory.Path, ex);
         allEntriesDeleted = false;
       }
+
+      if (failedEntries.Item.Count > 0) {
+        allEntriesDeleted = false;
+        using var failedSet = _entrySetPool.AllocateFrom();
+        failedSet.Item.SetList(failedEntries.Item);
+        foreach (var entry in batchDeleteList.Item) {
+          if (!failedSet.Item.Contains(entry)) {
+            OnEntryDeleted(entry, sw.Elapsed);
+          }
+        }
+      } else {
+        foreach (var entry in batchDeleteList.Item) {
+          OnEntryDeleted(entry, sw.Elapsed);
+        }
+      }
     }
-#endif
     OnEntriesToDeleteProcessed(sourceDirectory, sourceEntries.Item);
     return allEntriesDeleted;
   }

@@ -54,7 +54,8 @@ public sealed class PosixFileSystemExtension {
     FileSystemEntry directory,
     IReadOnlyList<FileSystemEntry> entries,
     int openDirectoryFlags,
-    int atRemoveDirFlag) {
+    int atRemoveDirFlag,
+    Action<FileSystemEntry, Exception>? onError = null) {
     ArgumentNullException.ThrowIfNull(directory);
     ArgumentNullException.ThrowIfNull(entries);
 
@@ -77,7 +78,12 @@ public sealed class PosixFileSystemExtension {
         if (res != 0) {
           int errno = Marshal.GetLastPInvokeError();
           if (errno != ENOENT) {
-            throw new IOException($"Failed to unlink '{entry.Name}' in '{dirFullName}': errno {errno}");
+            var ex = new IOException($"Failed to unlink '{entry.Name}' in '{dirFullName}': errno {errno}");
+            if (onError != null) {
+              onError(entry, ex);
+            } else {
+              throw ex;
+            }
           }
         }
       }

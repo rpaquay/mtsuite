@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -77,8 +76,8 @@ namespace tests {
         }
       }
 
-      public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries) =>
-        _inner.Extension.DeleteDirectoryEntries(directory, entries);
+      public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception> onError = null) =>
+        _inner.Extension.DeleteDirectoryEntries(directory, entries, onError);
     }
 
     [TestInitialize]

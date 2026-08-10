@@ -251,7 +251,6 @@ namespace mtinfo {
       Console.WriteLine("  Total file size:          {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
       Console.WriteLine("  # entries/sec:            {0:n0}",
         statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
-
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       ProgramHelpers.DisplayErrors(statistics.Errors);
     }
