@@ -300,21 +300,22 @@ namespace tests {
 
       var fs = _fileSystemSetup.FileSystem;
       using var subEntries = fs.GetDirectoryFiles(subDir.Path);
+      object state = null;
       fs.Extension.DeleteDirectoryEntries<object>(
         fs.GetEntry(subDir.Path),
         subEntries.Item,
-        null,
-        static (entries, index, state) => {},
-        static (entries, index, ex, state) => {});
+        ref state,
+        static (System.Collections.Generic.IReadOnlyList<mtsuite.CoreFileSystem.FileSystemEntry> entries, int index, ref object s) => true,
+        static (System.Collections.Generic.IReadOnlyList<mtsuite.CoreFileSystem.FileSystemEntry> entries, int index, Exception ex, ref object s) => {});
       Assert.IsFalse(subFile.Exists());
 
       using var rootEntries = fs.GetDirectoryFiles(root.Path);
       fs.Extension.DeleteDirectoryEntries<object>(
         fs.GetEntry(root.Path),
         rootEntries.Item,
-        null,
-        static (entries, index, state) => {},
-        static (entries, index, ex, state) => {});
+        ref state,
+        static (System.Collections.Generic.IReadOnlyList<mtsuite.CoreFileSystem.FileSystemEntry> entries, int index, ref object s) => true,
+        static (System.Collections.Generic.IReadOnlyList<mtsuite.CoreFileSystem.FileSystemEntry> entries, int index, Exception ex, ref object s) => {});
 
       Assert.IsFalse(file1.Exists());
       Assert.IsFalse(file2.Exists());
@@ -337,12 +338,13 @@ namespace tests {
       using var rootEntries = fs.GetDirectoryFiles(root.Path);
       // Filter to just the links
       var linksOnly = rootEntries.Item.FindAll(e => e.IsReparsePoint);
+      object state = null;
       fs.Extension.DeleteDirectoryEntries<object>(
         fs.GetEntry(root.Path),
         linksOnly,
-        null,
-        static (entries, index, state) => {},
-        static (entries, index, ex, state) => {});
+        ref state,
+        static (System.Collections.Generic.IReadOnlyList<mtsuite.CoreFileSystem.FileSystemEntry> entries, int index, ref object s) => true,
+        static (System.Collections.Generic.IReadOnlyList<mtsuite.CoreFileSystem.FileSystemEntry> entries, int index, Exception ex, ref object s) => {});
 
       Assert.IsFalse(linkDir.Exists());
       Assert.IsFalse(linkFile.Exists());

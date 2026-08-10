@@ -49,7 +49,7 @@ public interface IFileSystemExtension {
   bool DeleteDirectoryEntries<TState>(
     FileSystemEntry directory,
     IReadOnlyList<FileSystemEntry> entries,
-    TState state,
+    ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete);
 }
@@ -57,10 +57,10 @@ public interface IFileSystemExtension {
 /// <summary>
 /// Callback invoked before an entry is deleted.
 /// </summary>
-public delegate void BeforeDeleteEntryCallback<TState>(
+public delegate bool BeforeDeleteEntryCallback<TState>(
   IReadOnlyList<FileSystemEntry> entries,
   int entryIndex,
-  TState state);
+  ref TState state);
 
 /// <summary>
 /// Callback invoked after an entry is deleted (with an optional exception if it failed).
@@ -69,4 +69,4 @@ public delegate void AfterDeleteEntryCallback<TState>(
   IReadOnlyList<FileSystemEntry> entries,
   int entryIndex,
   Exception? exception,
-  TState state);
+  ref TState state);

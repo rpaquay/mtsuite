@@ -53,8 +53,8 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
   public bool DeleteDirectoryEntries<TState>(
     FileSystemEntry directory,
     IReadOnlyList<FileSystemEntry> entries,
-    TState state,
+    ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
-    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, state, beforeDelete, afterDelete);
+    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, ref state, beforeDelete, afterDelete);
 }

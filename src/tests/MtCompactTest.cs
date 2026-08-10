@@ -79,10 +79,10 @@ namespace tests {
       public bool DeleteDirectoryEntries<TState>(
         FileSystemEntry directory,
         IReadOnlyList<FileSystemEntry> entries,
-        TState state,
+        ref TState state,
         BeforeDeleteEntryCallback<TState> beforeDelete,
         AfterDeleteEntryCallback<TState> afterDelete) =>
-        _inner.Extension.DeleteDirectoryEntries(directory, entries, state, beforeDelete, afterDelete);
+        _inner.Extension.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
     }
 
     [TestInitialize]

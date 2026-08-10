@@ -46,9 +46,9 @@ public class NullFileSystemExtension : IFileSystemExtension {
   public bool DeleteDirectoryEntries<TState>(
     FileSystemEntry directory,
     IReadOnlyList<FileSystemEntry> entries,
-    TState state,
+    ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) {
-    return _portableHelper.DeleteDirectoryEntries(directory, entries, state, beforeDelete, afterDelete);
+    return _portableHelper.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
   }
 }

@@ -37,7 +37,7 @@ public sealed class PortableFileSystemExtensionHelper {
   public bool DeleteDirectoryEntries<TState>(
     FileSystemEntry directory,
     IReadOnlyList<FileSystemEntry> entries,
-    TState state,
+    ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) {
     ArgumentNullException.ThrowIfNull(directory);
@@ -52,21 +52,21 @@ public sealed class PortableFileSystemExtensionHelper {
       var entry = entries[i];
       string fullName = entry.Path.GetFullName(_fullNameBufferPool);
 
-      beforeDelete(entries, i, state);
-
-      try {
-        if (entry.IsFile || entry.IsReparsePoint) {
-          if (entry.IsReadOnly) {
-            try { File.SetAttributes(fullName, FileAttributes.Normal); } catch { }
+      if (beforeDelete(entries, i, ref state)) {
+        try {
+          if (entry.IsFile || entry.IsReparsePoint) {
+            if (entry.IsReadOnly) {
+              try { File.SetAttributes(fullName, FileAttributes.Normal); } catch { }
+            }
+            File.Delete(fullName);
+          } else if (entry.IsRegularDirectory) {
+            Directory.Delete(fullName, recursive: false);
           }
-          File.Delete(fullName);
-        } else if (entry.IsRegularDirectory) {
-          Directory.Delete(fullName, recursive: false);
+          afterDelete(entries, i, null, ref state);
+        } catch (Exception ex) {
+          afterDelete(entries, i, ex, ref state);
+          allSuccess = false;
         }
-        afterDelete(entries, i, null, state);
-      } catch (Exception ex) {
-        afterDelete(entries, i, ex, state);
-        allSuccess = false;
       }
     }
     return allSuccess;

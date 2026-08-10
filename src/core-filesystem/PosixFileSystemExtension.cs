@@ -55,7 +55,7 @@ public sealed class PosixFileSystemExtension {
     IReadOnlyList<FileSystemEntry> entries,
     int openDirectoryFlags,
     int atRemoveDirFlag,
-    TState state,
+    ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) {
     ArgumentNullException.ThrowIfNull(directory);
@@ -77,21 +77,21 @@ public sealed class PosixFileSystemExtension {
       for (int i = 0; i < entries.Count; i++) {
         var entry = entries[i];
 
-        beforeDelete(entries, i, state);
-
-        int flags = entry.IsRegularDirectory ? atRemoveDirFlag : 0;
-        int res = unlinkat(dirFd, entry.Name, flags);
-        if (res != 0) {
-          int errno = Marshal.GetLastPInvokeError();
-          if (errno != ENOENT) {
-            var ex = new IOException($"Failed to unlink '{entry.Name}' in '{dirFullName}': errno {errno}");
-            afterDelete(entries, i, ex, state);
-            allSuccess = false;
+        if (beforeDelete(entries, i, ref state)) {
+          int flags = entry.IsRegularDirectory ? atRemoveDirFlag : 0;
+          int res = unlinkat(dirFd, entry.Name, flags);
+          if (res != 0) {
+            int errno = Marshal.GetLastPInvokeError();
+            if (errno != ENOENT) {
+              var ex = new IOException($"Failed to unlink '{entry.Name}' in '{dirFullName}': errno {errno}");
+              afterDelete(entries, i, ex, ref state);
+              allSuccess = false;
+            } else {
+              afterDelete(entries, i, null, ref state);
+            }
           } else {
-            afterDelete(entries, i, null, state);
+            afterDelete(entries, i, null, ref state);
           }
-        } else {
-          afterDelete(entries, i, null, state);
         }
       }
       return allSuccess;

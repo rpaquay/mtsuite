@@ -48,8 +48,8 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
   public bool DeleteDirectoryEntries<TState>(
     FileSystemEntry directory,
     IReadOnlyList<FileSystemEntry> entries,
-    TState state,
+    ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
-    _portableHelper.DeleteDirectoryEntries(directory, entries, state, beforeDelete, afterDelete);
+    _portableHelper.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
 }
