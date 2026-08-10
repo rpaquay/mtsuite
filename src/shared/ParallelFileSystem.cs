@@ -429,10 +429,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   /// </summary>
   private async Task<bool> DeleteDirectoryEntriesAsync(FileSystemEntry sourceDirectory, Func<FileSystemEntry, bool> includeFilter) {
     //
-    // Enumerate entries in source directory
+    // 1. Enumerate entries in source directory
     //
     OnEntriesToDeleteDiscovering(sourceDirectory);
-    //OnEntriesDiscovering(sourceDirectory);
     using var optionalSourceEntries = GetDirectoryEntries(sourceDirectory);
     if (optionalSourceEntries == null) {
       // Bail out if error enumerating files in source directory
@@ -446,6 +445,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     using var subDirEntries = _entryListPool.AllocateFrom();
     using var batchDeleteList = _entryListPool.AllocateFrom();
 
+    //
+    // 2. Create tasks for subdirectories and list of non-directory entries ("batchDeleteList")
+    //
     foreach (var entry in sourceEntries.Item) {
       if (entry.IsRegularDirectory) {
         subDirEntries.Item.Add(entry);
@@ -459,6 +461,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
 
+    //
+    // 3. Wait for all subdirectories tasks to complete
+    //
     if (deleteSubDirTaskList.Item.Count > 0) {
       var results = await Task.WhenAll(deleteSubDirTaskList.Item).ConfigureAwait(false);
       for (int i = 0; i < results.Length; i++) {
@@ -475,39 +480,35 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
     }
 
+    //
+    // 4. Delete entries in "batchDeleteList", knowing all subdirectories are empty and can be deleted.
+    //
     if (batchDeleteList.Item.Count > 0) {
       var sw = _stopwatchFactory.Create();
-      foreach (var entry in batchDeleteList.Item) {
-        OnEntryDeleting(entry);
-      }
-
-      using var failedEntries = _entryListPool.AllocateFrom();
+      var state = new DeleteDirectoryEntriesState(this, sw);
       try {
-        _fileSystem.Extension.DeleteDirectoryEntries(
+        var success = _fileSystem.Extension.DeleteDirectoryEntries(
           sourceDirectory,
           batchDeleteList.Item,
-          onError: (entry, ex) => {
-            failedEntries.Item.Add(entry);
-            OnError(entry.Path, ex);
+          state,
+          beforeDelete: static (entries, index, s) => {
+            s.Instance.OnEntryDeleting(entries[index]);
+          },
+          afterDelete: static (entries, index, ex, s) => {
+            var entry = entries[index];
+            if (ex == null) {
+              s.Instance.OnEntryDeleted(entry, s.Stopwatch.Elapsed);
+            } else {
+              s.Instance.OnError(entry.Path, ex);
+            }
           });
+
+        if (!success) {
+          allEntriesDeleted = false;
+        }
       } catch (Exception ex) {
         OnError(sourceDirectory.Path, ex);
         allEntriesDeleted = false;
-      }
-
-      if (failedEntries.Item.Count > 0) {
-        allEntriesDeleted = false;
-        using var failedSet = _entrySetPool.AllocateFrom();
-        failedSet.Item.SetList(failedEntries.Item);
-        foreach (var entry in batchDeleteList.Item) {
-          if (!failedSet.Item.Contains(entry)) {
-            OnEntryDeleted(entry, sw.Elapsed);
-          }
-        }
-      } else {
-        foreach (var entry in batchDeleteList.Item) {
-          OnEntryDeleted(entry, sw.Elapsed);
-        }
       }
     }
     OnEntriesToDeleteProcessed(sourceDirectory, sourceEntries.Item);
@@ -943,6 +944,11 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   }
 
   private readonly struct CompareFileData(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
+    public ParallelFileSystem Instance { get; } = instance;
+    public NoAllocStopwatch Stopwatch { get; } = stopwatch;
+  }
+
+  private readonly struct DeleteDirectoryEntriesState(ParallelFileSystem instance, NoAllocStopwatch stopwatch) {
     public ParallelFileSystem Instance { get; } = instance;
     public NoAllocStopwatch Stopwatch { get; } = stopwatch;
   }

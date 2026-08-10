@@ -76,8 +76,13 @@ namespace tests {
         }
       }
 
-      public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception> onError = null) =>
-        _inner.Extension.DeleteDirectoryEntries(directory, entries, onError);
+      public bool DeleteDirectoryEntries<TState>(
+        FileSystemEntry directory,
+        IReadOnlyList<FileSystemEntry> entries,
+        TState state,
+        BeforeDeleteEntryCallback<TState> beforeDelete,
+        AfterDeleteEntryCallback<TState> afterDelete) =>
+        _inner.Extension.DeleteDirectoryEntries(directory, entries, state, beforeDelete, afterDelete);
     }
 
     [TestInitialize]

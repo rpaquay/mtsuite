@@ -45,6 +45,11 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     throw new PlatformNotSupportedException("File cloning is not yet implemented for Windows (ReFS block cloning).");
   }
 
-  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null) =>
-    _portableHelper.DeleteDirectoryEntries(directory, entries, onError);
+  public bool DeleteDirectoryEntries<TState>(
+    FileSystemEntry directory,
+    IReadOnlyList<FileSystemEntry> entries,
+    TState state,
+    BeforeDeleteEntryCallback<TState> beforeDelete,
+    AfterDeleteEntryCallback<TState> afterDelete) =>
+    _portableHelper.DeleteDirectoryEntries(directory, entries, state, beforeDelete, afterDelete);
 }

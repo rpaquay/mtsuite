@@ -43,7 +43,30 @@ public interface IFileSystemExtension {
   void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath);
   
   /// <summary>
-  /// Delete all entries of <paramref name="directory"/> that are allowed by <paramref name="entries"/>
+  /// Delete all entries of <paramref name="directory"/> that are allowed by <paramref name="entries"/>,
+  /// calling beforeDelete and afterDelete callbacks for each entry to avoid lambda delegate allocations.
   /// </summary>
-  void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null);
+  bool DeleteDirectoryEntries<TState>(
+    FileSystemEntry directory,
+    IReadOnlyList<FileSystemEntry> entries,
+    TState state,
+    BeforeDeleteEntryCallback<TState> beforeDelete,
+    AfterDeleteEntryCallback<TState> afterDelete);
 }
+
+/// <summary>
+/// Callback invoked before an entry is deleted.
+/// </summary>
+public delegate void BeforeDeleteEntryCallback<TState>(
+  IReadOnlyList<FileSystemEntry> entries,
+  int entryIndex,
+  TState state);
+
+/// <summary>
+/// Callback invoked after an entry is deleted (with an optional exception if it failed).
+/// </summary>
+public delegate void AfterDeleteEntryCallback<TState>(
+  IReadOnlyList<FileSystemEntry> entries,
+  int entryIndex,
+  Exception? exception,
+  TState state);

@@ -50,6 +50,11 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
     throw new PlatformNotSupportedException("File cloning is not yet implemented for Linux (FICLONE).");
   }
 
-  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null) =>
-    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, onError);
+  public bool DeleteDirectoryEntries<TState>(
+    FileSystemEntry directory,
+    IReadOnlyList<FileSystemEntry> entries,
+    TState state,
+    BeforeDeleteEntryCallback<TState> beforeDelete,
+    AfterDeleteEntryCallback<TState> afterDelete) =>
+    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, state, beforeDelete, afterDelete);
 }

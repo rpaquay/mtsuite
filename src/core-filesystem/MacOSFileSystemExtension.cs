@@ -186,6 +186,11 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
     }
   }
 
-  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null) =>
-    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, onError);
+  public bool DeleteDirectoryEntries<TState>(
+    FileSystemEntry directory,
+    IReadOnlyList<FileSystemEntry> entries,
+    TState state,
+    BeforeDeleteEntryCallback<TState> beforeDelete,
+    AfterDeleteEntryCallback<TState> afterDelete) =>
+    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, state, beforeDelete, afterDelete);
 }

@@ -43,7 +43,12 @@ public class NullFileSystemExtension : IFileSystemExtension {
     throw new PlatformNotSupportedException("File cloning is not supported on this platform/filesystem.");
   }
 
-  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null) {
-    _portableHelper.DeleteDirectoryEntries(directory, entries, onError);
+  public bool DeleteDirectoryEntries<TState>(
+    FileSystemEntry directory,
+    IReadOnlyList<FileSystemEntry> entries,
+    TState state,
+    BeforeDeleteEntryCallback<TState> beforeDelete,
+    AfterDeleteEntryCallback<TState> afterDelete) {
+    return _portableHelper.DeleteDirectoryEntries(directory, entries, state, beforeDelete, afterDelete);
   }
 }

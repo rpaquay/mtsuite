@@ -34,17 +34,25 @@ public sealed class PortableFileSystemExtensionHelper {
     _fullNameBufferPool = fullNameBufferPool;
   }
 
-  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries, Action<FileSystemEntry, Exception>? onError = null) {
+  public bool DeleteDirectoryEntries<TState>(
+    FileSystemEntry directory,
+    IReadOnlyList<FileSystemEntry> entries,
+    TState state,
+    BeforeDeleteEntryCallback<TState> beforeDelete,
+    AfterDeleteEntryCallback<TState> afterDelete) {
     ArgumentNullException.ThrowIfNull(directory);
     ArgumentNullException.ThrowIfNull(entries);
 
     if (entries.Count == 0) {
-      return;
+      return true;
     }
 
+    var allSuccess = true;
     for (int i = 0; i < entries.Count; i++) {
       var entry = entries[i];
       string fullName = entry.Path.GetFullName(_fullNameBufferPool);
+
+      beforeDelete(entries, i, state);
 
       try {
         if (entry.IsFile || entry.IsReparsePoint) {
@@ -55,13 +63,12 @@ public sealed class PortableFileSystemExtensionHelper {
         } else if (entry.IsRegularDirectory) {
           Directory.Delete(fullName, recursive: false);
         }
+        afterDelete(entries, i, null, state);
       } catch (Exception ex) {
-        if (onError != null) {
-          onError(entry, ex);
-        } else {
-          throw;
-        }
+        afterDelete(entries, i, ex, state);
+        allSuccess = false;
       }
     }
+    return allSuccess;
   }
 }

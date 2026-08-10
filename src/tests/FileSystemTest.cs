@@ -300,11 +300,21 @@ namespace tests {
 
       var fs = _fileSystemSetup.FileSystem;
       using var subEntries = fs.GetDirectoryFiles(subDir.Path);
-      fs.Extension.DeleteDirectoryEntries(fs.GetEntry(subDir.Path), subEntries.Item);
+      fs.Extension.DeleteDirectoryEntries<object>(
+        fs.GetEntry(subDir.Path),
+        subEntries.Item,
+        null,
+        static (entries, index, state) => {},
+        static (entries, index, ex, state) => {});
       Assert.IsFalse(subFile.Exists());
 
       using var rootEntries = fs.GetDirectoryFiles(root.Path);
-      fs.Extension.DeleteDirectoryEntries(fs.GetEntry(root.Path), rootEntries.Item);
+      fs.Extension.DeleteDirectoryEntries<object>(
+        fs.GetEntry(root.Path),
+        rootEntries.Item,
+        null,
+        static (entries, index, state) => {},
+        static (entries, index, ex, state) => {});
 
       Assert.IsFalse(file1.Exists());
       Assert.IsFalse(file2.Exists());
@@ -327,7 +337,12 @@ namespace tests {
       using var rootEntries = fs.GetDirectoryFiles(root.Path);
       // Filter to just the links
       var linksOnly = rootEntries.Item.FindAll(e => e.IsReparsePoint);
-      fs.Extension.DeleteDirectoryEntries(fs.GetEntry(root.Path), linksOnly);
+      fs.Extension.DeleteDirectoryEntries<object>(
+        fs.GetEntry(root.Path),
+        linksOnly,
+        null,
+        static (entries, index, state) => {},
+        static (entries, index, ex, state) => {});
 
       Assert.IsFalse(linkDir.Exists());
       Assert.IsFalse(linkFile.Exists());
