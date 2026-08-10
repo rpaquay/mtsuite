@@ -25,6 +25,7 @@ namespace mtsuite.shared;
 
 public sealed class ParallelFileSystem : IParallelFileSystem {
   private readonly IFileSystem _fileSystem;
+  private readonly MtPoolFactory _poolFactory;
   private readonly long _largeFileAsyncThreshold;
   private readonly INoAllocStopwatchFactory _stopwatchFactory;
   private readonly IPool<List<FileSystemEntry>> _entryListPool;
@@ -61,6 +62,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     ArgumentNullException.ThrowIfNull(poolFactory);
     
     _fileSystem = fileSystem;
+    _poolFactory = poolFactory;
     _largeFileAsyncThreshold = largeFileAsyncThreshold;
     _stopwatchFactory = stopwatchFactory ?? NoAllocStopwatchFactory.Instance;
 
@@ -119,7 +121,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   public Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry, IDirectorCollector<T> collector,
     bool followLinks = false) {
     ArgumentNullException.ThrowIfNull(collector);
-    return TraverseDirectoryAsync(directoryEntry, collector, followLinks, 0);
+
+    var pool = _poolFactory.CreateList<Task<T>>("ParallelFileSystem.TaskList");
+    return TraverseDirectoryAsync(directoryEntry, collector, pool, followLinks, 0);
   }
 
   public Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
@@ -151,9 +155,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     return Task.FromResult(false);
   }
 
-  private async Task<T> TraverseDirectoryAsync<T>(
-    FileSystemEntry directoryEntry,
+  private async Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
+    IPool<List<Task<T>>> pool,
     bool followLinks,
     int depth) {
 
@@ -162,6 +166,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       var result = await TraverseDirectoryEntriesAsync(
         directoryEntry,
         collector,
+        pool,
         followLinks,
         depth).ConfigureAwait(false);
       
@@ -172,6 +177,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   private async Task<T> TraverseDirectoryEntriesAsync<T>(
     FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
+    IPool<List<Task<T>>> pool,
     bool followLinks,
     int depth) {
 
@@ -190,24 +196,23 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var additionalTask = collector.OnDirectoryEntriesEnumerated(_fileSystem, collectorItem, directoryEntry, entries.Item);
 
     // Create tasks for children directories
-    List<Task<T>>? childDirectoriesTasks = null;
+    using var childDirectoriesTasks = pool.AllocateFrom();
     foreach (var entry in entries.Item) {
       if (entry.IsDirectory) {
         bool isRealDirectory = !entry.IsReparsePoint;
         bool followDirectoryLink = entry.IsReparsePoint && followLinks;
         if (isRealDirectory || followDirectoryLink) {
-          childDirectoriesTasks ??= new List<Task<T>>();
-          childDirectoriesTasks.Add(TraverseDirectoryAsync(entry, collector, followLinks, depth + 1));
+          childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, pool, followLinks, depth + 1));
         }
       }
     }
 
-    if (additionalTask != null && !additionalTask.IsCompleted) {
+    if (!additionalTask.IsCompleted) {
       await additionalTask.ConfigureAwait(false);
     }
 
-    if (childDirectoriesTasks != null && childDirectoriesTasks.Count > 0) {
-      var childResults = await Task.WhenAll(childDirectoriesTasks).ConfigureAwait(false);
+    if (childDirectoriesTasks.Item.Count > 0) {
+      var childResults = await Task.WhenAll(childDirectoriesTasks.Item).ConfigureAwait(false);
       foreach (var childResult in childResults) {
         collector.OnDirectoryTraversed(_fileSystem, collectorItem, childResult);
       }
