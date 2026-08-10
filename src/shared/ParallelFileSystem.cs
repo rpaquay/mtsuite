@@ -155,23 +155,19 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     return Task.FromResult(false);
   }
 
-  private async Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry,
+  private Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
     IPool<List<Task<T>>> pool,
     bool followLinks,
     int depth) {
 
     // TraverseDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return await Task.Run(async () => {
-      var result = await TraverseDirectoryEntriesAsync(
-        directoryEntry,
-        collector,
-        pool,
-        followLinks,
-        depth).ConfigureAwait(false);
-      
-      return result;
-    }).ConfigureAwait(false);
+    return Task.Run(() => TraverseDirectoryEntriesAsync(
+      directoryEntry,
+      collector,
+      pool,
+      followLinks,
+      depth));
   }
 
   private async Task<T> TraverseDirectoryEntriesAsync<T>(
@@ -182,43 +178,47 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     int depth) {
 
     var collectorItem = collector.CreateItemForDirectory(_fileSystem, directoryEntry, depth);
-    
-    OnDirectoryTraversing(directoryEntry);
-    using var optionalEntries = GetDirectoryEntries(directoryEntry);
-    OnDirectoryTraversed(directoryEntry, optionalEntries?.Item);
 
-    if (optionalEntries == null) {
-      return collectorItem;
-    }
-    var entries = optionalEntries.Value;
-
-    // Notify collector and collect tasks for any returned actions
-    using var actionTasks = _taskListPool.AllocateFrom();
-    foreach (var entry in entries.Item) {
-      var action = collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
-      if (action != null) {
-        actionTasks.Item.Add(Task.Run(action));
+    Task<T[]>? whenAllTasks = null;
+    {
+      OnDirectoryTraversing(directoryEntry);
+      using var optionalEntries = GetDirectoryEntries(directoryEntry);
+      OnDirectoryTraversed(directoryEntry, optionalEntries?.Item);
+      if (optionalEntries == null) {
+        // If we did not find entries due to error, exit early
+        return collectorItem;
       }
-    }
 
-    // Create tasks for children directories
-    using var childDirectoriesTasks = pool.AllocateFrom();
-    foreach (var entry in entries.Item) {
-      if (entry.IsDirectory) {
-        bool isRealDirectory = !entry.IsReparsePoint;
-        bool followDirectoryLink = entry.IsReparsePoint && followLinks;
-        if (isRealDirectory || followDirectoryLink) {
-          childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, pool, followLinks, depth + 1));
+      var entries = optionalEntries.Value;
+
+      // Notify collector and collect tasks for any returned actions
+      foreach (var entry in entries.Item) {
+        var action = collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
+        if (action != null) {
+          // Run "action" inline
+          action();
         }
       }
+
+      // Create tasks for children directories
+      using var childDirectoriesTasks = pool.AllocateFrom();
+      foreach (var entry in entries.Item) {
+        if (entry.IsDirectory) {
+          bool isRealDirectory = !entry.IsReparsePoint;
+          bool followDirectoryLink = entry.IsReparsePoint && followLinks;
+          if (isRealDirectory || followDirectoryLink) {
+            childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, pool, followLinks, depth + 1));
+          }
+        }
+      }
+
+      if (childDirectoriesTasks.Item.Count > 0) {
+        whenAllTasks = Task.WhenAll(childDirectoriesTasks.Item);
+      }
     }
 
-    if (actionTasks.Item.Count > 0) {
-      await Task.WhenAll(actionTasks.Item).ConfigureAwait(false);
-    }
-
-    if (childDirectoriesTasks.Item.Count > 0) {
-      var childResults = await Task.WhenAll(childDirectoriesTasks.Item).ConfigureAwait(false);
+    if (whenAllTasks != null) {
+      var childResults = await whenAllTasks.ConfigureAwait(false);
       foreach (var childResult in childResults) {
         collector.OnDirectoryTraversed(_fileSystem, collectorItem, childResult);
       }
