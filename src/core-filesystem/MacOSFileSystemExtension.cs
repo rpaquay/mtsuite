@@ -15,6 +15,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using mtsuite.CoreFileSystem.ObjectPool;
@@ -28,6 +29,11 @@ namespace mtsuite.CoreFileSystem;
 public class MacOSFileSystemExtension : IFileSystemExtension {
   [DllImport("libSystem", EntryPoint = "clonefile", SetLastError = true)]
   private static extern int clonefile(string src, string dst, uint flags);
+
+  private const int O_RDONLY = 0x0000;
+  private const int O_DIRECTORY = 0x00100000;
+  private const int O_CLOEXEC = 0x01000000;
+  private const int AT_REMOVEDIR = 0x0080;
 
   // __fcntl is the non-variadic direct C entry point in libSystem.
   // Standard fcntl is a C variadic function (int fcntl(int, int, ...)) which on Apple Silicon (ARM64)
@@ -45,12 +51,13 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
   }
 
   private readonly IPool<StringBuffer> _fullNameBufferPool;
+  private readonly PosixFileSystemExtension _posix;
 
   public MacOSFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
     _fullNameBufferPool = poolFactory.Create("MacOSFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
+    _posix = new PosixFileSystemExtension(_fullNameBufferPool);
   }
-
 
   public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
     if (!OperatingSystem.IsMacOS()) {
@@ -178,4 +185,7 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
       }
     }
   }
+
+  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries) =>
+    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR);
 }

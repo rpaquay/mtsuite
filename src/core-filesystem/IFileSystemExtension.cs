@@ -14,6 +14,10 @@
 
 #nullable enable
 
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 namespace mtsuite.CoreFileSystem;
 
 /// <summary>
@@ -37,4 +41,9 @@ public interface IFileSystemExtension {
   /// Throws an exception if cloning is not supported or fails.
   /// </summary>
   void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath);
+  
+  /// <summary>
+  /// Delete all entries of <paramref name="directory"/> that are allowed by <paramref name="entries"/>
+  /// </summary>
+  void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries);
 }

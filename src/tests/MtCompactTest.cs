@@ -76,6 +76,9 @@ namespace tests {
           return AlreadyClonedPairs.Contains((file1.Path.FullName, file2.Path.FullName));
         }
       }
+
+      public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries) =>
+        _inner.Extension.DeleteDirectoryEntries(directory, entries);
     }
 
     [TestInitialize]

@@ -442,6 +442,22 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     OnEntriesToDeleteDiscovered(sourceDirectory, sourceEntries.Item);
     
     // Delete files, links and subdirectories
+#if false
+    var allEntriesDeleted = true;
+    using var deleteSubDirTaskList = _boolTaskListPool.AllocateFrom();
+    foreach (var entry in sourceEntries.Item) {
+      if (entry.IsRegularDirectory) {
+        deleteSubDirTaskList.Item.Add(DeleteDirectoryEntriesAsync(entry, includeFilter));
+      }
+    }
+    if (deleteSubDirTaskList.Item.Count > 0) {
+      var results = await Task.WhenAll(deleteSubDirTaskList.Item).ConfigureAwait(false);
+      //TODO
+      //var allDeleted = results.All(static allEntriesDeleted => allEntriesDeleted);
+      //if (!allDeleted) {}
+    }
+    _fileSystem.Extension.DeleteDirectoryEntries(sourceDirectory, sourceEntries.Item);
+#else
     var allEntriesDeleted = true;
     Task<bool>? additionalTask = null;
     {
@@ -458,7 +474,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
       if (deleteSubDirTaskList.Item.Count > 0) {
         additionalTask = Task.WhenAll(deleteSubDirTaskList.Item).ContinueWith(static results => {
-          return results.Result.Any(allEntriesDeleted => !allEntriesDeleted);
+          return results.Result.All(static allEntriesDeleted => allEntriesDeleted);
         });
       }
     }
@@ -468,7 +484,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
         allEntriesDeleted = false;
       }
     }
-
+#endif
     OnEntriesToDeleteProcessed(sourceDirectory, sourceEntries.Item);
     return allEntriesDeleted;
   }

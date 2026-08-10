@@ -291,8 +291,54 @@ namespace tests {
     }
 
     [TestMethod]
+    public void Extension_DeleteDirectoryEntries_DeletesFilesAndDirectories() {
+      var root = _fileSystemSetup.Root;
+      var file1 = root.CreateFile("file1.txt", 10);
+      var file2 = root.CreateFile("file2.txt", 20);
+      var subDir = root.CreateDirectory("subDir");
+      var subFile = subDir.CreateFile("subFile.txt", 5);
+
+      var fs = _fileSystemSetup.FileSystem;
+      using var subEntries = fs.GetDirectoryFiles(subDir.Path);
+      fs.Extension.DeleteDirectoryEntries(fs.GetEntry(subDir.Path), subEntries.Item);
+      Assert.IsFalse(subFile.Exists());
+
+      using var rootEntries = fs.GetDirectoryFiles(root.Path);
+      fs.Extension.DeleteDirectoryEntries(fs.GetEntry(root.Path), rootEntries.Item);
+
+      Assert.IsFalse(file1.Exists());
+      Assert.IsFalse(file2.Exists());
+      Assert.IsFalse(subDir.Exists());
+    }
+
+    [TestMethod]
+    public void Extension_DeleteDirectoryEntries_DeletesSymbolicLinksWithoutDeletingTarget() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported.");
+      }
+
+      var root = _fileSystemSetup.Root;
+      var targetDir = root.CreateDirectory("targetDir");
+      var targetFile = targetDir.CreateFile("target.txt", 10);
+      var linkDir = root.CreateDirectoryLink("linkDir", "targetDir");
+      var linkFile = root.CreateFileLink("linkFile.txt", "targetDir/target.txt");
+
+      var fs = _fileSystemSetup.FileSystem;
+      using var rootEntries = fs.GetDirectoryFiles(root.Path);
+      // Filter to just the links
+      var linksOnly = rootEntries.Item.FindAll(e => e.IsReparsePoint);
+      fs.Extension.DeleteDirectoryEntries(fs.GetEntry(root.Path), linksOnly);
+
+      Assert.IsFalse(linkDir.Exists());
+      Assert.IsFalse(linkFile.Exists());
+      Assert.IsTrue(targetDir.Exists());
+      Assert.IsTrue(targetFile.Exists());
+    }
+
+    [TestMethod]
     public void NullFileSystemExtensionBehavesSafely() {
-      var nullExt = new mtsuite.CoreFileSystem.NullFileSystemExtension();
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var nullExt = new mtsuite.CoreFileSystem.NullFileSystemExtension(poolFactory);
       Assert.IsFalse(nullExt.IsCloningSupported(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
       Assert.IsFalse(nullExt.AreFilesCloned(default(mtsuite.CoreFileSystem.FileSystemEntry), default(mtsuite.CoreFileSystem.FileSystemEntry)));
       Assert.ThrowsException<PlatformNotSupportedException>(() =>

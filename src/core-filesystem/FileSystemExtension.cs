@@ -37,6 +37,6 @@ public static class FileSystemExtension {
     if (OperatingSystem.IsWindows()) {
       return new WindowsFileSystemExtension(poolFactory);
     }
-    return new NullFileSystemExtension();
+    return new NullFileSystemExtension(poolFactory);
   }
 }

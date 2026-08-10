@@ -15,7 +15,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem;
 
@@ -23,11 +25,13 @@ namespace mtsuite.CoreFileSystem;
 /// Windows implementation of <see cref="IFileSystemExtension"/>.
 /// </summary>
 public class WindowsFileSystemExtension : IFileSystemExtension {
-  private readonly MtPoolFactory _poolFactory;
+  private readonly PortableFileSystemExtensionHelper _portableHelper;
 
   public WindowsFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
-    _poolFactory = poolFactory;
+    var fullNameBufferPool = poolFactory.Create("WindowsFileSystemExtension.FullNameBuffer",
+      static () => new StringBuffer(), static sb => sb.Clear());
+    _portableHelper = new PortableFileSystemExtensionHelper(fullNameBufferPool);
   }
 
   public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) {
@@ -35,10 +39,13 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     return false;
   }
 
-
   public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
 
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not yet implemented for Windows (ReFS block cloning).");
+  }
+
+  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries) {
+    _portableHelper.DeleteDirectoryEntries(directory, entries);
   }
 }

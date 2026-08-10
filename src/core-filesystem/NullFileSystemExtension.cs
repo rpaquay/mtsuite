@@ -15,6 +15,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.CoreFileSystem.Utils;
 
 namespace mtsuite.CoreFileSystem;
 
@@ -23,12 +26,24 @@ namespace mtsuite.CoreFileSystem;
 /// with no specialized extensions available.
 /// </summary>
 public class NullFileSystemExtension : IFileSystemExtension {
-  public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) => false;
+  private readonly PortableFileSystemExtensionHelper _portableHelper;
 
+  public NullFileSystemExtension(MtPoolFactory poolFactory) {
+    ArgumentNullException.ThrowIfNull(poolFactory);
+    var fullNameBufferPool = poolFactory.Create("NullFileSystemExtension.FullNameBuffer",
+      static () => new StringBuffer(), static sb => sb.Clear());
+    _portableHelper = new PortableFileSystemExtensionHelper(fullNameBufferPool);
+  }
+
+  public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) => false;
 
   public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) => false;
 
   public void CloneFile(FileSystemEntry sourceEntry, FullPath destinationPath) {
     throw new PlatformNotSupportedException("File cloning is not supported on this platform/filesystem.");
+  }
+
+  public void DeleteDirectoryEntries(FileSystemEntry directory, IReadOnlyList<FileSystemEntry> entries) {
+    _portableHelper.DeleteDirectoryEntries(directory, entries);
   }
 }
