@@ -38,7 +38,6 @@ namespace mtcopy {
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
 
-      _parallelFileSystem.EntriesDiscovered += (entry, list) => _progressMonitor.OnEntriesDiscovered(entry, list);
       _parallelFileSystem.EntriesToDeleteDiscovered +=
         (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
       _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
@@ -58,7 +57,7 @@ namespace mtcopy {
       _parallelFileSystem.FileAlreadyCloned += (entry) => _progressMonitor.OnFileAlreadyCloned(entry, entry.FileSize);
 
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);
-      _parallelFileSystem.DirectoryTraversed += (entry) => _progressMonitor.OnDirectoryTraversed(entry);
+      _parallelFileSystem.DirectoryTraversed += (entry, list) => _progressMonitor.OnDirectoryTraversed(entry, list);
       _parallelFileSystem.DirectoryCreated += (entry) => _progressMonitor.OnDirectoryCreated(entry);
       _parallelFileSystem.FileCopySkipped += (entry) => _progressMonitor.OnFileSkipped(entry, entry.FileSize);
     }

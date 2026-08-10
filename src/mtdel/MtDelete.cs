@@ -42,6 +42,8 @@ namespace mtdel {
       _parallelFileSystem.EntriesToDeleteDiscovered += (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
       _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
       _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
+      _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);
+      _parallelFileSystem.DirectoryTraversed += (entry, list) => _progressMonitor.OnDirectoryTraversed(entry, list);
     }
 
     public void Run(string[] args) {

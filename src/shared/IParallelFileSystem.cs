@@ -16,12 +16,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using mtsuite.CoreFileSystem;
+#nullable enable
 
 namespace mtsuite.shared {
   public interface IParallelFileSystem {
     event Action Pulse;
-    event Action<FileSystemEntry> EntriesDiscovering;
-    event Action<FileSystemEntry, List<FileSystemEntry>> EntriesDiscovered;
     event Action<FileSystemEntry> EntriesToDeleteDiscovering;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;
@@ -39,7 +38,7 @@ namespace mtsuite.shared {
     event Action<FileSystemEntry> FileCloneSkipped;
     event Action<FileSystemEntry> FileAlreadyCloned;
     event Action<FileSystemEntry> DirectoryTraversing;
-    event Action<FileSystemEntry> DirectoryTraversed;
+    event Action<FileSystemEntry, List<FileSystemEntry>?> DirectoryTraversed;
     event Action<FileSystemEntry> DirectoryCreated;
     event Action<FullPath, Exception> Error;
 

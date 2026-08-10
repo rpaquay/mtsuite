@@ -140,27 +140,6 @@ namespace mtsuite.shared {
       return new KeyValuePair<int, int>(count1, count2);
     }
 
-    public virtual void OnEntriesDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
-      var directoryCount = 0;
-      var fileCount = 0;
-      var symlinkCount = 0;
-      var diskSize = 0L;
-      foreach (var entry in entries) {
-        // Note: Order is important (symlink first)
-        if (entry.IsReparsePoint) symlinkCount++;
-        else if (entry.IsDirectory) directoryCount++;
-        else if (entry.IsFile) {
-          fileCount++;
-          diskSize += entry.FileSize;
-        }
-      }
-      Interlocked.Add(ref _directoryEnumeratedCount, directoryCount);
-      Interlocked.Add(ref _fileEnumeratedCount, fileCount);
-      Interlocked.Add(ref _symlinkEnumeratedCount, symlinkCount);
-      Interlocked.Add(ref _fileEnumeratedTotalSize, diskSize);
-      Pulse();
-    }
-
     public virtual void OnEntriesToDeleteDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
       var count = CountPair(entries,
         x => x.IsFile || x.IsReparsePoint, // Real files or any kind of reparse point
@@ -174,9 +153,29 @@ namespace mtsuite.shared {
       _threadTracker.Current.SetTraversing(directory);
     }
 
-    public virtual void OnDirectoryTraversed(FileSystemEntry directory) {
+    public virtual void OnDirectoryTraversed(FileSystemEntry directory, List<FileSystemEntry>? entries) {
       _threadTracker.Current.SetIdle();
       Interlocked.Increment(ref _directoryTraversedCount);
+      if (entries != null) {
+        var directoryCount = 0;
+        var fileCount = 0;
+        var symlinkCount = 0;
+        var diskSize = 0L;
+        foreach (var entry in entries) {
+          // Note: Order is important (symlink first)
+          if (entry.IsReparsePoint) symlinkCount++;
+          else if (entry.IsDirectory) directoryCount++;
+          else if (entry.IsFile) {
+            fileCount++;
+            diskSize += entry.FileSize;
+          }
+        }
+        Interlocked.Add(ref _directoryEnumeratedCount, directoryCount);
+        Interlocked.Add(ref _fileEnumeratedCount, fileCount);
+        Interlocked.Add(ref _symlinkEnumeratedCount, symlinkCount);
+        Interlocked.Add(ref _fileEnumeratedTotalSize, diskSize);
+        Pulse();
+      }
     }
 
     public virtual void OnDirectoryCreated(FileSystemEntry directory) {
