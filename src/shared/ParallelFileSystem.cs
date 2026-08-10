@@ -30,8 +30,6 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   private readonly INoAllocStopwatchFactory _stopwatchFactory;
   private readonly IPool<List<FileSystemEntry>> _entryListPool;
   private readonly IPool<List<Task>> _taskListPool;
-  private readonly IPool<List<Task<bool>>> _boolTaskListPool;
-  private readonly IPool<List<int>> _intListPool;
   private readonly IPool<SmallSet<FileSystemEntry>> _entrySetPool;
   private readonly IPool<Dictionary<string, FileSystemEntry>> _sourceDictPool;
 
@@ -68,8 +66,6 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
     _entryListPool = poolFactory.CreateList<FileSystemEntry>("ParallelFileSystem.EntryList");
     _taskListPool = poolFactory.CreateList<Task>("ParallelFileSystem.TaskList");
-    _boolTaskListPool = poolFactory.CreateList<Task<bool>>("ParallelFileSystem.BoolTaskList");
-    _intListPool = poolFactory.CreateList<int>("ParallelFileSystem.IntList");
 
     _entrySetPool = poolFactory.Create(
       "ParallelFileSystem.EntrySet",
@@ -143,15 +139,16 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     });
   }
   
-  public Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
+  public async Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
     if (entry.IsFile || entry.IsReparsePoint) {
       var deleted = DeleteSingleEntry(entry, includeFilter);
-      return Task.FromResult(deleted);
+      return deleted;
     } else if (entry.IsDirectory) {
-      return DeleteDirectoryAsync(entry, includeFilter);
-    }
-    else {
-      return Task.FromResult(false);
+      var state = new DeleteState(includeFilter);
+      await DeleteDirectoryAsync(entry, state).ConfigureAwait(false);
+      return state.AllEntriesDeleted;
+    } else {
+      return false;
     }
   }
 
@@ -408,21 +405,23 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   /// <summary>
   /// Delete all entries of <paramref name="sourceDirectory"/> recursively, including <paramref name="sourceDirectory"/> iself
   /// </summary>
-  private async Task<bool> DeleteDirectoryAsync(FileSystemEntry sourceDirectory, Func<FileSystemEntry, bool> includeFilter) {
+  private Task DeleteDirectoryAsync(FileSystemEntry sourceDirectory, DeleteState state) {
     // DeleteDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return await Task.Run(async () => {
-      var allEntriesDeleted = await DeleteDirectoryEntriesAsync(sourceDirectory, includeFilter);
-      if (allEntriesDeleted) {
-        allEntriesDeleted = DeleteSingleEntry(sourceDirectory, includeFilter);
+    return Task.Run(async () => {
+      await DeleteDirectoryEntriesAsync(sourceDirectory, state).ConfigureAwait(false);
+      if (state.AllEntriesDeleted) {
+        var rootDeleted = DeleteSingleEntry(sourceDirectory, state.IncludeFilter);
+        if (!rootDeleted) {
+          state.ReportFailure();
+        }
       }
-      return allEntriesDeleted;
-    }).ConfigureAwait(false);
+    });
   }
 
   /// <summary>
   /// Delete all entries of <paramref name="sourceDirectory"/> recursively, but not <paramref name="sourceDirectory"/> iself
   /// </summary>
-  private async Task<bool> DeleteDirectoryEntriesAsync(FileSystemEntry sourceDirectory, Func<FileSystemEntry, bool> includeFilter) {
+  private async Task DeleteDirectoryEntriesAsync(FileSystemEntry sourceDirectory, DeleteState state) {
     OnDirectoryTraversing(sourceDirectory);
     OnEntriesToDeleteDiscovering(sourceDirectory);
     using var optionalSourceEntries = GetDirectoryEntries(sourceDirectory);
@@ -430,73 +429,69 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
     if (optionalSourceEntries == null) {
       // Bail out if error enumerating files in source directory
-      return false;
+      state.ReportFailure();
+      return;
     }
+
     var sourceEntries = optionalSourceEntries.Value;
     OnEntriesToDeleteDiscovered(sourceDirectory, sourceEntries.Item);
-    
     if (sourceEntries.Item.Count == 0) {
       OnEntriesToDeleteProcessed(sourceDirectory, sourceEntries.Item);
-      return true;
+      return;
     }
 
-    using var deleteSubDirTaskList = _boolTaskListPool.AllocateFrom();
-    using var subDirIndices = _intListPool.AllocateFrom();
+    Task? whenAllTasks = null;
+    {
+      using var deleteSubDirTaskList = _taskListPool.AllocateFrom();
 
-    //
-    // 2. Identify subdirectories and start deleting them recursively in parallel
-    //
-    int subDirResultsCount = 0;
-    for (int i = 0; i < sourceEntries.Item.Count; i++) {
-      var entry = sourceEntries.Item[i];
-      if (entry.IsRegularDirectory) {
-        subDirIndices.Item.Add(subDirResultsCount);
-        subDirResultsCount++;
-        deleteSubDirTaskList.Item.Add(Task.Run(() => DeleteDirectoryEntriesAsync(entry, includeFilter)));
-      } else {
-        subDirIndices.Item.Add(-1);
+      //
+      // 2. Identify subdirectories and start deleting them recursively in parallel
+      //
+      for (int i = 0; i < sourceEntries.Item.Count; i++) {
+        var entry = sourceEntries.Item[i];
+        if (entry.IsRegularDirectory) {
+          deleteSubDirTaskList.Item.Add(Task.Run(() => DeleteDirectoryEntriesAsync(entry, state)));
+        }
+      }
+
+      //
+      // 3. Wait for all subdirectory recursive deletion tasks to finish
+      //
+      if (deleteSubDirTaskList.Item.Count > 0) {
+        whenAllTasks = Task.WhenAll(deleteSubDirTaskList.Item);
       }
     }
 
-    //
-    // 3. Wait for all subdirectory recursive deletion tasks to finish
-    //
-    var subDirResults = deleteSubDirTaskList.Item.Count > 0
-      ? await Task.WhenAll(deleteSubDirTaskList.Item).ConfigureAwait(false)
-      : Array.Empty<bool>();
+    if (whenAllTasks != null) {
+      await whenAllTasks.ConfigureAwait(false);
+    }
 
     //
     // 4. Batch delete all source directory entries.
     //    The beforeDelete callback acts as the filter, avoiding any list/array allocations!
     //
     var sw = _stopwatchFactory.Create();
-    var state = new DeleteDirectoryEntriesState(this, includeFilter, subDirIndices.Item, subDirResults, sw);
+    var entriesState = new DeleteDirectoryEntriesState(this, state.IncludeFilter, sw);
 
     try {
       _fileSystem.Extension.DeleteDirectoryEntries(
         sourceDirectory,
         sourceEntries.Item,
-        ref state,
+        ref entriesState,
         beforeDelete: static (IReadOnlyList<FileSystemEntry> entries, int index, ref DeleteDirectoryEntriesState s) => {
           var entry = entries[index];
-          int subDirResultIdx = s.SubDirIndices[index];
-          if (subDirResultIdx >= 0) {
-            if (s.SubDirResults[subDirResultIdx]) {
-              if (s.IncludeFilter(entry)) {
-                s.Instance.OnEntryDeleting(entry);
-                return true;
-              }
-            }
-          } else if (entry.IsFile || entry.IsReparsePoint) {
+          if (entry.IsDirectory || entry.IsFile || entry.IsReparsePoint) {
             if (s.IncludeFilter(entry)) {
               s.Instance.OnEntryDeleting(entry);
               return true;
             }
           }
+
           s.AllEntriesDeleted = false;
           return false;
         },
-        afterDelete: static (IReadOnlyList<FileSystemEntry> entries, int index, Exception? ex, ref DeleteDirectoryEntriesState s) => {
+        afterDelete: static (IReadOnlyList<FileSystemEntry> entries, int index, Exception? ex,
+          ref DeleteDirectoryEntriesState s) => {
           var entry = entries[index];
           if (ex != null) {
             s.Instance.OnError(entry.Path, ex);
@@ -506,15 +501,18 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
             s.Instance.OnEntryDeleted(entry, s.Stopwatch.Elapsed);
           }
         });
-    } catch (Exception ex) {
+    }
+    catch (Exception ex) {
       OnError(sourceDirectory.Path, ex);
-      state.AllEntriesDeleted = false;
+      entriesState.AllEntriesDeleted = false;
     }
 
     OnEntriesToDeleteProcessed(sourceDirectory, sourceEntries.Item);
-    return state.AllEntriesDeleted;
+    if (!entriesState.AllEntriesDeleted) {
+      state.ReportFailure();
+    }
   }
-  
+
   /// <summary>
   /// Returns whether the current operation should use <see cref="PerformCloneFile"/>
   /// </summary>
@@ -941,13 +939,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   private struct DeleteDirectoryEntriesState(
     ParallelFileSystem instance,
     Func<FileSystemEntry, bool> includeFilter,
-    List<int> subDirIndices,
-    bool[] subDirResults,
     NoAllocStopwatch stopwatch) {
     public ParallelFileSystem Instance { get; } = instance;
     public Func<FileSystemEntry, bool> IncludeFilter { get; } = includeFilter;
-    public List<int> SubDirIndices { get; } = subDirIndices;
-    public bool[] SubDirResults { get; } = subDirResults;
     public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     public bool AllEntriesDeleted = true;
   }
@@ -964,4 +958,24 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     ParallelFileSystem FileSystem,
     IDirectorCollector<T> Collector,
     T CollectorItem);
+
+  private class DeleteState {
+    public readonly Func<FileSystemEntry, bool> IncludeFilter;
+    private bool _allEntriesDeleted = true;
+    private readonly object _lock = new();
+
+    public DeleteState(Func<FileSystemEntry, bool> includeFilter) {
+      IncludeFilter = includeFilter;
+    }
+
+    public bool AllEntriesDeleted {
+      get { lock (_lock) return _allEntriesDeleted; }
+    }
+
+    public void ReportFailure() {
+      lock (_lock) {
+        _allEntriesDeleted = false;
+      }
+    }
+  }
 }
