@@ -15,7 +15,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using mtsuite.shared.Collections;
 using mtsuite.CoreFileSystem;
@@ -122,8 +122,8 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     bool followLinks = false) {
     ArgumentNullException.ThrowIfNull(collector);
 
-    var pool = _poolFactory.CreateList<Task<T>>("ParallelFileSystem.TaskList");
-    return TraverseDirectoryAsync(directoryEntry, collector, pool, followLinks, 0);
+    var taskListPool = _poolFactory.CreateList<Task<T>>("ParallelFileSystem.TaskList");
+    return TraverseDirectoryAsync(directoryEntry, collector, taskListPool, followLinks, 0);
   }
 
   public Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
@@ -157,23 +157,25 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
   private Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
-    IPool<List<Task<T>>> pool,
+    IPool<List<Task<T>>> taskListPool,
     bool followLinks,
     int depth) {
 
+    var state = new TraverseDirectoryState<T>(this, directoryEntry, collector, taskListPool, followLinks, depth);
+
     // TraverseDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
     return Task.Factory.StartNew(
-      static state => {
-        var s = (TraverseDirectoryState<T>)state!;
+      static stateObj => {
+        var s = (TraverseDirectoryState<T>)stateObj!;
         return s.FileSystem.TraverseDirectoryEntriesAsync(
           s.DirectoryEntry,
           s.Collector,
-          s.Pool,
+          s.TaskListPool,
           s.FollowLinks,
           s.Depth);
       },
-      new TraverseDirectoryState<T>(this, directoryEntry, collector, pool, followLinks, depth),
-      default,
+      state,
+      CancellationToken.None,
       TaskCreationOptions.DenyChildAttach,
       TaskScheduler.Default).Unwrap();
   }
@@ -181,7 +183,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   private async Task<T> TraverseDirectoryEntriesAsync<T>(
     FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
-    IPool<List<Task<T>>> pool,
+    IPool<List<Task<T>>> taskListPool,
     bool followLinks,
     int depth) {
 
@@ -209,13 +211,13 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }
 
       // Create tasks for children directories
-      using var childDirectoriesTasks = pool.AllocateFrom();
+      using var childDirectoriesTasks = taskListPool.AllocateFrom();
       foreach (var entry in entries.Item) {
         if (entry.IsDirectory) {
           bool isRealDirectory = !entry.IsReparsePoint;
           bool followDirectoryLink = entry.IsReparsePoint && followLinks;
           if (isRealDirectory || followDirectoryLink) {
-            childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, pool, followLinks, depth + 1));
+            childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, taskListPool, followLinks, depth + 1));
           }
         }
       }
@@ -940,27 +942,11 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     public bool AllEntriesDeleted = true;
   }
 
-  private readonly struct TraverseDirectoryState<T> {
-    public ParallelFileSystem FileSystem { get; }
-    public FileSystemEntry DirectoryEntry { get; }
-    public IDirectorCollector<T> Collector { get; }
-    public IPool<List<Task<T>>> Pool { get; }
-    public bool FollowLinks { get; }
-    public int Depth { get; }
-
-    public TraverseDirectoryState(
-      ParallelFileSystem fileSystem,
-      FileSystemEntry directoryEntry,
-      IDirectorCollector<T> collector,
-      IPool<List<Task<T>>> pool,
-      bool followLinks,
-      int depth) {
-      FileSystem = fileSystem;
-      DirectoryEntry = directoryEntry;
-      Collector = collector;
-      Pool = pool;
-      FollowLinks = followLinks;
-      Depth = depth;
-    }
-  }
+  private sealed record TraverseDirectoryState<T>(
+    ParallelFileSystem FileSystem,
+    FileSystemEntry DirectoryEntry,
+    IDirectorCollector<T> Collector,
+    IPool<List<Task<T>>> TaskListPool,
+    bool FollowLinks,
+    int Depth);
 }
