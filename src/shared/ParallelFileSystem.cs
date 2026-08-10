@@ -145,14 +145,14 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   
   public Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
     if (entry.IsFile || entry.IsReparsePoint) {
-      return Task.Run(() => DeleteSingleEntry(entry, includeFilter));
-    }
-
-    if (entry.IsDirectory) {
+      var deleted = DeleteSingleEntry(entry, includeFilter);
+      return Task.FromResult(deleted);
+    } else if (entry.IsDirectory) {
       return DeleteDirectoryAsync(entry, includeFilter);
     }
-    
-    return Task.FromResult(false);
+    else {
+      return Task.FromResult(false);
+    }
   }
 
   private Task<T> TraverseDirectoryAsync<T>(FileSystemEntry directoryEntry,
