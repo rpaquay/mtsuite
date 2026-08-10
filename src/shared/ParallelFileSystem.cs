@@ -126,8 +126,8 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     CopyOptions options, IFileComparer fileComparer) {
     ArgumentNullException.ThrowIfNull(fileComparer);
 
-    return CopyDirectoryAsync(sourceDirectory, destinationDirectory.Path, destinationDirectory, options, fileComparer,
-      useCloning: null);
+    var useCloneFile = ShouldUseCloneFile(sourceDirectory, destinationDirectory, options);
+    return CopyDirectoryAsync(sourceDirectory, destinationDirectory.Path, destinationDirectory, options, fileComparer, useCloneFile);
   }
 
   public Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
@@ -254,24 +254,35 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       TaskScheduler.Default);
   }
 
-  private async Task CopyDirectoryAsync(
+  private Task CopyDirectoryAsync(
     FileSystemEntry sourceDirectory,
     FullPath destinationPath,
     FileSystemEntry? destinationDirectoryEntry,
     CopyOptions options,
     IFileComparer fileComparer,
-    bool? useCloning) {
+    bool useCloneFile) {
+
+    var state = new CopyDirectoryState(
+      this,
+      sourceDirectory,
+      destinationPath,
+      destinationDirectoryEntry,
+      options,
+      fileComparer,
+      useCloneFile);
 
     // CopyDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    await Task.Run(async () => {
-      await CopyDirectoryEntriesAsync(
-        sourceDirectory,
-        destinationPath,
-        destinationDirectoryEntry,
-        options,
-        fileComparer,
-        useCloning);
-    }).ConfigureAwait(false);
+    return Task.Factory.StartNewTask(state,
+      static stateObj => {
+        var s = (CopyDirectoryState)stateObj!;
+        return s.FileSystem.CopyDirectoryEntriesAsync(
+          s.SourceDirectory,
+          s.DestinationPath,
+          s.DestinationDirectoryEntry,
+          s.Options,
+          s.FileComparer,
+          s.UseCloneFile);
+      }).Unwrap();
   }
 
   private async Task CopyDirectoryEntriesAsync(
@@ -280,7 +291,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     FileSystemEntry? destinationDirectoryEntry,
     CopyOptions options,
     IFileComparer fileComparer,
-    bool? useCloning) {
+    bool useCloneFile) {
 
     //
     // Create destination directory (if needed)
@@ -292,8 +303,6 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     }
 
     var destinationDirectory = optionalDestinationDirectory.Value;
-    var isCloningActive = ShouldUseCloneFile(sourceDirectory, destinationDirectory, options, useCloning);
-
     Task finalTask;
     {
       OnDirectoryTraversing(sourceDirectory);
@@ -337,7 +346,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       foreach (var sourceEntry in sourceEntries.Item) {
         if (sourceEntry.IsRegularFile || sourceEntry.IsReparsePoint) {
           PerformOrScheduleFileEntryCopy(sourceEntry, destinationDirectory, fileComparer, destinationSet.Item,
-            taskList.Item, isCloningActive);
+            taskList.Item, useCloneFile);
         }
         else if (sourceEntry.IsRegularDirectory) {
           var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
@@ -348,7 +357,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
             destinationExists ? childDestEntry : null,
             options,
             fileComparer,
-            useCloning));
+            useCloneFile));
         }
       }
 
@@ -537,16 +546,10 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   /// <summary>
   /// Returns whether the current operation should use <see cref="PerformCloneFile"/>
   /// </summary>
-  /// <param name="sourceDirectory"></param>
-  /// <param name="destinationDirectory"></param>
-  /// <param name="options"></param>
-  /// <param name="useCloning"></param>
-  /// <returns></returns>
-  private bool ShouldUseCloneFile(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
-    CopyOptions options, bool? useCloning) {
-    return useCloning ?? ((options & CopyOptions.NoClone) == 0 &&
+  private bool ShouldUseCloneFile(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory, CopyOptions options) {
+    return (options & CopyOptions.NoClone) == 0 &&
                           _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path,
-                            destinationDirectory.Path));
+                            destinationDirectory.Path);
   }
 
   /// <summary>
@@ -1017,10 +1020,19 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     ParallelFileSystem FileSystem,
     FileSystemEntry SourceDirectory,
     DeleteState State);
+
+  private sealed record CopyDirectoryState(
+    ParallelFileSystem FileSystem,
+    FileSystemEntry SourceDirectory,
+    FullPath DestinationPath,
+    FileSystemEntry? DestinationDirectoryEntry,
+    CopyOptions Options,
+    IFileComparer FileComparer,
+    bool UseCloneFile);
 }
 
 public static class TaskFactoryExt {
-  public static Task<TResult> StartNewTask<TResult>(this TaskFactory taskFactory, object state, Func<object, TResult> func) {
+  public static Task<TResult> StartNewTask<TResult>(this TaskFactory taskFactory, object state, Func<object?, TResult> func) {
     return taskFactory.StartNew(func, state, 
       CancellationToken.None,
       TaskCreationOptions.DenyChildAttach,
