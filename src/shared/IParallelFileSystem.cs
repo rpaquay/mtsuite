@@ -21,9 +21,7 @@ using mtsuite.CoreFileSystem;
 namespace mtsuite.shared {
   public interface IParallelFileSystem {
     event Action Pulse;
-    event Action<FileSystemEntry> EntriesToDeleteDiscovering;
     event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteDiscovered;
-    event Action<FileSystemEntry, List<FileSystemEntry>> EntriesToDeleteProcessed;
     event Action<FileSystemEntry> EntryDeleting;
     event Action<FileSystemEntry, TimeSpan /* Elapsed*/> EntryDeleted;
     event Action<FileSystemEntry> FileCopySkipped;
