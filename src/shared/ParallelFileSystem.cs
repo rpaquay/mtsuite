@@ -162,12 +162,20 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     int depth) {
 
     // TraverseDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Run(() => TraverseDirectoryEntriesAsync(
-      directoryEntry,
-      collector,
-      pool,
-      followLinks,
-      depth));
+    return Task.Factory.StartNew(
+      static state => {
+        var s = (TraverseDirectoryState<T>)state!;
+        return s.FileSystem.TraverseDirectoryEntriesAsync(
+          s.DirectoryEntry,
+          s.Collector,
+          s.Pool,
+          s.FollowLinks,
+          s.Depth);
+      },
+      new TraverseDirectoryState<T>(this, directoryEntry, collector, pool, followLinks, depth),
+      default,
+      TaskCreationOptions.DenyChildAttach,
+      TaskScheduler.Default).Unwrap();
   }
 
   private async Task<T> TraverseDirectoryEntriesAsync<T>(
@@ -930,5 +938,29 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     public bool[] SubDirResults { get; } = subDirResults;
     public NoAllocStopwatch Stopwatch { get; } = stopwatch;
     public bool AllEntriesDeleted = true;
+  }
+
+  private readonly struct TraverseDirectoryState<T> {
+    public ParallelFileSystem FileSystem { get; }
+    public FileSystemEntry DirectoryEntry { get; }
+    public IDirectorCollector<T> Collector { get; }
+    public IPool<List<Task<T>>> Pool { get; }
+    public bool FollowLinks { get; }
+    public int Depth { get; }
+
+    public TraverseDirectoryState(
+      ParallelFileSystem fileSystem,
+      FileSystemEntry directoryEntry,
+      IDirectorCollector<T> collector,
+      IPool<List<Task<T>>> pool,
+      bool followLinks,
+      int depth) {
+      FileSystem = fileSystem;
+      DirectoryEntry = directoryEntry;
+      Collector = collector;
+      Pool = pool;
+      FollowLinks = followLinks;
+      Depth = depth;
+    }
   }
 }
