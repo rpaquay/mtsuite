@@ -389,7 +389,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       }).Unwrap();
   }
 
-  private async Task CompactDirectoryEntriesAsync(
+  private Task CompactDirectoryEntriesAsync(
     FileSystemEntry sourceDirectory,
     FileSystemEntry destinationDirectory,
     IFileComparer fileComparer,
@@ -405,7 +405,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       OnDirectoryTraversed(sourceDirectory, optionalSourceEntries?.Item);
       if (optionalSourceEntries == null || optionalDestinationEntries == null) {
         // Bail out if error enumerating files in directories
-        return;
+        return Task.CompletedTask;
       }
       var sourceEntries = optionalSourceEntries.Value;
       var destinationEntries = optionalDestinationEntries.Value;
@@ -430,9 +430,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
         additionalTask = Task.WhenAll(taskList.Item);
       }
     }
-    if (additionalTask != null) {
-      await additionalTask.ConfigureAwait(false);
-    }
+    return additionalTask ?? Task.CompletedTask;
   }
 
   /// <summary>
