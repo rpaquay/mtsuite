@@ -38,8 +38,6 @@ namespace mtmir {
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
 
-      _parallelFileSystem.EntriesToDeleteDiscovered +=
-        (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
       _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
       _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
 

@@ -39,7 +39,6 @@ namespace mtdel {
 
       _parallelFileSystem.Error += (path, exception) => _progressMonitor.OnError(path, exception);
       _parallelFileSystem.Pulse += () => _progressMonitor.Pulse();
-      _parallelFileSystem.EntriesToDeleteDiscovered += (entry, list) => _progressMonitor.OnEntriesToDeleteDiscovered(entry, list);
       _parallelFileSystem.EntryDeleting += (entry) => _progressMonitor.OnEntryDeleting(entry);
       _parallelFileSystem.EntryDeleted += (entry, elapsed) => _progressMonitor.OnEntryDeleted(entry, elapsed);
       _parallelFileSystem.DirectoryTraversing += (entry) => _progressMonitor.OnDirectoryTraversing(entry);
@@ -140,8 +139,6 @@ I  Not content indexed Files  L  Reparse Points
       var includeFilter = CreateFilter(options);
       _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
-      // HACK: Notify of an extra directory discovered to get counters right.
-      _progressMonitor.OnEntriesToDeleteDiscovered(rootEntry, new List<FileSystemEntry>(new[] {rootEntry}));
       var task = _parallelFileSystem.DeleteEntryAsync(rootEntry, includeFilter);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();

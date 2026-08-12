@@ -40,9 +40,6 @@ namespace mtsuite.shared {
     private long _symlinkCopiedCount;
     private long _fileCopiedTotalSize;
 
-    private long _directoryToDeleteCount;
-    private long _fileToDeleteCount;
-
     private long _directoryDeletedCount;
     private long _fileDeletedCount;
     private long _symlinkDeletedCount;
@@ -106,8 +103,6 @@ namespace mtsuite.shared {
       statistics.FileEnumeratedCount = _fileEnumeratedCount;
       statistics.SymlinkEnumeratedCount = _symlinkEnumeratedCount;
       statistics.FileEnumeratedTotalSize = _fileEnumeratedTotalSize;
-      statistics.DirectoryToDeleteCount = _directoryToDeleteCount;
-      statistics.FileToDeleteCount = _fileToDeleteCount;
       statistics.DirectoryTraversedCount = _directoryTraversedCount;
       statistics.FileCopiedCount = _fileCopiedCount;
       statistics.SymlinkCopiedCount = _symlinkCopiedCount;
@@ -128,25 +123,6 @@ namespace mtsuite.shared {
       statistics.FileCloneSkippedTotalSize = _fileCloneSkippedTotalSize;
       statistics.Errors = _errors;
       statistics.Warnings = _warnings;
-    }
-
-    private KeyValuePair<int, int> CountPair<T>(List<T> list, Func<T, bool> pred1, Func<T, bool> pred2) {
-      var count1 = 0;
-      var count2 = 0;
-      foreach (var x in list) {
-        if (pred1(x)) count1++;
-        if (pred2(x)) count2++;
-      }
-      return new KeyValuePair<int, int>(count1, count2);
-    }
-
-    public virtual void OnEntriesToDeleteDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries) {
-      var count = CountPair(entries,
-        x => x.IsFile || x.IsReparsePoint, // Real files or any kind of reparse point
-        x => x.IsDirectory && !x.IsReparsePoint); // Real directories only
-      Interlocked.Add(ref _fileToDeleteCount, count.Key);
-      Interlocked.Add(ref _directoryToDeleteCount, count.Value);
-      Pulse();
     }
 
     public virtual void OnDirectoryTraversing(FileSystemEntry directory) {

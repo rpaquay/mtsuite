@@ -45,8 +45,6 @@ namespace mtsuite.shared {
 
     #region multi-threaded methods
 
-    void OnEntriesToDeleteDiscovered(FileSystemEntry directory, List<FileSystemEntry> entries);
-
     void OnDirectoryTraversing(FileSystemEntry directory);
     void OnDirectoryTraversed(FileSystemEntry directory, List<FileSystemEntry>? entries);
 

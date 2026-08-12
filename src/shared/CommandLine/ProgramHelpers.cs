@@ -200,6 +200,9 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("  Skipped entries");
       Console.WriteLine("    # of files skipped:     {0:n0}", statistics.FileCloneSkippedCount);
       Console.WriteLine("    Total bytes skipped:    {0}", FormatHelpers.FormatSize(statistics.FileCloneSkippedTotalSize));
+      Console.WriteLine("  # entries/sec:            {0:n0}",
+        (statistics.DirectoryTraversedCount + statistics.FileClonedCount + statistics.FileAlreadyClonedCount + statistics.FileCloneSkippedCount) /
+        statistics.ElapsedTime.TotalSeconds);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
       DisplayErrors(statistics.Errors);
     }
