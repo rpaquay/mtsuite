@@ -104,13 +104,14 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithStringOption(string id, string description, string shortName, string valueName, string defaultValue, Func<string, string> validator = null, string altShortName = "", string longName = "") {
+    public ArgumentDefinitionBuilder WithStringOption(string id, string description, string shortName, string valueName, string defaultValue, Func<string, string> validator = null, string altShortName = "", string longName = "", bool isMandatory = false) {
       var def = new StringOptionArgDef {
         Id = id,
         Description = description,
         ShortName = shortName,
         ValueName = valueName,
         DefaultValue = defaultValue,
+        IsMandatory = isMandatory,
         Validator = validator,
         AltShortName = altShortName,
         LongName = longName,

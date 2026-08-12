@@ -38,11 +38,10 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public void Parse() {
-      var freeArgMap = MapFreeArguments();
-      var multipleFreeArgStrings = new List<string>();
-      ParsedArgument multipleFreeArgStringsArgument = null;
+      var usedIndices = new HashSet<int>();
+      
+      // Phase 1: Parse named options and flags
       for (var index = 0; index < _args.Count; ) {
-        // If the argument a named argument?
         var argString = _args[index];
         if (StartsWithNamedArgumentPrefix(argString)) {
           var prefixCount = argString.StartsWith("--") ? 2 : 1;
@@ -51,6 +50,7 @@ namespace mtsuite.shared.CommandLine {
           var argDef = FindNamedArgument(argName);
           if (argDef == null) {
             _errors.Add(string.Format("Unknown argument \"{0}\"", argString));
+            usedIndices.Add(index);
             index++;
             continue;
           }
@@ -58,43 +58,77 @@ namespace mtsuite.shared.CommandLine {
           int argsConsumed = 1;
           string argStringValue = "";
 
-          if (argDef is OptionArgDef && index + 1 < _args.Count && !StartsWithNamedArgumentPrefix(_args[index + 1])) {
-            argStringValue = _args[index + 1];
-            argsConsumed = 2;
+          if (argDef is OptionArgDef) {
+            if (index + 1 < _args.Count && !StartsWithNamedArgumentPrefix(_args[index + 1])) {
+              argStringValue = _args[index + 1];
+              argsConsumed = 2;
+            }
           }
 
           object argValue = FindArgumentValue(argString, argDef, argStringValue);
-          if (argValue == null) {
-            index += argsConsumed;
-            continue;
+          if (argValue != null) {
+            _parserArguments.Add(new ParsedArgument(argDef, argValue));
           }
 
-          var parsedArg = new ParsedArgument(argDef, argValue);
-          _parserArguments.Add(parsedArg);
+          for (int i = 0; i < argsConsumed; i++) {
+            usedIndices.Add(index + i);
+          }
           index += argsConsumed;
         } else {
-          // Handle free string arguments
-          if (freeArgMap.TryGetValue(index, out var argDef)) {
-            switch (argDef) {
-              case PositionalArgDef: {
-                var parsedArg = new ParsedArgument(argDef, argString);
-                _parserArguments.Add(parsedArg);
-                break;
-              }
-              case MultiplePositionalArgDef: {
-                if (multipleFreeArgStringsArgument == null) {
-                  var parsedArg = new ParsedArgument(argDef, multipleFreeArgStrings);
-                  _parserArguments.Add(parsedArg);
-                  multipleFreeArgStringsArgument = parsedArg;
-                }
-                multipleFreeArgStrings.Add(argString);
-                break;
-              }
-            }
-          } else {
-            _errors.Add(string.Format("Extra argument \"{0}\"", argString));
-          }
           index++;
+        }
+      }
+
+      // Phase 2: Parse positional arguments
+      if (_errors.Count == 0) {
+        // Find unused indices
+        var providedFreeArgs = new List<int>();
+        for (int i = 0; i < _args.Count; i++) {
+          if (!usedIndices.Contains(i)) {
+            providedFreeArgs.Add(i);
+          }
+        }
+
+        // Get positional definitions
+        var definedFreeArgs = _argumentDefinitions.Where(IsPositionalArgDef).ToList();
+
+        // Align them right-to-left
+        int valueIndex = 0;
+        var multipleFreeArgStrings = new List<string>();
+
+        for (int i = 0; i < definedFreeArgs.Count; i++) {
+          if (valueIndex >= providedFreeArgs.Count) {
+            break;
+          }
+
+          var def = definedFreeArgs[i];
+          int remainingValues = providedFreeArgs.Count - valueIndex;
+          int remainingMandatory = 0;
+          for (int j = i; j < definedFreeArgs.Count; j++) {
+            if (definedFreeArgs[j].IsMandatory) {
+              remainingMandatory++;
+            }
+          }
+
+          if (def.IsMandatory || remainingValues > remainingMandatory) {
+            if (def is MultiplePositionalArgDef) {
+              var parsedArg = new ParsedArgument(def, multipleFreeArgStrings);
+              _parserArguments.Add(parsedArg);
+              while (valueIndex < providedFreeArgs.Count) {
+                multipleFreeArgStrings.Add(_args[providedFreeArgs[valueIndex]]);
+                valueIndex++;
+              }
+            } else {
+              _parserArguments.Add(new ParsedArgument(def, _args[providedFreeArgs[valueIndex]]));
+              valueIndex++;
+            }
+          }
+        }
+
+        // Any remaining unused arguments are extra
+        while (valueIndex < providedFreeArgs.Count) {
+          _errors.Add(string.Format("Extra argument \"{0}\"", _args[providedFreeArgs[valueIndex]]));
+          valueIndex++;
         }
       }
 
@@ -136,60 +170,6 @@ namespace mtsuite.shared.CommandLine {
       foreach (var x in multiStringDefaults) {
         _parserArguments.Add(new ParsedArgument(x, x.DefaultValue.Value));
       }
-    }
-
-    private Dictionary<int, ArgDef> MapFreeArguments() {
-      var map = new Dictionary<int, ArgDef>();
-      
-      // 1. Extract all free args from _args
-      var providedFreeArgs = new List<int>(); // Indices in _args
-      bool isWindows = PathHelpers.DirectorySeparatorString == "\\";
-      for (int i = 0; i < _args.Count; i++) {
-        if (!StartsWithNamedArgumentPrefix(_args[i])) {
-          providedFreeArgs.Add(i);
-        }
-      }
-
-      // 2. Get defined free args
-      var definedFreeArgs = _argumentDefinitions.Where(IsPositionalArgDef).ToList();
-
-      // 3. Align them
-      int valueIndex = 0;
-      for (int i = 0; i < definedFreeArgs.Count; i++) {
-        if (valueIndex >= providedFreeArgs.Count) {
-          break;
-        }
-
-        var def = definedFreeArgs[i];
-        int remainingValues = providedFreeArgs.Count - valueIndex;
-        int remainingMandatory = 0;
-        for (int j = i; j < definedFreeArgs.Count; j++) {
-          if (definedFreeArgs[j].IsMandatory) {
-            remainingMandatory++;
-          }
-        }
-
-        if (def.IsMandatory || remainingValues > remainingMandatory) {
-          if (def is MultiplePositionalArgDef) {
-            // Consumes all remaining free args
-            while (valueIndex < providedFreeArgs.Count) {
-              map[providedFreeArgs[valueIndex]] = def;
-              valueIndex++;
-            }
-          } else {
-            map[providedFreeArgs[valueIndex]] = def;
-            valueIndex++;
-          }
-        }
-      }
-
-      // Any remaining provided free args that couldn't be matched (e.g. if too many)
-      while (valueIndex < providedFreeArgs.Count) {
-        // Leave them unmapped, which will trigger the "Extra argument" error in Parse
-        valueIndex++;
-      }
-
-      return map;
     }
 
     private static bool IsPositionalArgDef(ArgDef argDef) {

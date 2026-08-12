@@ -32,8 +32,8 @@ namespace mtfind {
         .WithFlag("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
         .WithThreadCountOption()
         .WithGcFlag()
-        .WithPositional("directory", "The directory tree to search", false, () => Environment.CurrentDirectory)
-        .WithPositional("pattern", "The pattern to search for", true)
+        .WithPositional("directory", "The path of the directory search (default is current directory)", false, () => Environment.CurrentDirectory)
+        .WithStringOption("pattern", "The file name pattern to search for (e.g. \"*.xml\")", "name", "pattern", null, isMandatory: true)
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);

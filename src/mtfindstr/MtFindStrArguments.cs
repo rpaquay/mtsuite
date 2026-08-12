@@ -1,4 +1,4 @@
-// Copyright 2026 Renaud Paquay All Rights Reserved.
+﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,15 +27,15 @@ namespace mtfindstr {
     public MtFindStrArguments(string[] args) {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithHelpFlag()
-        .WithStringOption("directory", "The directory tree to search", "d", "path", Environment.CurrentDirectory, null, "", "directory")
         .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
         .WithFlag("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
         .WithFlag("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
         .WithFlag("show-warnings", "Display warnings in addition to errors", "w", "", "warnings")
         .WithThreadCountOption()
         .WithGcFlag()
-        .WithPositional("pattern", "The pattern to search for", true)
-        .WithMultiplePositional("file-pattern", "The file name pattern(s) to include files to search (default=\"*\")", false, "*")
+        .WithStringOption("name", "The file name pattern to include files to search (default=\"*\")", "name", "pattern", "*")
+        .WithPositional("directory", "The directory tree to search", false, () => Environment.CurrentDirectory)
+        .WithPositional("pattern", "The string to find in text files (e.g. \"build\")", true)
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);
@@ -75,7 +75,7 @@ namespace mtfindstr {
 
       public string Directory => _parser["directory"].StringValue;
 
-      public IList<string> FileNamePatterns => _parser["file-pattern"].StringListValue;
+      public IList<string> FileNamePatterns => new List<string> { _parser["name"].StringValue };
 
       public string SearchPattern => _parser["pattern"].StringValue;
 

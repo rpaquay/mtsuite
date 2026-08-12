@@ -41,6 +41,7 @@ namespace tests {
       var mtfind = new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory());
       mtfind.Run(new string[] {
         "fake",
+        "-name",
         "foo"
       });
     }
@@ -64,21 +65,21 @@ namespace tests {
     public void MtFindArgumentsShouldParsePositionalDirectoryAndPattern() {
       // 1. Omitted directory
       {
-        var args = new MtFindArguments(new[] { "mypattern" });
+        var args = new MtFindArguments(new[] { "-name", "mypattern" });
         Assert.AreEqual(Environment.CurrentDirectory, args.Values.Directory);
         Assert.AreEqual("mypattern", args.Values.Pattern);
       }
 
       // 2. Provided directory and pattern
       {
-        var args = new MtFindArguments(new[] { "my/dir/path", "mypattern" });
+        var args = new MtFindArguments(new[] { "my/dir/path", "-name", "mypattern" });
         Assert.AreEqual("my/dir/path", args.Values.Directory);
         Assert.AreEqual("mypattern", args.Values.Pattern);
       }
 
       // 3. Flags and omitted directory
       {
-        var args = new MtFindArguments(new[] { "--plain-output", "mypattern" });
+        var args = new MtFindArguments(new[] { "--plain-output", "-name", "mypattern" });
         Assert.IsTrue(args.Values.PlainOutput);
         Assert.AreEqual(Environment.CurrentDirectory, args.Values.Directory);
         Assert.AreEqual("mypattern", args.Values.Pattern);
@@ -86,7 +87,7 @@ namespace tests {
 
       // 4. Flags and provided directory and pattern
       {
-        var args = new MtFindArguments(new[] { "--plain-output", "my/dir/path", "mypattern" });
+        var args = new MtFindArguments(new[] { "--plain-output", "my/dir/path", "-name", "mypattern" });
         Assert.IsTrue(args.Values.PlainOutput);
         Assert.AreEqual("my/dir/path", args.Values.Directory);
         Assert.AreEqual("mypattern", args.Values.Pattern);

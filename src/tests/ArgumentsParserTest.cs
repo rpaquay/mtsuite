@@ -428,5 +428,30 @@ namespace tests {
         Assert.IsTrue(parser.Errors.Any(e => e.Contains("Unknown argument \"-d:4\"")));
       }
     }
+
+    [TestMethod]
+    public void ArgumentsParserShouldWorkWithMtFindStrDefinitions() {
+      var builder = new ArgumentDefinitionBuilder()
+        .WithHelpFlag()
+        .WithFlag("plain-output", "Plain output", "po")
+        .WithFlag("no-progress", "No progress", "np")
+        .WithFlag("no-follow-links", "No follow links", "nl")
+        .WithFlag("show-warnings", "Show warnings", "w")
+        .WithThreadCountOption()
+        .WithGcFlag()
+        .WithStringOption("file-pattern", "File pattern", "name", "pattern", "*")
+        .WithPositional("directory", "Directory", false, () => "defaultDir")
+        .WithPositional("pattern", "Pattern", true);
+
+      var parser = new ArgumentsParser(builder.Build(), new[] { "my search string" });
+      parser.Parse();
+      
+      if (!parser.IsValid) {
+        Assert.Fail("Parser errors: " + string.Join(", ", parser.Errors));
+      }
+
+      Assert.IsTrue(parser.Contains("pattern"));
+      Assert.AreEqual("my search string", parser["pattern"].StringValue);
+    }
   }
 }

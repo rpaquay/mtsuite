@@ -40,7 +40,7 @@ namespace tests {
     public void MtFindStrShouldThrowWithNonExistingFolder() {
       var findStr = new MtFindStr(_fileSystemSetup.FileSystem, new MtPoolFactory());
       findStr.Run(new string[] {
-        "-d:" + _fileSystemSetup.Root.Path.Combine("fake").FullName,
+        _fileSystemSetup.Root.Path.Combine("fake").FullName,
         "foobar2"
       });
     }
@@ -55,6 +55,36 @@ namespace tests {
 
       Assert.AreEqual(1, results.Count);
       Assert.AreEqual(2, results[0].Entries.Count);
+    }
+
+    [TestMethod]
+    public void MtFindStrArgumentsShouldParsePositionalAndNamedArguments() {
+      // 1. Omitted directory and omitted file pattern (defaults to "*")
+      {
+        var args = new MtFindStrArguments(new[] { "my search string" });
+        Assert.AreEqual(System.IO.Directory.GetCurrentDirectory(), args.Values.Directory);
+        Assert.AreEqual("my search string", args.Values.SearchPattern);
+        Assert.AreEqual(1, args.Values.FileNamePatterns.Count);
+        Assert.AreEqual("*", args.Values.FileNamePatterns[0]);
+      }
+
+      // 2. Provided directory, omitted file pattern, provided search pattern
+      {
+        var args = new MtFindStrArguments(new[] { "my/dir/path", "my search string" });
+        Assert.AreEqual("my/dir/path", args.Values.Directory);
+        Assert.AreEqual("my search string", args.Values.SearchPattern);
+        Assert.AreEqual(1, args.Values.FileNamePatterns.Count);
+        Assert.AreEqual("*", args.Values.FileNamePatterns[0]);
+      }
+
+      // 3. Provided directory, provided file pattern, provided search pattern
+      {
+        var args = new MtFindStrArguments(new[] { "my/dir/path", "-name", "*.txt", "my search string" });
+        Assert.AreEqual("my/dir/path", args.Values.Directory);
+        Assert.AreEqual("my search string", args.Values.SearchPattern);
+        Assert.AreEqual(1, args.Values.FileNamePatterns.Count);
+        Assert.AreEqual("*.txt", args.Values.FileNamePatterns[0]);
+      }
     }
   }
 }
