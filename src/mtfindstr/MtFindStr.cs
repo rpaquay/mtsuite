@@ -141,15 +141,21 @@ namespace mtfindstr {
     }
 
     private FindStrMatcher CreateFindStrMatcher(string pattern) {
-      return new FindStrFileEntry(pattern, _poolFactory).SearchFile;
+      var searcher = new FindStrFileEntry(pattern, _poolFactory);
+      searcher.BinaryFileSkipped += _progressMonitor.OnBinaryFileSkipped;
+      return searcher.SearchFile;
     }
 
-    private static void DisplayStatistics(Statistics statistics) {
+    private static void DisplayStatistics(FindStrStatistics statistics) {
       var elapsedTimeText = FormatHelpers.FormatElapsedTime(statistics.ElapsedTime);
       var cpuTimeText = FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime);
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var symlinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
+      var fileMatchingPatternText = string.Format("{0:n0}", statistics.FileMatchingPatternCount);
+      var binarySkippedText = string.Format("{0:n0}", statistics.BinaryFilesSkippedCount);
+      var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
+      var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
       var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
       var fields = new[] {
@@ -157,8 +163,12 @@ namespace mtfindstr {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right, indent: 2),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign:Align.Right, indent: 2),
         new PrinterEntry("# of directories", directoriesText, shortName: "directories", valueAlign: Align.Right, indent: 2),
-        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of links", symlinksText, shortName: "links", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of files matching pattern", fileMatchingPatternText, shortName: "matching pattern", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of binary files skipped", binarySkippedText, shortName: "skipped binary", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right, indent: 2),
       };

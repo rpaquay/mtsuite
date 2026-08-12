@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +26,8 @@ namespace mtfindstr {
     private readonly IPool<IList<FindStrEntry>> _listPool;
     private readonly IPool<byte[]> _byteArrayPool;
 
+    public event Action<FileSystemEntry>? BinaryFileSkipped;
+
     public FindStrFileEntry(string pattern, MtPoolFactory poolFactory) {
       _pattern = pattern;
       _patternBytes = System.Text.Encoding.UTF8.GetBytes(pattern);
@@ -34,25 +37,39 @@ namespace mtfindstr {
 
     /// <summary>
     /// Searches the specified file for occurrences of the search pattern.
-    /// <para>This implementation is optimized for maximum efficiency, speed, and low memory usage under the assumption that text files are UTF-8 encoded:</para>
+    /// <para>This implementation is optimized for maximum efficiency, speed, and low memory usage
+    /// under the assumption that text files are UTF-8 encoded:</para>
     /// <list type="number">
     /// <item>
-    /// <description><b>Zero String/Text Decoding Allocation:</b> The search is performed directly on raw bytes from the file rather than using a StreamReader (which decodes the entire stream into UTF-16 characters and strings).</description>
+    /// <description><b>Zero String/Text Decoding Allocation:</b> The search is performed directly
+    /// on raw bytes from the file rather than using a StreamReader (which decodes the entire
+    /// stream into UTF-16 characters and strings).</description>
     /// </item>
     /// <item>
-    /// <description><b>Buffer Pooling:</b> Standardized on the shared high-throughput FileIOByteArrayPool (1 MB buffers) from the factory, resulting in zero buffer allocations per file search.</description>
+    /// <description><b>Buffer Pooling:</b> Standardized on the shared high-throughput
+    /// FileIOByteArrayPool (1 MB buffers) from the factory, resulting in zero buffer allocations
+    /// per file search.</description>
     /// </item>
     /// <item>
-    /// <description><b>High-Speed Vectorized Matching:</b> Utilizes .NET 8 vectorized ReadOnlySpan&lt;byte&gt;.IndexOf for ultra-fast pattern matching inside the byte stream.</description>
+    /// <description><b>High-Speed Vectorized Matching:</b> Utilizes .NET 8 vectorized
+    /// ReadOnlySpan&lt;byte&gt;.IndexOf for ultra-fast pattern matching inside the byte
+    /// stream.</description>
     /// </item>
     /// <item>
-    /// <description><b>Simplification of Boundary Handling:</b> If a match spans across two buffer blocks, the boundary is handled by copying the last patternLength - 1 bytes of the current block to the beginning of the next block. This avoids complex partial-match state machines and guarantees contiguous search spans.</description>
+    /// <description><b>Simplification of Boundary Handling:</b> If a match spans across two
+    /// buffer blocks, the boundary is handled by copying the last patternLength - 1 bytes of the
+    /// current block to the beginning of the next block. This avoids complex partial-match state
+    /// machines and guarantees contiguous search spans.</description>
     /// </item>
     /// <item>
-    /// <description><b>UTF-8 Conformant Column Calculations:</b> Newline bytes (\n) are identified at the byte level. Character columns are computed by skipping UTF-8 continuation bytes ((b &amp; 0xC0) == 0x80) from the start of the line to the match index, producing accurate character-based offsets instead of raw byte offsets.</description>
+    /// <description><b>UTF-8 Conformant Column Calculations:</b> Newline bytes (\n) are identified
+    /// at the byte level. Character columns are computed by skipping UTF-8 continuation bytes
+    /// ((b &amp; 0xC0) == 0x80) from the start of the line to the match index, producing accurate
+    /// character-based offsets instead of raw byte offsets.</description>
     /// </item>
     /// <item>
-    /// <description><b>Heuristic Binary File Check:</b> Performs a fast ratio-based ASCII check on the first block to identify and skip binary files.</description>
+    /// <description><b>Heuristic Binary File Check:</b> Performs a fast ratio-based ASCII check
+    /// on the first block to identify and skip binary files.</description>
     /// </item>
     /// </list>
     /// </summary>
@@ -97,6 +114,7 @@ namespace mtfindstr {
               if (streamOffset == 0 && totalBytes > 0) {
                 // If it contains a null byte, it is binary. Skip it immediately.
                 if (Array.IndexOf(buffer, (byte)0, 0, Math.Min(totalBytes, 8000)) >= 0) {
+                  BinaryFileSkipped?.Invoke(entry);
                   break;
                 }
 
@@ -113,6 +131,7 @@ namespace mtfindstr {
                   }
                   if ((float)asciiCount / checkLength <= 0.8f) {
                     // Binary file, skip it
+                    BinaryFileSkipped?.Invoke(entry);
                     break;
                   }
 

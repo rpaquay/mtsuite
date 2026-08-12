@@ -22,12 +22,15 @@ using mtsuite.shared.Utils;
 namespace mtfindstr {
   public class FindStrProgressMonitor : ProgressMonitor<FindStrStatistics> {
     private long _fileMatchedCount;
-    private long _fileSearchedCount;
+    private long _fileMatchingPatternCount;
+    private long _binaryFilesSkippedCount;
 
     protected override void FillInStatistics(FindStrStatistics statistics) {
       base.FillInStatistics(statistics);
       statistics.FileMatchedCount = _fileMatchedCount;
-      statistics.FileSearchedCount = _fileSearchedCount;
+      statistics.FileMatchingPatternCount = _fileMatchingPatternCount;
+      statistics.BinaryFilesSkippedCount = _binaryFilesSkippedCount;
+      statistics.FileSearchedCount = Math.Max(0, _fileMatchingPatternCount - _binaryFilesSkippedCount);
     }
 
     protected override void DisplayStatus(FindStrStatistics statistics) {
@@ -36,6 +39,8 @@ namespace mtfindstr {
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
       var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var linksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
+      var fileMatchingPatternText = string.Format("{0:n0}", statistics.FileMatchingPatternCount);
+      var binarySkippedText = string.Format("{0:n0}", statistics.BinaryFilesSkippedCount);
       var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
       var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds) : "0";
@@ -46,8 +51,10 @@ namespace mtfindstr {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
         new PrinterEntry("# of directories visited", directoriesText, shortName: "directories", valueAlign: Align.Right),
-        new PrinterEntry("# of files discovered", filesText, shortName: "files", valueAlign: Align.Right),
         new PrinterEntry("# of links discovered", linksText, shortName: "links", valueAlign: Align.Right),
+        new PrinterEntry("# of files discovered", filesText, shortName: "files", valueAlign: Align.Right),
+        new PrinterEntry("# of files matching pattern", fileMatchingPatternText, shortName: "matching pattern", valueAlign: Align.Right),
+        new PrinterEntry("# of binary files skipped", binarySkippedText, shortName: "skipped binary", valueAlign: Align.Right),
         new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right),
         new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
         new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
@@ -67,9 +74,13 @@ namespace mtfindstr {
       });
     }
 
+    public void OnBinaryFileSkipped(FileSystemEntry entry) {
+      Interlocked.Increment(ref _binaryFilesSkippedCount);
+    }
+
     public override void OnFileSearched(FileSystemEntry entry) {
       base.OnFileSearched(entry);
-      Interlocked.Increment(ref _fileSearchedCount);
+      Interlocked.Increment(ref _fileMatchingPatternCount);
     }
 
     /// <summary>

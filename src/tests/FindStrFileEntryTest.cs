@@ -149,10 +149,15 @@ namespace tests {
       File.WriteAllBytes(file.Path.FullName, data);
 
       var searcher = new FindStrFileEntry("hello", _poolFactory);
+      bool eventRaised = false;
+      searcher.BinaryFileSkipped += _ => eventRaised = true;
+
       using (var result = searcher.SearchFile(_fileSystemSetup.FileSystem, _fileSystemSetup.FileSystem.GetEntry(file.Path))) {
         // Should skip binary files
         Assert.AreEqual(0, result.Item.Count);
       }
+
+      Assert.IsTrue(eventRaised);
 
       // Regression check: verify fallback was not triggered by asserting we only rented from the list pool once
       var listPool = _poolFactory.RegisteredPools.FirstOrDefault(p => p.Name == "FindStrEntries");
@@ -177,9 +182,14 @@ namespace tests {
       File.WriteAllBytes(file.Path.FullName, data);
 
       var searcher = new FindStrFileEntry("hello", _poolFactory);
+      bool eventRaised = false;
+      searcher.BinaryFileSkipped += _ => eventRaised = true;
+
       using (var result = searcher.SearchFile(_fileSystemSetup.FileSystem, _fileSystemSetup.FileSystem.GetEntry(file.Path))) {
         Assert.AreEqual(0, result.Item.Count);
       }
+
+      Assert.IsTrue(eventRaised);
 
       var listPool = _poolFactory.RegisteredPools.FirstOrDefault(p => p.Name == "FindStrEntries");
       if (listPool != null) {

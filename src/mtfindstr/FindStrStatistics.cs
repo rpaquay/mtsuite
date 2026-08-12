@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ using mtsuite.shared;
 namespace mtfindstr {
   public class FindStrStatistics : Statistics {
     public long FileMatchedCount { get; set; }
+    public long FileMatchingPatternCount { get; set; }
     public long FileSearchedCount { get; set; }
+    public long BinaryFilesSkippedCount { get; set; }
   }
 }
