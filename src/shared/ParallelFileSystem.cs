@@ -166,22 +166,18 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     bool followLinks,
     int depth) {
 
-    var state = new TraverseDirectoryState<T>(this, directoryEntry, collector, taskListPool, followLinks, depth);
-
     // TraverseDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartDetachedTask(state,
-      static stateObj => {
-        var s = (TraverseDirectoryState<T>)stateObj!;
-        return s.FileSystem.TraverseDirectoryEntriesAsync(
-          s.DirectoryEntry,
-          s.Collector,
-          s.TaskListPool,
-          s.FollowLinks,
-          s.Depth);
-      }).Unwrap();
+    return Task.Run(() => 
+      TraverseDirectoryEntriesAsync(
+        directoryEntry,
+        collector,
+        taskListPool,
+        followLinks,
+        depth)
+    );
   }
 
-  private Task<T> TraverseDirectoryEntriesAsync<T>(
+  private async Task<T> TraverseDirectoryEntriesAsync<T>(
     FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
     IPool<List<Task<T>>> taskListPool,
@@ -190,64 +186,45 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
     var collectorItem = collector.CreateItemForDirectory(_fileSystem, directoryEntry, depth);
 
-    Task<T[]>? whenAllTasks = null;
-    {
-      OnDirectoryTraversing(directoryEntry);
-      using var optionalEntries = GetDirectoryEntries(directoryEntry);
-      OnDirectoryTraversed(directoryEntry, optionalEntries?.Item);
-      if (optionalEntries == null) {
-        // If we did not find entries due to error, exit early
-        return Task.FromResult(collectorItem);
-      }
+    OnDirectoryTraversing(directoryEntry);
+    var optionalEntries = GetDirectoryEntries(directoryEntry);
+    OnDirectoryTraversed(directoryEntry, optionalEntries?.Item);
+    if (optionalEntries == null) {
+      // If we did not find entries due to error, exit early
+      return collectorItem;
+    }
+    var entries = optionalEntries.Value;
 
-      var entries = optionalEntries.Value;
-
-      // Notify collector and collect tasks for any returned actions
-      foreach (var entry in entries.Item) {
-        var action = collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
-        if (action != null) {
-          // Run "action" inline
-          action();
-        }
-      }
-
-      // Create tasks for children directories
-      using var childDirectoriesTasks = taskListPool.AllocateFrom();
-      foreach (var entry in entries.Item) {
-        if (entry.IsDirectory) {
-          bool isRealDirectory = !entry.IsReparsePoint;
-          bool followDirectoryLink = entry.IsReparsePoint && followLinks;
-          if (isRealDirectory || followDirectoryLink) {
-            childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, taskListPool, followLinks,
-              depth + 1));
-          }
-        }
-      }
-
-      if (childDirectoriesTasks.Item.Count > 0) {
-        whenAllTasks = Task.WhenAll(childDirectoriesTasks.Item);
+    // Notify collector and collect tasks for any returned actions
+    foreach (var entry in entries.Item) {
+      var action = collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
+      if (action != null) {
+        // Run "action" inline
+        action();
       }
     }
 
-    if (whenAllTasks == null) {
-      return Task.FromResult(collectorItem);
+    // Create tasks for children directories
+    var childDirectoriesTasks = taskListPool.AllocateFrom();
+    foreach (var entry in entries.Item) {
+      if (entry.IsDirectory) {
+        var followDirectoryLink = entry.IsReparsePoint && followLinks;
+        if (entry.IsRegularDirectory || followDirectoryLink) {
+          childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, taskListPool, followLinks,
+            depth + 1));
+        }
+      }
     }
 
-    var continuationState = new TraverseEntriesContinuationState<T>(this, collector, collectorItem);
-    return whenAllTasks.ContinueWith(
-      static (t, stateObj) => {
-        var s = (TraverseEntriesContinuationState<T>)stateObj!;
-        var childResults = t.GetAwaiter().GetResult();
-        foreach (var childResult in childResults) {
-          s.Collector.OnDirectoryTraversed(s.FileSystem._fileSystem, s.CollectorItem, childResult);
-        }
+    // "entries" not used after this
+    entries.Dispose();
 
-        return s.CollectorItem;
-      },
-      continuationState,
-      CancellationToken.None,
-      TaskContinuationOptions.ExecuteSynchronously,
-      TaskScheduler.Default);
+    var childTaskResults = await childDirectoriesTasks.WhenAll().ConfigureAwait(false);
+    foreach (var childResult in childTaskResults) {
+      collector.OnDirectoryTraversed(_fileSystem, collectorItem, childResult);
+    }
+
+    return collectorItem;
   }
 
   private Task CopyDirectoryAsync(
@@ -258,27 +235,16 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     IFileComparer fileComparer,
     bool useCloneFile) {
 
-    var state = new CopyDirectoryState(
-      this,
-      sourceDirectory,
-      destinationPath,
-      destinationDirectoryEntry,
-      options,
-      fileComparer,
-      useCloneFile);
-
     // CopyDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartDetachedTask(state,
-      static stateObj => {
-        var s = (CopyDirectoryState)stateObj!;
-        return s.FileSystem.CopyDirectoryEntriesAsync(
-          s.SourceDirectory,
-          s.DestinationPath,
-          s.DestinationDirectoryEntry,
-          s.Options,
-          s.FileComparer,
-          s.UseCloneFile);
-      }).Unwrap();
+    return Task.Run(() => {
+        return CopyDirectoryEntriesAsync(
+          sourceDirectory,
+          destinationPath,
+          destinationDirectoryEntry,
+          options,
+          fileComparer,
+          useCloneFile);
+      });
   }
 
   private async Task CopyDirectoryEntriesAsync(
@@ -297,96 +263,84 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       // Bail out if error creating destination directory
       return;
     }
-
     var destinationDirectory = optionalDestinationDirectory.Value;
-    Task finalTask;
-    {
-      OnDirectoryTraversing(sourceDirectory);
 
-      // Enumerate entries in source directory
-      using var optionalSourceEntries = GetDirectoryEntries(sourceDirectory);
-
-      // Enumerate entries in destination directory
-      using var optionalDestinationEntries = destinationDirectoryEntry.HasValue
-        ? GetDirectoryEntries(destinationDirectory)
-        : _entryListPool.AllocateFrom();
-
-      OnDirectoryTraversed(sourceDirectory, optionalSourceEntries?.Item);
-
-      if (optionalSourceEntries == null || optionalDestinationEntries == null) {
-        return;
-      }
-
-      var sourceEntries = optionalSourceEntries.Value;
-      var destinationEntries = optionalDestinationEntries.Value;
-
-      using var destinationSet = _entrySetPool.AllocateFrom();
-      destinationSet.Item.SetList(destinationEntries.Item);
-
-      // Compute deletion of extra files in destination
-      using var entriesToDelete =
-        ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
-      OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
-
-      if (entriesToDelete.Item.Count > 0) {
-        using var deleteTaskList = _taskListPool.AllocateFrom();
-        foreach (var entry in entriesToDelete.Item) {
-          deleteTaskList.Item.Add(DeleteEntryAsync(entry, static _ => true));
-        }
-
-        await Task.WhenAll(deleteTaskList.Item).ConfigureAwait(false);
-      }
-
-      // Copy source files/reparse points, subdirectories
-      using var taskList = _taskListPool.AllocateFrom();
-      foreach (var sourceEntry in sourceEntries.Item) {
-        if (sourceEntry.IsRegularFile || sourceEntry.IsReparsePoint) {
-          PerformOrScheduleFileEntryCopy(sourceEntry, destinationDirectory, fileComparer, destinationSet.Item,
-            taskList.Item, useCloneFile);
-        }
-        else if (sourceEntry.IsRegularDirectory) {
-          var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
-          var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
-          taskList.Item.Add(CopyDirectoryAsync(
-            sourceEntry,
-            destinationEntryPath,
-            destinationExists ? childDestEntry : null,
-            options,
-            fileComparer,
-            useCloneFile));
-        }
-      }
-
-      if (taskList.Item.Count > 0) {
-        finalTask = Task.WhenAll(taskList.Item);
-      }
-      else {
-        finalTask = Task.CompletedTask;
-      }
+    //
+    // 1. Enumerate entries in source and destination directory
+    //
+    OnDirectoryTraversing(sourceDirectory);
+    var optionalSourceEntries = GetDirectoryEntries(sourceDirectory);
+    var optionalDestinationEntries = destinationDirectoryEntry.HasValue
+      ? GetDirectoryEntries(destinationDirectory)
+      : _entryListPool.AllocateFrom();
+    OnDirectoryTraversed(sourceDirectory, optionalSourceEntries?.Item);
+    if (optionalSourceEntries == null || optionalDestinationEntries == null) {
+      // Bail out if error
+      return;
     }
 
+    var sourceEntries = optionalSourceEntries.Value;
+    var destinationEntries = optionalDestinationEntries.Value;
+    var destinationSet = _entrySetPool.AllocateFrom();
+    destinationSet.Item.SetList(destinationEntries.Item);
+
+    //
+    // 2. Delete extra files in destination
+    //
+    var entriesToDelete =
+      ComputeDestinationEntriesToDelete(sourceEntries.Item, destinationEntries.Item, options);
+    OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
+    var deleteTaskList = _taskListPool.AllocateFrom();
+    foreach (var entry in entriesToDelete.Item) {
+      deleteTaskList.Item.Add(DeleteEntryAsync(entry, static _ => true));
+    }
+    entriesToDelete.Dispose();
+    await deleteTaskList.WhenAll().ConfigureAwait(false);
+
+    //
+    // 3. Copy source files/reparse points, subdirectories
+    //
+    var copyTasks = _taskListPool.AllocateFrom();
+    foreach (var sourceEntry in sourceEntries.Item) {
+      if (sourceEntry.IsRegularFile || sourceEntry.IsReparsePoint) {
+        PerformOrScheduleFileEntryCopy(sourceEntry, destinationDirectory, fileComparer, destinationSet.Item,
+          copyTasks.Item, useCloneFile);
+      }
+      else if (sourceEntry.IsRegularDirectory) {
+        var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
+        var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
+        copyTasks.Item.Add(CopyDirectoryAsync(
+          sourceEntry,
+          destinationEntryPath,
+          destinationExists ? childDestEntry : null,
+          options,
+          fileComparer,
+          useCloneFile));
+      }
+    }
+    
+    sourceEntries.Dispose(); // Not used after this
+    destinationEntries.Dispose(); // Not used after this
+    destinationSet.Dispose(); // Not used after this
+    
     //
     // 4. Await all pending copy operations
     //
-    await finalTask.ConfigureAwait(false);
+    await copyTasks.WhenAll().ConfigureAwait(false);
   }
 
   private Task CompactDirectoryAsyncImpl(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
     IFileComparer fileComparer, bool dryRun) {
     ArgumentNullException.ThrowIfNull(fileComparer);
 
-    var state = new CompactDirectoryState(this, sourceDirectory, destinationDirectory, fileComparer, dryRun);
-
     // CompactDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartDetachedTask(state,
-      static stateObj => {
-        var s = (CompactDirectoryState)stateObj!;
-        return s.FileSystem.CompactDirectoryEntriesAsync(
-          s.SourceDirectory,
-          s.DestinationDirectory,
-          s.FileComparer,
-          s.DryRun);
-      }).Unwrap();
+    return Task.Run(() => {
+        return CompactDirectoryEntriesAsync(
+          sourceDirectory,
+          destinationDirectory,
+          fileComparer,
+          dryRun);
+      });
   }
 
   private Task CompactDirectoryEntriesAsync(
@@ -436,31 +390,13 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   /// <summary>
   /// Delete all entries of <paramref name="sourceDirectory"/> recursively, including <paramref name="sourceDirectory"/> iself
   /// </summary>
-  private Task DeleteDirectoryAsync(FileSystemEntry sourceDirectory, DeleteState state) {
-    var continuationState = new DeleteDirectoryContinuationState(this, sourceDirectory, state);
-
-    // DeleteDirectoryEntriesAsync does a lot of synchronous I/O, so we run it in a dedicated task/thread.
-    return Task.Factory.StartDetachedTask(continuationState,
-      static stateObj => {
-        var s = (DeleteDirectoryContinuationState)stateObj!;
-        return s.FileSystem.DeleteDirectoryEntriesAsync(s.SourceDirectory, s.State);
-      }).Unwrap().ContinueWith(
-      static (t, stateObj) => {
-        t.GetAwaiter().GetResult();
-        var s = (DeleteDirectoryContinuationState)stateObj!;
-        if (s.State.AllEntriesDeleted) {
-          var rootDeleted = s.FileSystem.DeleteSingleEntry(s.SourceDirectory, s.State.IncludeFilter);
-          if (!rootDeleted) {
-            s.State.ReportFailure();
-          }
-        }
-      },
-      continuationState,
-      CancellationToken.None,
-      TaskContinuationOptions.ExecuteSynchronously,
-      TaskScheduler.Default);
+  private async Task DeleteDirectoryAsync(FileSystemEntry sourceDirectory, DeleteState state) {
+    await DeleteDirectoryEntriesAsync(sourceDirectory, state).ConfigureAwait(false); 
+    var deleted = DeleteSingleEntry(sourceDirectory, state.IncludeFilter);
+    if (!deleted) {
+      state.ReportFailure();
+    } 
   }
-
 
   /// <summary>
   /// Delete all entries of <paramref name="sourceDirectory"/> recursively, but not <paramref name="sourceDirectory"/> iself
@@ -509,9 +445,15 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     // 4. Batch delete all source directory entries.
     //    The beforeDelete callback acts as the filter, avoiding any list/array allocations!
     //
-    var sw = _stopwatchFactory.Create();
-    var entriesState = new DeleteDirectoryEntriesState(this, state.IncludeFilter, sw);
+    DeleteDirectoryEntries(sourceDirectory, sourceEntries, state);
+  }
 
+  private void DeleteDirectoryEntries(
+    FileSystemEntry sourceDirectory, 
+    FromPool<List<FileSystemEntry>> sourceEntries,
+    DeleteState state) {
+    var sw = _stopwatchFactory.Create();
+    var entriesState = new DeleteDirectoryEntriesState(this, state, sw);
     try {
       _fileSystem.Extension.DeleteDirectoryEntries(
         sourceDirectory,
@@ -525,8 +467,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
               return true;
             }
           }
-
-          s.AllEntriesDeleted = false;
+          s.ReportFailure();
           return false;
         },
         afterDelete: static (IReadOnlyList<FileSystemEntry> entries, int index, Exception? ex,
@@ -534,7 +475,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
           var entry = entries[index];
           if (ex != null) {
             s.Instance.OnError(entry.Path, ex);
-            s.AllEntriesDeleted = false;
+            s.ReportFailure();
           }
           else {
             s.Instance.OnEntryDeleted(entry, s.Stopwatch.Elapsed);
@@ -543,11 +484,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     }
     catch (Exception ex) {
       OnError(sourceDirectory.Path, ex);
-      entriesState.AllEntriesDeleted = false;
-    }
-
-    if (!entriesState.AllEntriesDeleted) {
-      state.ReportFailure();
+      entriesState.ReportFailure();
     }
   }
 
@@ -834,7 +771,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
   /// <summary>
   /// Delete a single file or reparse point if allowed by <paramref name="includeFilter"/>, returning whether
-  /// <paramref name="includeFilter"/> returned <code>true</code>. 
+  /// <paramref name="includeFilter"/> returned <c>true</c>. 
   ///
   ///  Note: Errors are reported via <see cref="OnError"/> 
   /// </summary>
@@ -979,78 +916,41 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     public NoAllocStopwatch Stopwatch { get; } = stopwatch;
   }
 
-  private struct DeleteDirectoryEntriesState(
+  private readonly struct DeleteDirectoryEntriesState(
     ParallelFileSystem instance,
-    Func<FileSystemEntry, bool> includeFilter,
+    DeleteState state,
     NoAllocStopwatch stopwatch) {
     public ParallelFileSystem Instance { get; } = instance;
-    public Func<FileSystemEntry, bool> IncludeFilter { get; } = includeFilter;
+    public Func<FileSystemEntry, bool> IncludeFilter => state.IncludeFilter;
     public NoAllocStopwatch Stopwatch { get; } = stopwatch;
-    public bool AllEntriesDeleted = true;
+    public void ReportFailure() {
+      state.ReportFailure();
+    }
   }
 
-  private sealed record TraverseDirectoryState<T>(
-    ParallelFileSystem FileSystem,
-    FileSystemEntry DirectoryEntry,
-    IDirectorCollector<T> Collector,
-    IPool<List<Task<T>>> TaskListPool,
-    bool FollowLinks,
-    int Depth);
+  private class DeleteState(Func<FileSystemEntry, bool> includeFilter) {
+    public readonly Func<FileSystemEntry, bool> IncludeFilter = includeFilter;
+    private volatile bool _allEntriesDeleted = true;
 
-  private sealed record TraverseEntriesContinuationState<T>(
-    ParallelFileSystem FileSystem,
-    IDirectorCollector<T> Collector,
-    T CollectorItem);
-
-  private class DeleteState {
-    public readonly Func<FileSystemEntry, bool> IncludeFilter;
-    private bool _allEntriesDeleted = true;
-    private readonly object _lock = new();
-
-    public DeleteState(Func<FileSystemEntry, bool> includeFilter) {
-      IncludeFilter = includeFilter;
-    }
-
-    public bool AllEntriesDeleted {
-      get {
-        lock (_lock) return _allEntriesDeleted;
-      }
-    }
+    public bool AllEntriesDeleted => _allEntriesDeleted;
 
     public void ReportFailure() {
-      lock (_lock) {
-        _allEntriesDeleted = false;
-      }
+      _allEntriesDeleted = false;
     }
   }
-
-  private sealed record DeleteDirectoryContinuationState(
-    ParallelFileSystem FileSystem,
-    FileSystemEntry SourceDirectory,
-    DeleteState State);
-
-  private sealed record CopyDirectoryState(
-    ParallelFileSystem FileSystem,
-    FileSystemEntry SourceDirectory,
-    FullPath DestinationPath,
-    FileSystemEntry? DestinationDirectoryEntry,
-    CopyOptions Options,
-    IFileComparer FileComparer,
-    bool UseCloneFile);
-
-  private sealed record CompactDirectoryState(
-    ParallelFileSystem FileSystem,
-    FileSystemEntry SourceDirectory,
-    FileSystemEntry DestinationDirectory,
-    IFileComparer FileComparer,
-    bool DryRun);
 }
 
-public static class TaskFactoryExt {
-  public static Task<TResult> StartDetachedTask<TResult>(this TaskFactory taskFactory, object state, Func<object?, TResult> func) {
-    return taskFactory.StartNew(func, state, 
-      CancellationToken.None,
-      TaskCreationOptions.DenyChildAttach,
-      TaskScheduler.Default);
-  }
+public static class TaskExt {
+  public static Task<T[]> WhenAll<T>(this FromPool<List<Task<T>>> list) {
+    var result = Task.WhenAll(list.Item); 
+    list.Dispose();
+    return result;
+  } 
+  
+  public static Task WhenAll(this FromPool<List<Task>> list) {
+    var result = Task.WhenAll(list.Item); 
+    list.Dispose();
+    return result;
+  } 
+
 }
