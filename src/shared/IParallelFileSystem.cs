@@ -72,13 +72,12 @@ namespace mtsuite.shared {
     T CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth);
 
     /// <summary>
-    /// Called when a child entry of the directory corresponding to <paramref
-    /// name="item"/> has been enumerated.
+    /// Called when a child entry of the directory corresponding to <paramref name="item"/> has been enumerated.
     /// </summary>
-    Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, T item, FileSystemEntry directory, FileSystemEntry entry);
+    void OnDirectoryEntryEnumerated(IFileSystem fileSystem, T item, FileSystemEntry directory, FileSystemEntry entry);
 
     /// <summary>
-    /// Called after a sub-directory <paramref name="childItem"/> of the
+    /// Called after a subdirectory <paramref name="childItem"/> of the
     /// directory <paramref name="parentItem"/> has been processed.
     /// </summary>
     void OnDirectoryTraversed(IFileSystem fileSystem, T parentItem, T childItem);

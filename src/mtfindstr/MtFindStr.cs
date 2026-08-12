@@ -140,8 +140,8 @@ namespace mtfindstr {
       }).ToList();
     }
 
-    private static FindStrMatcher CreateFindStrMatcher(string pattern) {
-      return new FindStrFileEntry(pattern).SearchFile;
+    private FindStrMatcher CreateFindStrMatcher(string pattern) {
+      return new FindStrFileEntry(pattern, _poolFactory).SearchFile;
     }
 
     private static void DisplayStatistics(Statistics statistics) {

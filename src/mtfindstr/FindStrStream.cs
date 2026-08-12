@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
+using mtsuite.CoreFileSystem.ObjectPool;
 
 namespace mtfindstr {
   public class FindStrStream {
     private const int StreamBufferSize = 64 * 1024;
     private readonly char[] _buffer = new char[StreamBufferSize];
-
-    public static ReadOnlyCollection<FindStrEntry> EmptyResult { get; } = new ReadOnlyCollection<FindStrEntry>(new List<FindStrEntry>());
 
     public FindStrStream() : this(StreamBufferSize) {
     }
@@ -31,8 +29,8 @@ namespace mtfindstr {
       _buffer = new char[buffersize];
     }
 
-    public IList<FindStrEntry> Search(StreamReader stream, char[] patternArray) {
-      return new SingleSearcher(_buffer).Run(stream, patternArray);
+    public FromPool<IList<FindStrEntry>> Search(StreamReader stream, char[] patternArray, IPool<IList<FindStrEntry>> listPool) {
+      return new SingleSearcher(_buffer).Run(stream, patternArray, listPool);
     }
 
     private struct SingleSearcher {
@@ -51,30 +49,30 @@ namespace mtfindstr {
 
       public bool EOF => _bufferLength == 0;
 
-      public IList<FindStrEntry> Run(StreamReader stream, char[] patternArray) {
+      public FromPool<IList<FindStrEntry>> Run(StreamReader stream, char[] patternArray, IPool<IList<FindStrEntry>> listPool) {
         if (((patternArray.Length + 1) / 2) > _buffer.Length) {
           throw new ArgumentException("Buffer should be larger than pattern");
         }
         EnsureBuffer(stream);
 
-        if (IsBinary()) {
-          return EmptyResult;
-        }
+        var result = listPool.AllocateFrom();
+        try {
+          if (IsBinary()) {
+            return result;
+          }
 
-        // Create collection lazily in case there are no matches
-        IList<FindStrEntry> result = null;
-        while (true) {
-          var entry = FindNextEntry(stream, patternArray);
-          if (entry == null) {
-            break;
+          while (true) {
+            var entry = FindNextEntry(stream, patternArray);
+            if (entry == null) {
+              break;
+            }
+            result.Item.Add(entry);
           }
-          // Create collection now if needed
-          if (result == null) {
-            result = new List<FindStrEntry>(); ;
-          }
-          result.Add(entry);
+          return result;
+        } catch {
+          result.Dispose();
+          throw;
         }
-        return result ?? EmptyResult;
       }
 
       private FindStrEntry FindNextEntry(StreamReader stream, char[] patternArray) {

@@ -189,17 +189,16 @@ namespace mtinfo {
         return result;
       }
 
-      public Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, DirectorySummary summary, FileSystemEntry directory, FileSystemEntry entry) {
+      public void OnDirectoryEntryEnumerated(IFileSystem fileSystem, DirectorySummary summary, FileSystemEntry directory, FileSystemEntry entry) {
         SetLongestPath(entry);
-        if (entry.IsFile && !entry.IsReparsePoint) {
+        if (entry.IsRegularFile) {
           summary.Stats.FileCount++;
           summary.Stats.FileBytesTotal += entry.FileSize;
-        } else if (entry.IsDirectory && !entry.IsReparsePoint) {
+        } else if (entry.IsRegularDirectory) {
           summary.Stats.DirectoryCount++;
         } else if (entry.IsReparsePoint) {
           summary.Stats.SymlinkCount++;
         }
-        return null;
       }
 
       private void SetLongestPath(FileSystemEntry entry) {

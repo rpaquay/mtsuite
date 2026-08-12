@@ -187,11 +187,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
     // Notify collector and collect tasks for any returned actions
     foreach (var entry in entries.Item) {
-      var action = collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
-      if (action != null) {
-        // Run "action" inline
-        action();
-      }
+      collector.OnDirectoryEntryEnumerated(_fileSystem, collectorItem, directoryEntry, entry);
     }
 
     // Create tasks for children directories

@@ -37,14 +37,13 @@ namespace mtfind {
       return VoidValue.Instance;
     }
 
-    public Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, FileSystemEntry entry) {
+    public void OnDirectoryEntryEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, FileSystemEntry entry) {
       if (_nameMatcher(entry)) {
         lock (_matchedFiles) {
           _matchedFiles.Add(entry);
         }
         _progressMonitor.OnFileMatchFound(entry);
       }
-      return null;
     }
 
     public void OnDirectoryTraversed(IFileSystem fileSystem, VoidValue parentValue, VoidValue childValue) {

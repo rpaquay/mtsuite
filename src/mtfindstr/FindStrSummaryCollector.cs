@@ -15,8 +15,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared;
 using mtsuite.shared.FileNameMatching;
@@ -40,38 +38,46 @@ namespace mtfindstr {
       return VoidValue.Instance;
     }
 
-    public Action? OnDirectoryEntryEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, FileSystemEntry entry) {
+    public void OnDirectoryEntryEnumerated(IFileSystem fileSystem, VoidValue value, FileSystemEntry directory, FileSystemEntry entry) {
       if (!MatchesFileName(entry)) {
-        return null;
+        return;
       }
 
-      return () => {
-        _progressMonitor.OnFileSearching(entry);
-        try {
-          var findStrEntries = _findStrMatcher(fileSystem, entry);
-          AddFindStrResult(entry, findStrEntries);
-        } catch (Exception e) {
-          AddError(entry, e);
-        } finally {
-          _progressMonitor.OnFileSearched(entry);
+      _progressMonitor.OnFileSearching(entry);
+      try {
+        using var findStrEntries = _findStrMatcher(fileSystem, entry);
+        if (findStrEntries.Item.Count > 0) {
+          AddFindStrResult(entry, findStrEntries.Item);
         }
-      };
+      }
+      catch (Exception e) {
+        AddError(entry, e);
+      }
+      finally {
+        _progressMonitor.OnFileSearched(entry);
+      }
     }
 
     private void AddFindStrResult(FileSystemEntry entry, IList<FindStrEntry> entries) {
-      if (entries.Count > 0) {
-        lock (_fileResults) {
-          _fileResults.Add(new FindStrFileResult {
-            Path = entry.Path,
-            Entries = entries
-          });
-        }
-        _progressMonitor.OnFileMatchFound(entry, entries);
+      lock (_fileResults) {
+        _fileResults.Add(new FindStrFileResult {
+          Path = entry.Path,
+          Entries = new List<FindStrEntry>(entries)
+        });
       }
+      _progressMonitor.OnFileMatchFound(entry, entries);
     }
 
     bool MatchesFileName(FileSystemEntry entry) {
-      return entry.IsFile && _fileNameMatchers.Any(matcher => matcher(entry));
+      if (!entry.IsFile) {
+        return false;
+      }
+      foreach (var matcher in _fileNameMatchers) {
+        if (matcher(entry)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     private void AddError(FileSystemEntry entry, Exception e) {
