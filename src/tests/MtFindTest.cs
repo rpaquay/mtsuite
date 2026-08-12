@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtfind;
 using mtsuite.CoreFileSystem.ObjectPool;
@@ -39,7 +40,7 @@ namespace tests {
     public void MtFindShouldThrowWithNonExistingFolder() {
       var mtfind = new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory());
       mtfind.Run(new string[] {
-        "-d", "fake",
+        "fake",
         "foo"
       });
     }
@@ -57,6 +58,39 @@ namespace tests {
       Assert.AreEqual(2, matches.Count);
       Assert.IsTrue(matches.Exists(m => m.Name == "file1.txt"));
       Assert.IsTrue(matches.Exists(m => m.Name == "file3.txt"));
+    }
+
+    [TestMethod]
+    public void MtFindArgumentsShouldParsePositionalDirectoryAndPattern() {
+      // 1. Omitted directory
+      {
+        var args = new MtFindArguments(new[] { "mypattern" });
+        Assert.AreEqual(Environment.CurrentDirectory, args.Values.Directory);
+        Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
+
+      // 2. Provided directory and pattern
+      {
+        var args = new MtFindArguments(new[] { "my/dir/path", "mypattern" });
+        Assert.AreEqual("my/dir/path", args.Values.Directory);
+        Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
+
+      // 3. Flags and omitted directory
+      {
+        var args = new MtFindArguments(new[] { "--plain-output", "mypattern" });
+        Assert.IsTrue(args.Values.PlainOutput);
+        Assert.AreEqual(Environment.CurrentDirectory, args.Values.Directory);
+        Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
+
+      // 4. Flags and provided directory and pattern
+      {
+        var args = new MtFindArguments(new[] { "--plain-output", "my/dir/path", "mypattern" });
+        Assert.IsTrue(args.Values.PlainOutput);
+        Assert.AreEqual("my/dir/path", args.Values.Directory);
+        Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
     }
   }
 }

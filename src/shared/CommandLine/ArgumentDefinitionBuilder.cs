@@ -28,7 +28,18 @@ namespace mtsuite.shared.CommandLine {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
-        DefaultValue = defaultValue,
+        DefaultValue = defaultValue == null ? null : new LazyDefault<string>(defaultValue),
+      };
+      _definitions.Add(def);
+      return this;
+    }
+
+    public ArgumentDefinitionBuilder WithString(string id, string description, bool isMandatory, Func<string> defaultValueFactory) {
+      var def = new FreeStringArgDef {
+        Id = id,
+        Description = description,
+        IsMandatory = isMandatory,
+        DefaultValue = defaultValueFactory == null ? null : new LazyDefault<string>(defaultValueFactory),
       };
       _definitions.Add(def);
       return this;
@@ -39,7 +50,18 @@ namespace mtsuite.shared.CommandLine {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
-        DefaultValue = defaultValue == null ? null : new List<string> { defaultValue },
+        DefaultValue = defaultValue == null ? null : new LazyDefault<IList<string>>(() => new List<string> { defaultValue }),
+      };
+      _definitions.Add(def);
+      return this;
+    }
+
+    public ArgumentDefinitionBuilder WithMultipleString(string id, string description, bool isMandatory, Func<IList<string>> defaultValueFactory) {
+      var def = new MultipleFreeStringArgDef {
+        Id = id,
+        Description = description,
+        IsMandatory = isMandatory,
+        DefaultValue = defaultValueFactory == null ? null : new LazyDefault<IList<string>>(defaultValueFactory),
       };
       _definitions.Add(def);
       return this;

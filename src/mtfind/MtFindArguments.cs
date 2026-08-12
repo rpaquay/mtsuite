@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,14 +26,14 @@ namespace mtfind {
     public MtFindArguments(string[] args) {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithHelpSwitch()
-        .WithStringFlag("directory", "The directory tree to search", "d", "path", Environment.CurrentDirectory, null, "", "directory")
         .WithSwitch("include-dir", "Include directory names in search", "i", "", "include-dir")
         .WithSwitch("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
         .WithSwitch("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
         .WithSwitch("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
         .WithThreadCountSwitch()
         .WithGcSwitch()
-        .WithString("pattern", "The pattern to search for", true, "*")
+        .WithString("directory", "The directory tree to search", false, () => Environment.CurrentDirectory)
+        .WithString("pattern", "The pattern to search for", true)
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);

@@ -52,7 +52,7 @@ namespace mtinfo {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithString("directory-path", "The path of the directory to examine", false, Environment.CurrentDirectory)
+        .WithString("directory-path", "The path of the directory to examine", false, () => Environment.CurrentDirectory)
         .WithIntFlag("depth",
           "Determine the # of levels of sub-directories to display in the final summary (default=2, minimum=1)",
           "d",

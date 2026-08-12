@@ -38,8 +38,7 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public void Parse() {
-      var currentFreeArgIndex = 0;
-      var freeArgCount = CountFreeArgDef();
+      var freeArgMap = MapFreeArguments();
       var multipleFreeArgStrings = new List<string>();
       ParsedArgument multipleFreeArgStringsArgument = null;
       for (var index = 0; index < _args.Count; ) {
@@ -74,29 +73,25 @@ namespace mtsuite.shared.CommandLine {
           index++;
         } else {
           // Handle free string arguments
-          var argDef = FindFreeArgDef(currentFreeArgIndex);
-          switch (argDef) {
-            case null:
-              _errors.Add(string.Format("Extra argument \"{0}\"", argString));
-              break;
-            case FreeStringArgDef: {
-              var parsedArg = new ParsedArgument(argDef, argString);
-              _parserArguments.Add(parsedArg);
-              // We got the argument (single) string value, move one to the next one (if there is one)
-              currentFreeArgIndex++;
-              break;
-            }
-            case MultipleFreeStringArgDef: {
-              if (multipleFreeArgStringsArgument == null) {
-                var parsedArg = new ParsedArgument(argDef, multipleFreeArgStrings);
+          if (freeArgMap.TryGetValue(index, out var argDef)) {
+            switch (argDef) {
+              case FreeStringArgDef: {
+                var parsedArg = new ParsedArgument(argDef, argString);
                 _parserArguments.Add(parsedArg);
-                multipleFreeArgStringsArgument = parsedArg;
+                break;
               }
-              multipleFreeArgStrings.Add(argString);
-              // Don't increment currentFreeArgIndex because we are dealing with a multiple value argument
-              //currentFreeArgIndex++;
-              break;
+              case MultipleFreeStringArgDef: {
+                if (multipleFreeArgStringsArgument == null) {
+                  var parsedArg = new ParsedArgument(argDef, multipleFreeArgStrings);
+                  _parserArguments.Add(parsedArg);
+                  multipleFreeArgStringsArgument = parsedArg;
+                }
+                multipleFreeArgStrings.Add(argString);
+                break;
+              }
             }
+          } else {
+            _errors.Add(string.Format("Extra argument \"{0}\"", argString));
           }
           index++;
         }
@@ -132,28 +127,68 @@ namespace mtsuite.shared.CommandLine {
       var stringDefaults = _argumentDefinitions.OfType<FreeStringArgDef>()
         .Where(x => !Contains(x.Id) && x.DefaultValue != null);
       foreach (var x in stringDefaults) {
-        _parserArguments.Add(new ParsedArgument(x, x.DefaultValue));
+        _parserArguments.Add(new ParsedArgument(x, x.DefaultValue.Value));
       }
       
       var multiStringDefaults = _argumentDefinitions.OfType<MultipleFreeStringArgDef>()
         .Where(x => !Contains(x.Id) && x.DefaultValue != null);
       foreach (var x in multiStringDefaults) {
-        _parserArguments.Add(new ParsedArgument(x, x.DefaultValue));
+        _parserArguments.Add(new ParsedArgument(x, x.DefaultValue.Value));
       }
     }
 
-    private int CountFreeArgDef() {
-      return _parserArguments.Count(x => IsFreeArgDef(x.ArgDef));
-    }
-    
-    private ArgDef FindFreeArgDef(int index) {
-      var current = 0;
-      foreach (var argDef in _argumentDefinitions.Where(x => IsFreeArgDef(x))) {
-        if (index == current)
-          return argDef;
-        current++;
+    private Dictionary<int, ArgDef> MapFreeArguments() {
+      var map = new Dictionary<int, ArgDef>();
+      
+      // 1. Extract all free args from _args
+      var providedFreeArgs = new List<int>(); // Indices in _args
+      bool isWindows = PathHelpers.DirectorySeparatorString == "\\";
+      for (int i = 0; i < _args.Count; i++) {
+        if (!StartsWithNamedArgumentPrefix(_args[i])) {
+          providedFreeArgs.Add(i);
+        }
       }
-      return null;
+
+      // 2. Get defined free args
+      var definedFreeArgs = _argumentDefinitions.Where(IsFreeArgDef).ToList();
+
+      // 3. Align them
+      int valueIndex = 0;
+      for (int i = 0; i < definedFreeArgs.Count; i++) {
+        if (valueIndex >= providedFreeArgs.Count) {
+          break;
+        }
+
+        var def = definedFreeArgs[i];
+        int remainingValues = providedFreeArgs.Count - valueIndex;
+        int remainingMandatory = 0;
+        for (int j = i; j < definedFreeArgs.Count; j++) {
+          if (definedFreeArgs[j].IsMandatory) {
+            remainingMandatory++;
+          }
+        }
+
+        if (def.IsMandatory || remainingValues > remainingMandatory) {
+          if (def is MultipleFreeStringArgDef) {
+            // Consumes all remaining free args
+            while (valueIndex < providedFreeArgs.Count) {
+              map[providedFreeArgs[valueIndex]] = def;
+              valueIndex++;
+            }
+          } else {
+            map[providedFreeArgs[valueIndex]] = def;
+            valueIndex++;
+          }
+        }
+      }
+
+      // Any remaining provided free args that couldn't be matched (e.g. if too many)
+      while (valueIndex < providedFreeArgs.Count) {
+        // Leave them unmapped, which will trigger the "Extra argument" error in Parse
+        valueIndex++;
+      }
+
+      return map;
     }
 
     private static bool IsFreeArgDef(ArgDef argDef) {

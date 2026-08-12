@@ -16,6 +16,19 @@ using System;
 using System.Collections.Generic;
 
 namespace mtsuite.shared.CommandLine {
+  public class LazyDefault<T> {
+    private readonly Func<T> _factory;
+    public LazyDefault(T value) {
+      _factory = () => value;
+    }
+    public LazyDefault(Func<T> factory) {
+      _factory = factory;
+    }
+    public T Value => _factory();
+    public static implicit operator LazyDefault<T>(T value) => value == null ? null : new LazyDefault<T>(value);
+    public static implicit operator LazyDefault<T>(Func<T> factory) => factory == null ? null : new LazyDefault<T>(factory);
+  }
+
   /// <summary>
   /// Base class of all command line argument definitions.
   /// </summary>
@@ -46,14 +59,14 @@ namespace mtsuite.shared.CommandLine {
   /// Definition for arguments specified as "free" string (e.g. a filename).
   /// </summary>
   public class FreeStringArgDef : ArgDef {
-    public string DefaultValue { get; set; }
+    public LazyDefault<string> DefaultValue { get; set; }
   }
 
   /// <summary>
   /// Definition for arguments specified as "free" string (e.g. a filename).
   /// </summary>
   public class MultipleFreeStringArgDef : ArgDef {
-    public IList<string> DefaultValue { get; set; }
+    public LazyDefault<IList<string>> DefaultValue { get; set; }
   }
 
   /// <summary>

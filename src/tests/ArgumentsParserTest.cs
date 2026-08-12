@@ -235,5 +235,133 @@ namespace tests {
       parser2.Parse();
       Assert.IsFalse(parser2.IsValid);
     }
+
+    [TestMethod]
+    public void ArgumentsParserShouldSupportOptionalPositionalFollowedByMandatoryPositional() {
+      var definitions = new ArgDef[] {
+        new FreeStringArgDef {
+          Id = "directory",
+          IsMandatory = false,
+          DefaultValue = "defaultDir"
+        },
+        new FreeStringArgDef {
+          Id = "pattern",
+          IsMandatory = true
+        }
+      };
+
+      // 1. User passes only 1 argument (should map to the mandatory "pattern")
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "mypattern" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("defaultDir", parser["directory"].StringValue);
+        Assert.AreEqual("mypattern", parser["pattern"].StringValue);
+      }
+
+      // 2. User passes 2 arguments (should map first to "directory" and second to "pattern")
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "customDir", "mypattern" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("customDir", parser["directory"].StringValue);
+        Assert.AreEqual("mypattern", parser["pattern"].StringValue);
+      }
+
+      // 3. User passes 0 arguments (should fail because "pattern" is mandatory)
+      {
+        var parser = new ArgumentsParser(definitions, Array.Empty<string>());
+        parser.Parse();
+        Assert.IsFalse(parser.IsValid);
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldSupportMultipleOptionalPositionalsGreedyMapping() {
+      var definitions = new ArgDef[] {
+        new FreeStringArgDef {
+          Id = "arg1",
+          IsMandatory = false,
+          DefaultValue = "def1"
+        },
+        new FreeStringArgDef {
+          Id = "arg2",
+          IsMandatory = false,
+          DefaultValue = "def2"
+        },
+        new FreeStringArgDef {
+          Id = "pattern",
+          IsMandatory = true
+        }
+      };
+
+      // Case A: 1 argument -> goes to pattern
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "valP" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("def1", parser["arg1"].StringValue);
+        Assert.AreEqual("def2", parser["arg2"].StringValue);
+        Assert.AreEqual("valP", parser["pattern"].StringValue);
+      }
+
+      // Case B: 2 arguments -> goes to arg1 and pattern, arg2 takes default
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "val1", "valP" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("val1", parser["arg1"].StringValue);
+        Assert.AreEqual("def2", parser["arg2"].StringValue);
+        Assert.AreEqual("valP", parser["pattern"].StringValue);
+      }
+
+      // Case C: 3 arguments -> goes to arg1, arg2, pattern
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "val1", "val2", "valP" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("val1", parser["arg1"].StringValue);
+        Assert.AreEqual("val2", parser["arg2"].StringValue);
+        Assert.AreEqual("valP", parser["pattern"].StringValue);
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserPositionalDefaultValueIsLazy() {
+      bool factoryEvaluated = false;
+      var definitions = new ArgDef[] {
+        new FreeStringArgDef {
+          Id = "directory",
+          IsMandatory = false,
+          DefaultValue = new LazyDefault<string>(() => {
+            factoryEvaluated = true;
+            return "lazyDir";
+          })
+        },
+        new FreeStringArgDef {
+          Id = "pattern",
+          IsMandatory = true
+        }
+      };
+
+      // Case A: Positional value is provided by the user. Factory should NOT be evaluated!
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "providedDir", "pattern" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsFalse(factoryEvaluated);
+        Assert.AreEqual("providedDir", parser["directory"].StringValue);
+      }
+
+      // Case B: Positional value is NOT provided by the user. Factory should be evaluated!
+      {
+        factoryEvaluated = false;
+        var parser = new ArgumentsParser(definitions, new[] { "pattern" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsTrue(factoryEvaluated);
+        Assert.AreEqual("lazyDir", parser["directory"].StringValue);
+      }
+    }
   }
 }
