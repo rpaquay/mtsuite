@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,15 +43,15 @@ namespace mtsuite.shared.CommandLine {
         _sb.Append(']');
     }
 
-    public void Visit(FreeStringArgDef arg) {
+    public void Visit(PositionalArgDef arg) {
       Append(arg.IsMandatory, "{0}", arg.Id);
     }
 
-    public void Visit(MultipleFreeStringArgDef arg) {
+    public void Visit(MultiplePositionalArgDef arg) {
       Append(arg.IsMandatory, "{0} ...", arg.Id);
     }
 
-    public void Visit(SwitchArgDef arg) {
+    public void Visit(FlagArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
         Append(arg.IsMandatory, "{0}{1}", Delimiter, arg.ShortName);
       } else {
@@ -59,8 +59,8 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
-    public void Visit(IntFlagArgDef arg) {
-      var valueSummary = string.Format(":{0}", arg.ValueName);
+    public void Visit(IntOptionArgDef arg) {
+      var valueSummary = string.Format(" {0}", arg.ValueName);
       if (string.IsNullOrEmpty(arg.LongName)) {
         Append(arg.IsMandatory, "{0}{1}{2}", Delimiter, arg.ShortName, valueSummary);
       } else {
@@ -68,8 +68,8 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
-    public void Visit(StringFlagArgDef arg) {
-      var valueSummary = string.Format(":{0}", arg.ValueName);
+    public void Visit(StringOptionArgDef arg) {
+      var valueSummary = string.Format(" {0}", arg.ValueName);
       if (string.IsNullOrEmpty(arg.LongName)) {
         Append(arg.IsMandatory, "{0}{1}{2}", Delimiter, arg.ShortName, valueSummary);
       } else {

@@ -52,8 +52,8 @@ namespace mtinfo {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithString("directory-path", "The path of the directory to examine", false, () => Environment.CurrentDirectory)
-        .WithIntFlag("depth",
+        .WithPositional("directory-path", "The path of the directory to examine", false, () => Environment.CurrentDirectory)
+        .WithIntOption("depth",
           "Determine the # of levels of sub-directories to display in the final summary (default=2, minimum=1)",
           "d",
           "count",
@@ -65,7 +65,7 @@ namespace mtinfo {
           },
           "",
           "depth")
-        .WithIntFlag("longest-path",
+        .WithIntOption("longest-path",
           "Display the longest path encountered during traversal (default=0, minimum=0)",
           "lp",
           "count",
@@ -77,10 +77,10 @@ namespace mtinfo {
           },
           "",
           "longestpath")
-        .WithThreadCountSwitch()
-        .WithNoProgressSwitch()
-        .WithGcSwitch()
-        .WithHelpSwitch()
+        .WithThreadCountOption()
+        .WithNoProgressFlag()
+        .WithGcFlag()
+        .WithHelpFlag()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);

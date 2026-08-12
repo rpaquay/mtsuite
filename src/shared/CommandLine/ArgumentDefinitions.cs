@@ -48,46 +48,46 @@ namespace mtsuite.shared.CommandLine {
   }
 
   /// <summary>
-  /// Base class for arguments which have a name and a value (e.g. "/d:2").
+  /// Base class for named arguments which take a value (e.g. "/d:2").
   /// </summary>
-  public abstract class NameValueArgDef : NameArgDef {
+  public abstract class OptionArgDef : NameArgDef {
     public string ValueName { get; set; }
     public object DefaultValue { get; set; }
   }
 
   /// <summary>
-  /// Definition for arguments specified as "free" string (e.g. a filename).
+  /// Definition for positional arguments (no prefix name, e.g. a filename).
   /// </summary>
-  public class FreeStringArgDef : ArgDef {
+  public class PositionalArgDef : ArgDef {
     public LazyDefault<string> DefaultValue { get; set; }
   }
 
   /// <summary>
-  /// Definition for arguments specified as "free" string (e.g. a filename).
+  /// Definition for multiple positional arguments.
   /// </summary>
-  public class MultipleFreeStringArgDef : ArgDef {
+  public class MultiplePositionalArgDef : ArgDef {
     public LazyDefault<IList<string>> DefaultValue { get; set; }
   }
 
   /// <summary>
-  /// Definition for arguments which have a name and no value (e.g. "/h").
+  /// Definition for named boolean arguments (e.g. "/h").
   /// </summary>
-  public class SwitchArgDef : NameArgDef {
+  public class FlagArgDef : NameArgDef {
     public static object ValueMarker = new object();
   }
 
   /// <summary>
-  /// Definition for arguments which have a name and an integer value (e.g. "/d:2").
+  /// Definition for named arguments which have an integer value (e.g. "/d:2").
   /// </summary>
-  public class IntFlagArgDef : NameValueArgDef {
+  public class IntOptionArgDef : OptionArgDef {
     public Func<int, string> Validator { get; set; }
     public Func<string, int?> StringParser { get; set; }
   }
 
   /// <summary>
-  /// Definition for arguments which have a name and a string value (e.g. "/a:foo").
+  /// Definition for named arguments which have a string value (e.g. "/a:foo").
   /// </summary>
-  public class StringFlagArgDef : NameValueArgDef {
+  public class StringOptionArgDef : OptionArgDef {
     public Func<string, string> Validator { get; set; }
   }
 }

@@ -25,15 +25,15 @@ namespace mtfind {
 
     public MtFindArguments(string[] args) {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithHelpSwitch()
-        .WithSwitch("include-dir", "Include directory names in search", "i", "", "include-dir")
-        .WithSwitch("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
-        .WithSwitch("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
-        .WithSwitch("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
-        .WithThreadCountSwitch()
-        .WithGcSwitch()
-        .WithString("directory", "The directory tree to search", false, () => Environment.CurrentDirectory)
-        .WithString("pattern", "The pattern to search for", true)
+        .WithHelpFlag()
+        .WithFlag("include-dir", "Include directory names in search", "i", "", "include-dir")
+        .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
+        .WithFlag("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
+        .WithFlag("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
+        .WithThreadCountOption()
+        .WithGcFlag()
+        .WithPositional("directory", "The directory tree to search", false, () => Environment.CurrentDirectory)
+        .WithPositional("pattern", "The pattern to search for", true)
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);

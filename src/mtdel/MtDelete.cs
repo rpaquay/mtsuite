@@ -49,17 +49,17 @@ namespace mtdel {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithString("directory-path", "The path of the directory to delete", true)
-        .WithSwitch("quiet", "Quiet mode, do not ask if ok to delete", "q", "", "quiet")
-        .WithStringFlag("attributes", @"Selects files to delete based on attributes
+        .WithPositional("directory-path", "The path of the directory to delete", true)
+        .WithFlag("quiet", "Quiet mode, do not ask if ok to delete", "q", "", "quiet")
+        .WithStringOption("attributes", @"Selects files to delete based on attributes
 R  Read-only files            S  System files
 H  Hidden files               A  Files ready for archiving
 I  Not content indexed Files  L  Reparse Points
 -  Prefix meaning not", "a", "attributes", null, value => new AttributesFilterParser().Parse(value).Error)
-        .WithThreadCountSwitch()
-        .WithNoProgressSwitch()
-        .WithGcSwitch()
-        .WithHelpSwitch()
+        .WithThreadCountOption()
+        .WithNoProgressFlag()
+        .WithGcFlag()
+        .WithHelpFlag()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);

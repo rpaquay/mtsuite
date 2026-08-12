@@ -56,15 +56,15 @@ namespace mtcompact {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithString("source-path", "The path of the source directory", true)
-        .WithString("destination-path", "The path of the destination directory", true)
-        .WithSwitch("fc", "Compare file contents (default)", "fc", "", "content")
-        .WithSwitch("ft", "Fast comparison using file modification time only", "ft")
-        .WithSwitch("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
-        .WithNoProgressSwitch()
-        .WithThreadCountSwitch()
-        .WithGcSwitch()
-        .WithHelpSwitch()
+        .WithPositional("source-path", "The path of the source directory", true)
+        .WithPositional("destination-path", "The path of the destination directory", true)
+        .WithFlag("fc", "Compare file contents (default)", "fc", "", "content")
+        .WithFlag("ft", "Fast comparison using file modification time only", "ft")
+        .WithFlag("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
+        .WithNoProgressFlag()
+        .WithThreadCountOption()
+        .WithGcFlag()
+        .WithHelpFlag()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);

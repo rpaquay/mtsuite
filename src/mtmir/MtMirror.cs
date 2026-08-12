@@ -65,15 +65,15 @@ namespace mtmir {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithString("source-path", "The path of the source directory", true)
-        .WithString("destination-path", "The path of the destination directory", true)
-        .WithSwitch("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
-        .WithSwitch("ft", "Compare file modification time (default)", "ft")
-        .WithSwitch("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
-        .WithNoProgressSwitch()
-        .WithThreadCountSwitch()
-        .WithGcSwitch()
-        .WithHelpSwitch()
+        .WithPositional("source-path", "The path of the source directory", true)
+        .WithPositional("destination-path", "The path of the destination directory", true)
+        .WithFlag("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
+        .WithFlag("ft", "Compare file modification time (default)", "ft")
+        .WithFlag("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
+        .WithNoProgressFlag()
+        .WithThreadCountOption()
+        .WithGcFlag()
+        .WithHelpFlag()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);

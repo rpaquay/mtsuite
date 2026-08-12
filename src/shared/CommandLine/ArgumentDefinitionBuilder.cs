@@ -23,8 +23,8 @@ namespace mtsuite.shared.CommandLine {
       return _definitions;
     }
 
-    public ArgumentDefinitionBuilder WithString(string id, string description, bool isMandatory, string defaultValue = null) {
-      var def = new FreeStringArgDef {
+    public ArgumentDefinitionBuilder WithPositional(string id, string description, bool isMandatory, string defaultValue = null) {
+      var def = new PositionalArgDef {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
@@ -34,8 +34,8 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithString(string id, string description, bool isMandatory, Func<string> defaultValueFactory) {
-      var def = new FreeStringArgDef {
+    public ArgumentDefinitionBuilder WithPositional(string id, string description, bool isMandatory, Func<string> defaultValueFactory) {
+      var def = new PositionalArgDef {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
@@ -45,8 +45,8 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithMultipleString(string id, string description, bool isMandatory, string defaultValue = null) {
-      var def = new MultipleFreeStringArgDef {
+    public ArgumentDefinitionBuilder WithMultiplePositional(string id, string description, bool isMandatory, string defaultValue = null) {
+      var def = new MultiplePositionalArgDef {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
@@ -56,8 +56,8 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithMultipleString(string id, string description, bool isMandatory, Func<IList<string>> defaultValueFactory) {
-      var def = new MultipleFreeStringArgDef {
+    public ArgumentDefinitionBuilder WithMultiplePositional(string id, string description, bool isMandatory, Func<IList<string>> defaultValueFactory) {
+      var def = new MultiplePositionalArgDef {
         Id = id,
         Description = description,
         IsMandatory = isMandatory,
@@ -67,8 +67,8 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithSwitch(string id, string description, string shortName, string altShortName = "", string longName = "") {
-      var def = new SwitchArgDef {
+    public ArgumentDefinitionBuilder WithFlag(string id, string description, string shortName, string altShortName = "", string longName = "") {
+      var def = new FlagArgDef {
         Id = id,
         Description = description,
         ShortName = shortName,
@@ -79,7 +79,7 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithIntFlag(
+    public ArgumentDefinitionBuilder WithIntOption(
       string id,
       string description,
       string shortName,
@@ -89,7 +89,7 @@ namespace mtsuite.shared.CommandLine {
       string altShortName = "",
       string longName = "",
       Func<string, int?> stringParser = null) {
-      var def = new IntFlagArgDef {
+      var def = new IntOptionArgDef {
         Id = id,
         Description = description,
         ShortName = shortName,
@@ -104,8 +104,8 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithStringFlag(string id, string description, string shortName, string valueName, string defaultValue, Func<string, string> validator = null, string altShortName = "", string longName = "") {
-      var def = new StringFlagArgDef {
+    public ArgumentDefinitionBuilder WithStringOption(string id, string description, string shortName, string valueName, string defaultValue, Func<string, string> validator = null, string altShortName = "", string longName = "") {
+      var def = new StringOptionArgDef {
         Id = id,
         Description = description,
         ShortName = shortName,
@@ -119,20 +119,20 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithHelpSwitch() {
-      return WithSwitch("help", "Display help", "h", "?", "help");
+    public ArgumentDefinitionBuilder WithHelpFlag() {
+      return WithFlag("help", "Display help", "h", "?", "help");
     }
 
-    public ArgumentDefinitionBuilder WithGcSwitch() {
-      return WithSwitch("gc", "Display .NET Garbage Collector statistics", "gc");
+    public ArgumentDefinitionBuilder WithGcFlag() {
+      return WithFlag("gc", "Display .NET Garbage Collector statistics", "gc");
     }
 
-    public ArgumentDefinitionBuilder WithNoProgressSwitch() {
-      return WithSwitch("no-progress", "Don't display progress status as the application runs", "np", "", "no-progress");
+    public ArgumentDefinitionBuilder WithNoProgressFlag() {
+      return WithFlag("no-progress", "Don't display progress status as the application runs", "np", "", "no-progress");
     }
 
-    public ArgumentDefinitionBuilder WithThreadCountSwitch() {
-      return WithIntFlag(
+    public ArgumentDefinitionBuilder WithThreadCountOption() {
+      return WithIntOption(
         "thread-count",
         "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=min(# cores, 16))",
         "t",

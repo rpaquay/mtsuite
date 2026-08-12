@@ -34,33 +34,33 @@ namespace mtsuite.shared.CommandLine {
     }
 
     public static void DispatchArgumentDefintion(ArgDef argDef, IArgumentDefinitionVisitor visitor) {
-      var stringDef = argDef as FreeStringArgDef;
-      if (stringDef != null) {
-        visitor.Visit(stringDef);
+      var positionalDef = argDef as PositionalArgDef;
+      if (positionalDef != null) {
+        visitor.Visit(positionalDef);
         return;
       }
 
-      var multipleStringDef = argDef as MultipleFreeStringArgDef;
-      if (multipleStringDef != null) {
-        visitor.Visit(multipleStringDef);
+      var multiplePositionalDef = argDef as MultiplePositionalArgDef;
+      if (multiplePositionalDef != null) {
+        visitor.Visit(multiplePositionalDef);
         return;
       }
 
-      var switchDef = argDef as SwitchArgDef;
-      if (switchDef != null) {
-        visitor.Visit(switchDef);
+      var flagDef = argDef as FlagArgDef;
+      if (flagDef != null) {
+        visitor.Visit(flagDef);
         return;
       }
 
-      var intDef = argDef as IntFlagArgDef;
+      var intDef = argDef as IntOptionArgDef;
       if (intDef != null) {
         visitor.Visit(intDef);
         return;
       }
 
-      var stringFlagDef = argDef as StringFlagArgDef;
-      if (stringFlagDef != null) {
-        visitor.Visit(stringFlagDef);
+      var stringDef = argDef as StringOptionArgDef;
+      if (stringDef != null) {
+        visitor.Visit(stringDef);
         return;
       }
 

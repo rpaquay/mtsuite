@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,15 +36,15 @@ namespace mtsuite.shared.CommandLine {
       _sb.Append(string.Format(format, args));
     }
 
-    public void Visit(FreeStringArgDef arg) {
+    public void Visit(PositionalArgDef arg) {
       Append("  {0,-20} {1}", arg.Id, FormatMultiLine(arg.Description, 23));
     }
 
-    public void Visit(MultipleFreeStringArgDef arg) {
+    public void Visit(MultiplePositionalArgDef arg) {
       Append("  {0,-20} {1}", arg.Id, FormatMultiLine(arg.Description, 23));
     }
 
-    public void Visit(SwitchArgDef arg) {
+    public void Visit(FlagArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
         var valueSummary = string.Format("{0}{1}", Delimiter, arg.ShortName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
@@ -54,22 +54,22 @@ namespace mtsuite.shared.CommandLine {
       }
     }
 
-    public void Visit(IntFlagArgDef arg) {
+    public void Visit(IntOptionArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
-        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.ShortName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1} {2}", Delimiter, arg.ShortName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
       } else {
-        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.LongName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1} {2}", Delimiter, arg.LongName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
       }
     }
 
-    public void Visit(StringFlagArgDef arg) {
+    public void Visit(StringOptionArgDef arg) {
       if (string.IsNullOrEmpty(arg.LongName)) {
-        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.ShortName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1} {2}", Delimiter, arg.ShortName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23));
       } else {
-        var valueSummary = string.Format("{0}{1}:{2}", Delimiter, arg.LongName, arg.ValueName);
+        var valueSummary = string.Format("{0}{1} {2}", Delimiter, arg.LongName, arg.ValueName);
         Append("  {0,-20} {1}", valueSummary, FormatMultiLine(arg.Description, 23, arg.ShortName));
       }
     }

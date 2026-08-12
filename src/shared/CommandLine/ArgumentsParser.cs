@@ -46,41 +46,42 @@ namespace mtsuite.shared.CommandLine {
         var argString = _args[index];
         if (StartsWithNamedArgumentPrefix(argString)) {
           var prefixCount = argString.StartsWith("--") ? 2 : 1;
-          var valueIndex = argString.IndexOf(':', prefixCount);
-          if (valueIndex == argString.Length - 1) {
-            _errors.Add("An argument value is required after ':'");
-            index++;
-            continue;
-          }
-          var argName = (valueIndex < 0
-            ? argString.Substring(prefixCount)
-            : argString.Substring(prefixCount, valueIndex - prefixCount));
-          var argStringValue = (valueIndex < 0 ? "" : argString.Substring(valueIndex + 1));
+          var argName = argString.Substring(prefixCount);
+
           var argDef = FindNamedArgument(argName);
           if (argDef == null) {
             _errors.Add(string.Format("Unknown argument \"{0}\"", argString));
             index++;
             continue;
           }
+
+          int argsConsumed = 1;
+          string argStringValue = "";
+
+          if (argDef is OptionArgDef && index + 1 < _args.Count && !StartsWithNamedArgumentPrefix(_args[index + 1])) {
+            argStringValue = _args[index + 1];
+            argsConsumed = 2;
+          }
+
           object argValue = FindArgumentValue(argString, argDef, argStringValue);
           if (argValue == null) {
-            index++;
+            index += argsConsumed;
             continue;
           }
 
           var parsedArg = new ParsedArgument(argDef, argValue);
           _parserArguments.Add(parsedArg);
-          index++;
+          index += argsConsumed;
         } else {
           // Handle free string arguments
           if (freeArgMap.TryGetValue(index, out var argDef)) {
             switch (argDef) {
-              case FreeStringArgDef: {
+              case PositionalArgDef: {
                 var parsedArg = new ParsedArgument(argDef, argString);
                 _parserArguments.Add(parsedArg);
                 break;
               }
-              case MultipleFreeStringArgDef: {
+              case MultiplePositionalArgDef: {
                 if (multipleFreeArgStringsArgument == null) {
                   var parsedArg = new ParsedArgument(argDef, multipleFreeArgStrings);
                   _parserArguments.Add(parsedArg);
@@ -118,19 +119,19 @@ namespace mtsuite.shared.CommandLine {
     }
 
     private void AddMissingDefaultValues() {
-      var namedDefaults = _argumentDefinitions.OfType<NameValueArgDef>()
+      var namedDefaults = _argumentDefinitions.OfType<OptionArgDef>()
         .Where(x => !Contains(x.Id) && x.DefaultValue != null);
       foreach (var x in namedDefaults) {
         _parserArguments.Add(new ParsedArgument(x, x.DefaultValue));
       }
 
-      var stringDefaults = _argumentDefinitions.OfType<FreeStringArgDef>()
+      var stringDefaults = _argumentDefinitions.OfType<PositionalArgDef>()
         .Where(x => !Contains(x.Id) && x.DefaultValue != null);
       foreach (var x in stringDefaults) {
         _parserArguments.Add(new ParsedArgument(x, x.DefaultValue.Value));
       }
       
-      var multiStringDefaults = _argumentDefinitions.OfType<MultipleFreeStringArgDef>()
+      var multiStringDefaults = _argumentDefinitions.OfType<MultiplePositionalArgDef>()
         .Where(x => !Contains(x.Id) && x.DefaultValue != null);
       foreach (var x in multiStringDefaults) {
         _parserArguments.Add(new ParsedArgument(x, x.DefaultValue.Value));
@@ -150,7 +151,7 @@ namespace mtsuite.shared.CommandLine {
       }
 
       // 2. Get defined free args
-      var definedFreeArgs = _argumentDefinitions.Where(IsFreeArgDef).ToList();
+      var definedFreeArgs = _argumentDefinitions.Where(IsPositionalArgDef).ToList();
 
       // 3. Align them
       int valueIndex = 0;
@@ -169,7 +170,7 @@ namespace mtsuite.shared.CommandLine {
         }
 
         if (def.IsMandatory || remainingValues > remainingMandatory) {
-          if (def is MultipleFreeStringArgDef) {
+          if (def is MultiplePositionalArgDef) {
             // Consumes all remaining free args
             while (valueIndex < providedFreeArgs.Count) {
               map[providedFreeArgs[valueIndex]] = def;
@@ -191,22 +192,17 @@ namespace mtsuite.shared.CommandLine {
       return map;
     }
 
-    private static bool IsFreeArgDef(ArgDef argDef) {
-      return argDef is FreeStringArgDef or MultipleFreeStringArgDef;
+    private static bool IsPositionalArgDef(ArgDef argDef) {
+      return argDef is PositionalArgDef or MultiplePositionalArgDef;
     }
 
     private object FindArgumentValue(string argString, NameArgDef argDef, string argValue) {
-      var swtichDef = argDef as SwitchArgDef;
-      if (swtichDef != null) {
-        if (!string.IsNullOrEmpty(argValue)) {
-          _errors.Add(String.Format("Argument \"{0}\" does not take values", argString));
-          return null;
-        }
-
-        return SwitchArgDef.ValueMarker;
+      var flagDef = argDef as FlagArgDef;
+      if (flagDef != null) {
+        return FlagArgDef.ValueMarker;
       }
 
-      var valueArgDef = argDef as NameValueArgDef;
+      var valueArgDef = argDef as OptionArgDef;
       if (valueArgDef != null) {
         if (string.IsNullOrEmpty(argValue)) {
           // Note: If there is no explicit value, we'll use the default value.
@@ -216,7 +212,7 @@ namespace mtsuite.shared.CommandLine {
           }
         }
 
-        var intDef = valueArgDef as IntFlagArgDef;
+        var intDef = valueArgDef as IntOptionArgDef;
         if (intDef != null) {
           // Parse argument value (or use default value)
           int value;
@@ -242,7 +238,7 @@ namespace mtsuite.shared.CommandLine {
           return value;
         }
 
-        var stringDef = valueArgDef as StringFlagArgDef;
+        var stringDef = valueArgDef as StringOptionArgDef;
         if (stringDef != null) {
           if (string.IsNullOrEmpty(argValue)) {
             argValue = (string)stringDef.DefaultValue;

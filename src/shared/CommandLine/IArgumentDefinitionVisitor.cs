@@ -11,12 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 namespace mtsuite.shared.CommandLine {
   public interface IArgumentDefinitionVisitor {
-    void Visit(FreeStringArgDef arg);
-    void Visit(MultipleFreeStringArgDef arg);
-    void Visit(SwitchArgDef arg);
-    void Visit(IntFlagArgDef arg);
-    void Visit(StringFlagArgDef arg);
+    void Visit(PositionalArgDef arg);
+    void Visit(MultiplePositionalArgDef arg);
+    void Visit(FlagArgDef arg);
+    void Visit(IntOptionArgDef arg);
+    void Visit(StringOptionArgDef arg);
   }
 }

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System;
+using System.Linq;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -22,25 +23,25 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldWorkWithNoArgs() {
       var argumentDefinitions = new ArgDef[] {
-        new SwitchArgDef {
+        new FlagArgDef {
           Id = "help",
           ShortName = "h",
           AltShortName = "?",
           LongName = "help",
         },
-        new IntFlagArgDef {
+        new IntOptionArgDef {
           Id = "depth",
           ShortName = "d",
           LongName = "depth",
           DefaultValue = 2,
         },
-        new StringFlagArgDef {
+        new StringOptionArgDef {
           Id = "attr",
           ShortName = "a",
           LongName = "attributes",
           DefaultValue = "foo",
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           DefaultValue = Environment.CurrentDirectory,
         }
@@ -56,25 +57,25 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldWorkWithSwitch() {
       var argumentDefinitions = new ArgDef[] {
-        new SwitchArgDef {
+        new FlagArgDef {
           Id = "help",
           ShortName = "h",
           AltShortName = "?",
           LongName = "help",
         },
-        new IntFlagArgDef {
+        new IntOptionArgDef {
           Id = "depth",
           ShortName = "d",
           LongName = "depth",
           DefaultValue = 2,
         },
-        new StringFlagArgDef {
+        new StringOptionArgDef {
           Id = "attr",
           ShortName = "a",
           LongName = "attributes",
           DefaultValue = "foo",
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           DefaultValue = Environment.CurrentDirectory,
         }
@@ -90,25 +91,25 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldWorkWithDefaultValues() {
       var argumentDefinitions = new ArgDef[] {
-        new SwitchArgDef {
+        new FlagArgDef {
           Id = "help",
           ShortName = "h",
           AltShortName = "?",
           LongName = "help",
         },
-        new IntFlagArgDef {
+        new IntOptionArgDef {
           Id = "depth",
           ShortName = "d",
           LongName = "depth",
           DefaultValue = 2,
         },
-        new StringFlagArgDef {
+        new StringOptionArgDef {
           Id = "attr",
           ShortName = "a",
           LongName = "attributes",
           DefaultValue = "foo",
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           DefaultValue = "defaultDir",
         }
@@ -129,7 +130,7 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldWorkWithDefaultValueForMissingValue() {
       var argumentDefinitions = new ArgDef[] {
-        new IntFlagArgDef {
+        new IntOptionArgDef {
           Id = "depth",
           ShortName = "d",
           LongName = "depth",
@@ -148,7 +149,7 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldWorkWithDefaultMandatoryArguments() {
       var argumentDefinitions = new ArgDef[] {
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           DefaultValue = "defaultDir",
           IsMandatory = true
@@ -166,7 +167,7 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldWorkWithMissingMandatoryArguments() {
       var argumentDefinitions = new ArgDef[] {
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           IsMandatory = true
         }
@@ -181,7 +182,7 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserThreadCountDefaultIsMinCoresAnd16() {
       var builder = new ArgumentDefinitionBuilder()
-        .WithThreadCountSwitch();
+        .WithThreadCountOption();
       var parser = new ArgumentsParser(builder.Build(), Array.Empty<string>());
       parser.Parse();
       Assert.IsTrue(parser.IsValid);
@@ -191,16 +192,16 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserThreadCountSupportsAll() {
       var builder = new ArgumentDefinitionBuilder()
-        .WithThreadCountSwitch();
+        .WithThreadCountOption();
 
-      // --threads:all
-      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads:all" });
+      // --threads all
+      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads", "all" });
       parser1.Parse();
       Assert.IsTrue(parser1.IsValid);
       Assert.AreEqual(Environment.ProcessorCount, parser1["thread-count"].IntValue);
 
-      // -t:ALL
-      var parser2 = new ArgumentsParser(builder.Build(), new[] { "-t:ALL" });
+      // -t ALL
+      var parser2 = new ArgumentsParser(builder.Build(), new[] { "-t", "ALL" });
       parser2.Parse();
       Assert.IsTrue(parser2.IsValid);
       Assert.AreEqual(Environment.ProcessorCount, parser2["thread-count"].IntValue);
@@ -209,14 +210,14 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserThreadCountSupportsExplicitNumber() {
       var builder = new ArgumentDefinitionBuilder()
-        .WithThreadCountSwitch();
+        .WithThreadCountOption();
 
-      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads:32" });
+      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads", "32" });
       parser1.Parse();
       Assert.IsTrue(parser1.IsValid);
       Assert.AreEqual(32, parser1["thread-count"].IntValue);
 
-      var parser2 = new ArgumentsParser(builder.Build(), new[] { "-t:4" });
+      var parser2 = new ArgumentsParser(builder.Build(), new[] { "-t", "4" });
       parser2.Parse();
       Assert.IsTrue(parser2.IsValid);
       Assert.AreEqual(4, parser2["thread-count"].IntValue);
@@ -225,13 +226,13 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserThreadCountRejectsInvalid() {
       var builder = new ArgumentDefinitionBuilder()
-        .WithThreadCountSwitch();
+        .WithThreadCountOption();
 
-      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads:0" });
+      var parser1 = new ArgumentsParser(builder.Build(), new[] { "--threads", "0" });
       parser1.Parse();
       Assert.IsFalse(parser1.IsValid);
 
-      var parser2 = new ArgumentsParser(builder.Build(), new[] { "--threads:invalid" });
+      var parser2 = new ArgumentsParser(builder.Build(), new[] { "--threads", "invalid" });
       parser2.Parse();
       Assert.IsFalse(parser2.IsValid);
     }
@@ -239,12 +240,12 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldSupportOptionalPositionalFollowedByMandatoryPositional() {
       var definitions = new ArgDef[] {
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           IsMandatory = false,
           DefaultValue = "defaultDir"
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "pattern",
           IsMandatory = true
         }
@@ -279,17 +280,17 @@ namespace tests {
     [TestMethod]
     public void ArgumentsParserShouldSupportMultipleOptionalPositionalsGreedyMapping() {
       var definitions = new ArgDef[] {
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "arg1",
           IsMandatory = false,
           DefaultValue = "def1"
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "arg2",
           IsMandatory = false,
           DefaultValue = "def2"
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "pattern",
           IsMandatory = true
         }
@@ -330,7 +331,7 @@ namespace tests {
     public void ArgumentsParserPositionalDefaultValueIsLazy() {
       bool factoryEvaluated = false;
       var definitions = new ArgDef[] {
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "directory",
           IsMandatory = false,
           DefaultValue = new LazyDefault<string>(() => {
@@ -338,7 +339,7 @@ namespace tests {
             return "lazyDir";
           })
         },
-        new FreeStringArgDef {
+        new PositionalArgDef {
           Id = "pattern",
           IsMandatory = true
         }
@@ -361,6 +362,70 @@ namespace tests {
         Assert.IsTrue(parser.IsValid);
         Assert.IsTrue(factoryEvaluated);
         Assert.AreEqual("lazyDir", parser["directory"].StringValue);
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldSupportOmittedOptionValueFollowedByAnotherOption() {
+      var definitions = new ArgDef[] {
+        new IntOptionArgDef {
+          Id = "depth",
+          ShortName = "d",
+          LongName = "depth",
+          DefaultValue = 2,
+        },
+        new IntOptionArgDef {
+          Id = "longest-path",
+          ShortName = "lp",
+          LongName = "longestpath",
+          DefaultValue = 0,
+        }
+      };
+
+      // Case A: Omitted value for -d, explicit value for -lp
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "-d", "-lp", "3" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual(2, parser["depth"].IntValue);
+        Assert.AreEqual(3, parser["longest-path"].IntValue);
+      }
+
+      // Case B: Explicit value for both
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "-d", "4", "-lp", "5" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual(4, parser["depth"].IntValue);
+        Assert.AreEqual(5, parser["longest-path"].IntValue);
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldRejectInlineSeparators() {
+      var definitions = new ArgDef[] {
+        new IntOptionArgDef {
+          Id = "depth",
+          ShortName = "d",
+          LongName = "depth",
+          DefaultValue = 2,
+        }
+      };
+
+      // Case A: Using '=' inline separator should fail
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "-d=4" });
+        parser.Parse();
+        Assert.IsFalse(parser.IsValid);
+        Assert.IsTrue(parser.Errors.Any(e => e.Contains("Unknown argument \"-d=4\"")));
+      }
+
+      // Case B: Using ':' inline separator should fail
+      {
+        var parser = new ArgumentsParser(definitions, new[] { "-d:4" });
+        parser.Parse();
+        Assert.IsFalse(parser.IsValid);
+        Assert.IsTrue(parser.Errors.Any(e => e.Contains("Unknown argument \"-d:4\"")));
       }
     }
   }
