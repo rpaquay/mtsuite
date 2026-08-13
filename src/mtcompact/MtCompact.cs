@@ -62,6 +62,7 @@ namespace mtcompact {
         .WithFlag("ft", "Fast comparison using file modification time only", "ft")
         .WithFlag("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
         .WithNoProgressFlag()
+        .WithSingleLineProgressFlag()
         .WithThreadCountOption()
         .WithGcFlag()
         .WithHelpFlag()
@@ -84,6 +85,7 @@ namespace mtcompact {
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       _progressMonitor.ShowProgress = !parser.Contains("no-progress");
+      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
       IFileComparer fileComparer;
       if (parser.Contains("ft")) {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);

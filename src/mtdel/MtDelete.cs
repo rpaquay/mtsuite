@@ -58,6 +58,7 @@ I  Not content indexed Files  L  Reparse Points
 -  Prefix meaning not", "a", "attributes", null, value => new AttributesFilterParser().Parse(value).Error)
         .WithThreadCountOption()
         .WithNoProgressFlag()
+        .WithSingleLineProgressFlag()
         .WithGcFlag()
         .WithHelpFlag()
         .Build();
@@ -78,6 +79,7 @@ I  Not content indexed Files  L  Reparse Points
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       _progressMonitor.ShowProgress = !parser.Contains("no-progress");
+      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
 
       var options = new Options {
         QuietMode = parser.Contains("quiet"),

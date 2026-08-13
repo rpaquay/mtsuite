@@ -35,6 +35,11 @@ namespace mtsuite.shared {
     /// </summary>
     bool ShowProgress { get; set; }
 
+    /// <summary>
+    /// Display progress status as a single line
+    /// </summary>
+    bool SingleLineProgress { get; set; }
+
     #region single threaded methods
     void Start();
     void Pulse();

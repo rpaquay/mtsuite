@@ -41,6 +41,8 @@ public class ProgressPrinter {
     /// </summary>
     public bool IsAnsiSupported { get; set; } = ConsoleSupport.IsAnsiSupported;
 
+    public bool SingleLine { get; set; }
+
     public static string StripAnsi(string input) {
         return AnsiRegex.Replace(input, "");
     }
@@ -131,35 +133,44 @@ public class ProgressPrinter {
             return;
         }
         int windowWidth = GetWindowWidth();
-        int maxLineLength = Math.Max(20, windowWidth - 1);
 
-        var sb = new System.Text.StringBuilder();
-
-        var fieldsText = FieldsPrinter.BuildMultiLineOutput(fields);
-        var fieldLines = fieldsText.Split('\n');
-        for (int i = 0; i < fieldLines.Length; i++) {
-            if (i > 0) {
-                sb.AppendLine();
+        string output;
+        if (SingleLine) {
+            var stripped = FieldsPrinter.BuildSingleLineOutput(fields);
+            if (stripped.Length > windowWidth - 1) {
+                stripped = stripped.Substring(0, windowWidth - 1);
             }
-            sb.Append(AnsiEsc).Append("[K").Append(fieldLines[i].TrimEnd('\r'));
-        }
+            output = AnsiEsc + "[K" + stripped;
+        } else {
+            int maxLineLength = Math.Max(20, windowWidth - 1);
+            var sb = new System.Text.StringBuilder();
 
-        if (additionalLines != null && additionalLines.Count > 0) {
-            sb.AppendLine();
-            sb.Append(AnsiEsc).Append("[KThreads:");
-            foreach (var line in additionalLines) {
-                sb.AppendLine();
-                // Ensure thread line fits within terminal width (accounting for "  " prefix)
-                string formattedLine = line;
-                int maxThreadLineLen = maxLineLength - 2; // "  " prefix
-                if (formattedLine.Length > maxThreadLineLen) {
-                    formattedLine = FormatHelpers.TruncateMiddle(formattedLine, maxThreadLineLen);
+            var fieldsText = FieldsPrinter.BuildMultiLineOutput(fields);
+            var fieldLines = fieldsText.Split('\n');
+            for (int i = 0; i < fieldLines.Length; i++) {
+                if (i > 0) {
+                    sb.AppendLine();
                 }
-                sb.Append(AnsiEsc).Append("[K  ").Append(formattedLine);
+                sb.Append(AnsiEsc).Append("[K").Append(fieldLines[i].TrimEnd('\r'));
             }
+
+            if (additionalLines != null && additionalLines.Count > 0) {
+                sb.AppendLine();
+                sb.Append(AnsiEsc).Append("[KThreads:");
+                foreach (var line in additionalLines) {
+                    sb.AppendLine();
+                    // Ensure thread line fits within terminal width (accounting for "  " prefix)
+                    string formattedLine = line;
+                    int maxThreadLineLen = maxLineLength - 2; // "  " prefix
+                    if (formattedLine.Length > maxThreadLineLen) {
+                        formattedLine = FormatHelpers.TruncateMiddle(formattedLine, maxThreadLineLen);
+                    }
+                    sb.Append(AnsiEsc).Append("[K  ").Append(formattedLine);
+                }
+            }
+            output = sb.ToString();
         }
 
-        var output = sb.ToString();
         var visualLineCount = CountVisualLines(output, windowWidth);
 
         lock (_lock) {

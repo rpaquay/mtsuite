@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Renaud Paquay All Rights Reserved.
+// Copyright 2026 Renaud Paquay All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ namespace mtfindstr {
         .WithHelpFlag()
         .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
         .WithFlag("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
+        .WithSingleLineProgressFlag()
         .WithFlag("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
         .WithFlag("show-warnings", "Display warnings in addition to errors", "w", "", "warnings")
         .WithThreadCountOption()
@@ -88,6 +89,8 @@ namespace mtfindstr {
       public bool PlainOutput => _parser.Contains("plain-output");
 
       public bool NoProgress => _parser.Contains("no-progress");
+
+      public bool SingleLineProgress => _parser.Contains("single-line-progress");
 
       public bool ShowWarnings => _parser.Contains("warnings");
     }

@@ -69,6 +69,16 @@ namespace mtsuite.shared {
     }
 
     public bool ShowProgress { get; set; }
+
+    public bool SingleLineProgress {
+      get => _printer.SingleLine;
+      set => _printer.SingleLine = value;
+    }
+
+    public bool IsAnsiSupported {
+      get => _printer.IsAnsiSupported;
+      set => _printer.IsAnsiSupported = value;
+    }
     
     public void Start() {
       _stopWatch.Restart();

@@ -132,6 +132,10 @@ namespace mtsuite.shared.CommandLine {
       return WithFlag("no-progress", "Don't display progress status as the application runs", "np", "", "no-progress");
     }
 
+    public ArgumentDefinitionBuilder WithSingleLineProgressFlag() {
+      return WithFlag("single-line-progress", "Display progress status as a single line", "slp", "", "single-line-progress");
+    }
+
     public ArgumentDefinitionBuilder WithThreadCountOption() {
       return WithIntOption(
         "thread-count",

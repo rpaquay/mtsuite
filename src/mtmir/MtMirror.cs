@@ -71,6 +71,7 @@ namespace mtmir {
         .WithFlag("ft", "Compare file modification time (default)", "ft")
         .WithFlag("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
         .WithNoProgressFlag()
+        .WithSingleLineProgressFlag()
         .WithThreadCountOption()
         .WithGcFlag()
         .WithHelpFlag()
@@ -93,6 +94,7 @@ namespace mtmir {
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       _progressMonitor.ShowProgress = !parser.Contains("no-progress");
+      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
       IFileComparer fileComparer;
       if (parser.Contains("fc")) {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);

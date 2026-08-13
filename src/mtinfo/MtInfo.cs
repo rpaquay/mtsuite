@@ -79,6 +79,7 @@ namespace mtinfo {
           "longestpath")
         .WithThreadCountOption()
         .WithNoProgressFlag()
+        .WithSingleLineProgressFlag()
         .WithGcFlag()
         .WithHelpFlag()
         .Build();
@@ -100,6 +101,7 @@ namespace mtinfo {
       var levelCount = parser["depth"].IntValue;
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
       _progressMonitor.ShowProgress = !parser.Contains("no-progress");
+      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
 
       var options = new CollectOptions {
         LevelCount = levelCount,

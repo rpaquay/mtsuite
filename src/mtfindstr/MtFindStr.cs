@@ -62,6 +62,7 @@ namespace mtfindstr {
       var searchPattern = arguments.Values.SearchPattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
       _progressMonitor.ShowProgress = !arguments.Values.NoProgress;
+      _progressMonitor.SingleLineProgress = arguments.Values.SingleLineProgress;
       var followLinks = !arguments.Values.NoFollowLinks;
       var isPlainOutput = arguments.Values.PlainOutput;
       if (!isPlainOutput) {

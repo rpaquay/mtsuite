@@ -29,6 +29,7 @@ namespace mtfind {
         .WithFlag("include-dir", "Include directory names in search", "i", "", "include-dir")
         .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
         .WithFlag("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
+        .WithSingleLineProgressFlag()
         .WithFlag("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
         .WithThreadCountOption()
         .WithGcFlag()
@@ -86,6 +87,8 @@ namespace mtfind {
       public bool IncludeDir => _parser.Contains("include-dir");
 
       public bool NoProgress => _parser.Contains("no-progress");
+
+      public bool SingleLineProgress => _parser.Contains("single-line-progress");
     }
   }
 }

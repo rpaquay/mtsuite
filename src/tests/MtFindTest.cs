@@ -93,5 +93,30 @@ namespace tests {
         Assert.AreEqual("mypattern", args.Values.Pattern);
       }
     }
+
+    [TestMethod]
+    public void FindProgressMonitorShouldSupportSingleLineProgress() {
+      var monitor = new FindProgressMonitor();
+      monitor.ShowProgress = true;
+      monitor.SingleLineProgress = true;
+      monitor.IsAnsiSupported = true;
+      
+      using (var writer = new System.IO.StringWriter()) {
+        var oldOut = Console.Out;
+        Console.SetOut(writer);
+        try {
+          monitor.Start();
+          monitor.Stop();
+        } finally {
+          Console.SetOut(oldOut);
+        }
+        
+        var output = writer.ToString();
+        
+        Assert.IsFalse(output.Contains('\n'), "Single-line progress should not contain newlines");
+        Assert.IsTrue(output.Contains("Elapsed time"), "Should contain elapsed time field");
+        Assert.IsTrue(output.Contains("CPU time"), "Should contain CPU time field");
+      }
+    }
   }
 }
