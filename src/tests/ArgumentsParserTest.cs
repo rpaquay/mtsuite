@@ -85,7 +85,7 @@ namespace tests {
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
       Assert.IsTrue(parser.IsValid);
-      Assert.IsTrue(parser.Contains("help"));
+      Assert.IsTrue(parser["help"].BoolValue);
     }
 
     [TestMethod]
@@ -434,8 +434,8 @@ namespace tests {
       var builder = new ArgumentDefinitionBuilder()
         .WithHelpFlag()
         .WithFlag("plain-output", "Plain output", "po")
-        .WithFlag("no-progress", "No progress", "np")
-        .WithFlag("no-follow-links", "No follow links", "nl")
+        .WithProgressOption()
+        .WithFlag("follow-links", "Follow links", "fl", "", "follow-links", defaultValue: true)
         .WithFlag("show-warnings", "Show warnings", "w")
         .WithThreadCountOption()
         .WithGcFlag()
@@ -452,6 +452,86 @@ namespace tests {
 
       Assert.IsTrue(parser.Contains("pattern"));
       Assert.AreEqual("my search string", parser["pattern"].StringValue);
+      Assert.IsTrue(parser["follow-links"].BoolValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldSupportNegativeFlags() {
+      var argumentDefinitions = new ArgDef[] {
+        new FlagArgDef {
+          Id = "follow-links",
+          LongName = "follow-links",
+          DefaultValue = true,
+        },
+        new FlagArgDef {
+          Id = "plain-output",
+          LongName = "plain-output",
+          DefaultValue = false,
+        }
+      };
+
+      // 1. Defaults are populated
+      {
+        var parser = new ArgumentsParser(argumentDefinitions, Array.Empty<string>());
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsTrue(parser["follow-links"].BoolValue);
+        Assert.IsFalse(parser["plain-output"].BoolValue);
+      }
+
+      // 2. Explicitly setting negative flag
+      {
+        var parser = new ArgumentsParser(argumentDefinitions, new[] { "--no-follow-links" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsFalse(parser["follow-links"].BoolValue);
+      }
+
+      // 3. Explicitly setting positive flag
+      {
+        var parser = new ArgumentsParser(argumentDefinitions, new[] { "--plain-output" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsTrue(parser["plain-output"].BoolValue);
+      }
+      
+      // 4. Setting negative flag for false-default flag (should still be false)
+      {
+        var parser = new ArgumentsParser(argumentDefinitions, new[] { "--no-plain-output" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsFalse(parser["plain-output"].BoolValue);
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldMapNoProgressAliasToNone() {
+      var builder = new ArgumentDefinitionBuilder()
+        .WithProgressOption();
+
+      // 1. Omitted progress defaults to "default"
+      {
+        var parser = new ArgumentsParser(builder.Build(), Array.Empty<string>());
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("default", parser["progress"].StringValue);
+      }
+
+      // 2. Explicit -np maps to "none"
+      {
+        var parser = new ArgumentsParser(builder.Build(), new[] { "-np" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("none", parser["progress"].StringValue);
+      }
+
+      // 3. Explicit --no-progress maps to "none"
+      {
+        var parser = new ArgumentsParser(builder.Build(), new[] { "--no-progress" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("none", parser["progress"].StringValue);
+      }
     }
   }
 }

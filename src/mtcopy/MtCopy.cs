@@ -68,9 +68,8 @@ namespace mtcopy {
         .WithPositional("destination-path", "The path of the destination directory", true)
         .WithFlag("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
         .WithFlag("ft", "Compare file modification time (default)", "ft")
-        .WithFlag("noclone", "Disable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "noclone")
-        .WithNoProgressFlag()
-        .WithSingleLineProgressFlag()
+        .WithFlag("clone", "Enable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "clone", "", "clone", defaultValue: true)
+        .WithProgressOption()
         .WithThreadCountOption()
         .WithGcFlag()
         .WithHelpFlag()
@@ -78,8 +77,8 @@ namespace mtcopy {
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser.Contains("help")) {
-        if (!parser.Contains("help")) {
+      if (!parser.IsValid || parser["help"].BoolValue) {
+        if (!parser["help"].BoolValue) {
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
@@ -92,10 +91,11 @@ namespace mtcopy {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["source-path"].StringValue);
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
-      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
-      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
+      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
+        parser["progress"].StringValue
+      );
       IFileComparer fileComparer;
-      if (parser.Contains("fc")) {
+      if (parser["fc"].BoolValue) {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
       }
       else {
@@ -103,13 +103,13 @@ namespace mtcopy {
       }
 
       var copyOptions = CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles;
-      if (parser.Contains("noclone")) {
+      if (!parser["clone"].BoolValue) {
         copyOptions |= CopyOptions.NoClone;
       }
 
       var statistics = DoCopy(sourcePath, destinationPath, fileComparer, copyOptions);
       DisplayResults(statistics);
-      if (parser.Contains("gc")) {
+      if (parser["gc"].BoolValue) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 

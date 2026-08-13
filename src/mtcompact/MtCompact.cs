@@ -61,8 +61,7 @@ namespace mtcompact {
         .WithFlag("fc", "Compare file contents (default)", "fc", "", "content")
         .WithFlag("ft", "Fast comparison using file modification time only", "ft")
         .WithFlag("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
-        .WithNoProgressFlag()
-        .WithSingleLineProgressFlag()
+        .WithProgressOption()
         .WithThreadCountOption()
         .WithGcFlag()
         .WithHelpFlag()
@@ -70,8 +69,8 @@ namespace mtcompact {
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser.Contains("help")) {
-        if (!parser.Contains("help")) {
+      if (!parser.IsValid || parser["help"].BoolValue) {
+        if (!parser["help"].BoolValue) {
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
@@ -84,19 +83,20 @@ namespace mtcompact {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["source-path"].StringValue);
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
-      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
-      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
+      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
+        parser["progress"].StringValue
+      );
       IFileComparer fileComparer;
-      if (parser.Contains("ft")) {
+      if (parser["ft"].BoolValue) {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       } else {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
       }
 
-      var isDryRun = parser.Contains("dry-run");
+      var isDryRun = parser["dry-run"].BoolValue;
       var statistics = DoCompact(sourcePath, destinationPath, fileComparer, isDryRun);
       DisplayResults(statistics, isDryRun);
-      if (parser.Contains("gc")) {
+      if (parser["gc"].BoolValue) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 

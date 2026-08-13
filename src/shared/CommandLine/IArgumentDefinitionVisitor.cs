@@ -19,5 +19,6 @@ namespace mtsuite.shared.CommandLine {
     void Visit(FlagArgDef arg);
     void Visit(IntOptionArgDef arg);
     void Visit(StringOptionArgDef arg);
+    void Visit(EnumOptionArgDef arg);
   }
 }

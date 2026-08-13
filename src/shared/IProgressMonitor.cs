@@ -19,6 +19,13 @@ using mtsuite.CoreFileSystem;
   #nullable enable
 
 namespace mtsuite.shared {
+  public enum ProgressMode {
+    None,
+    Line,
+    Default,
+    Full
+  }
+
   public interface IProgressMonitor<out TStatistics> where TStatistics : Statistics {
     /**
      * The source <see cref="FullPath"/> of the current operation
@@ -31,14 +38,12 @@ namespace mtsuite.shared {
     FullPath? DestinationPath { get; set; }
     
     /// <summary>
-    /// Show intermediate progress on <see cref="Pulse"/>
+    /// Configure the progress reporting mode
     /// </summary>
-    bool ShowProgress { get; set; }
+    ProgressMode ProgressMode { get; set; }
 
-    /// <summary>
-    /// Display progress status as a single line
-    /// </summary>
-    bool SingleLineProgress { get; set; }
+    bool ShowWarnings { get; set; }
+    bool ShowErrors { get; set; }
 
     #region single threaded methods
     void Start();

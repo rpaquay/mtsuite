@@ -68,12 +68,13 @@ namespace mtsuite.shared {
       set => _threadTracker.DestinationPath = value;
     }
 
-    public bool ShowProgress { get; set; }
-
-    public bool SingleLineProgress {
-      get => _printer.SingleLine;
-      set => _printer.SingleLine = value;
+    public ProgressMode ProgressMode {
+      get => _printer.ProgressMode;
+      set => _printer.ProgressMode = value;
     }
+
+    public bool ShowWarnings { get; set; } = false;
+    public bool ShowErrors { get; set; } = true;
 
     public bool IsAnsiSupported {
       get => _printer.IsAnsiSupported;
@@ -86,7 +87,7 @@ namespace mtsuite.shared {
     }
 
     public void Pulse() {
-      if (ShowProgress && IsTimeToDisplayStatus()) {
+      if (ProgressMode != ProgressMode.None && IsTimeToDisplayStatus()) {
         DisplayStatus(GetStatistics());
       }
     }
@@ -94,7 +95,7 @@ namespace mtsuite.shared {
     public void Stop() {
       _stopWatch.Stop();
       _displayTimer.Stop();
-      if (ShowProgress) {
+      if (ProgressMode != ProgressMode.None) {
         DisplayStatus(GetStatistics());
       }
       _printer.Stop();
@@ -265,10 +266,14 @@ namespace mtsuite.shared {
     public virtual void OnError(FullPath path, Exception e) {
       if (IsWarning(path, e)) {
         _warnings.Enqueue(e);
-        PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleWarning(e));
+        if (ShowWarnings) {
+          PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleWarning(e));
+        }
       } else {
         _errors.Enqueue(e);
-        PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleError(e));
+        if (ShowErrors) {
+          PrintMessage(() => CommandLine.ProgramHelpers.DisplaySingleError(e));
+        }
       }
       Pulse();
     }

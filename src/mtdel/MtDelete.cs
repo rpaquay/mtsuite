@@ -57,16 +57,15 @@ H  Hidden files               A  Files ready for archiving
 I  Not content indexed Files  L  Reparse Points
 -  Prefix meaning not", "a", "attributes", null, value => new AttributesFilterParser().Parse(value).Error)
         .WithThreadCountOption()
-        .WithNoProgressFlag()
-        .WithSingleLineProgressFlag()
+        .WithProgressOption()
         .WithGcFlag()
         .WithHelpFlag()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser.Contains("help")) {
-        if (!parser.Contains("help")) {
+      if (!parser.IsValid || parser["help"].BoolValue) {
+        if (!parser["help"].BoolValue) {
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
@@ -78,16 +77,17 @@ I  Not content indexed Files  L  Reparse Points
 
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
-      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
-      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
+      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
+        parser["progress"].StringValue
+      );
 
       var options = new Options {
-        QuietMode = parser.Contains("quiet"),
+        QuietMode = parser["quiet"].BoolValue,
         Attributes = parser.Contains("attributes") ? new AttributesFilterParser().Parse(parser["attributes"].StringValue) : null,
       };
       var statistics = DoDelete(sourcePath, options);
       DisplayResults(statistics);
-      if (parser.Contains("gc")) {
+      if (parser["gc"].BoolValue) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 

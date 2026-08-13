@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace mtsuite.shared.CommandLine {
   public class ArgumentDefinitionBuilder {
@@ -67,13 +68,15 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
-    public ArgumentDefinitionBuilder WithFlag(string id, string description, string shortName, string altShortName = "", string longName = "") {
+    public ArgumentDefinitionBuilder WithFlag(string id, string description, string shortName, string altShortName = "", string longName = "", bool defaultValue = false, bool allowNegation = true) {
       var def = new FlagArgDef {
         Id = id,
         Description = description,
         ShortName = shortName,
         AltShortName = altShortName,
         LongName = longName,
+        DefaultValue = defaultValue,
+        AllowNegation = allowNegation,
       };
       _definitions.Add(def);
       return this;
@@ -120,20 +123,56 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
+    public ArgumentDefinitionBuilder WithEnumOption(
+      string id,
+      string description,
+      string shortName,
+      string valueName,
+      string defaultValue,
+      IEnumerable<EnumOptionValue> values,
+      string altShortName = "",
+      string longName = "",
+      bool isMandatory = false) {
+      var def = new EnumOptionArgDef {
+        Id = id,
+        Description = description,
+        ShortName = shortName,
+        ValueName = valueName,
+        DefaultValue = defaultValue,
+        Values = values.ToList(),
+        AltShortName = altShortName,
+        LongName = longName,
+        IsMandatory = isMandatory,
+      };
+      _definitions.Add(def);
+      return this;
+    }
+
     public ArgumentDefinitionBuilder WithHelpFlag() {
-      return WithFlag("help", "Display help", "h", "?", "help");
+      return WithFlag("help", "Display help", "h", "?", "help", defaultValue: false, allowNegation: false);
     }
 
     public ArgumentDefinitionBuilder WithGcFlag() {
       return WithFlag("gc", "Display .NET Garbage Collector statistics", "gc");
     }
 
-    public ArgumentDefinitionBuilder WithNoProgressFlag() {
-      return WithFlag("no-progress", "Don't display progress status as the application runs", "np", "", "no-progress");
-    }
+    public ArgumentDefinitionBuilder WithProgressOption() {
+      var values = new[] {
+        new EnumOptionValue { Name = "none", Description = "No progress report" },
+        new EnumOptionValue { Name = "line", Description = "Single line progress report" },
+        new EnumOptionValue { Name = "default", Description = "Multiline progress report (but not per thread output)" },
+        new EnumOptionValue { Name = "full", Description = "Multiline + per thread output" }
+      };
 
-    public ArgumentDefinitionBuilder WithSingleLineProgressFlag() {
-      return WithFlag("single-line-progress", "Display progress status as a single line", "slp", "", "single-line-progress");
+      return WithEnumOption(
+        "progress",
+        "Configure progress reporting (alias: -np/--no-progress maps to 'none')",
+        "p",
+        "mode",
+        "default",
+        values,
+        longName: "progress"
+      );
     }
 
     public ArgumentDefinitionBuilder WithThreadCountOption() {

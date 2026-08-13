@@ -41,7 +41,7 @@ public class ProgressPrinter {
     /// </summary>
     public bool IsAnsiSupported { get; set; } = ConsoleSupport.IsAnsiSupported;
 
-    public bool SingleLine { get; set; }
+    public ProgressMode ProgressMode { get; set; } = ProgressMode.Full;
 
     public static string StripAnsi(string input) {
         return AnsiRegex.Replace(input, "");
@@ -135,7 +135,7 @@ public class ProgressPrinter {
         int windowWidth = GetWindowWidth();
 
         string output;
-        if (SingleLine) {
+        if (ProgressMode == ProgressMode.Line) {
             var stripped = FieldsPrinter.BuildSingleLineOutput(fields);
             if (stripped.Length > windowWidth - 1) {
                 stripped = stripped.Substring(0, windowWidth - 1);
@@ -154,7 +154,7 @@ public class ProgressPrinter {
                 sb.Append(AnsiEsc).Append("[K").Append(fieldLines[i].TrimEnd('\r'));
             }
 
-            if (additionalLines != null && additionalLines.Count > 0) {
+            if (ProgressMode == ProgressMode.Full && additionalLines != null && additionalLines.Count > 0) {
                 sb.AppendLine();
                 sb.Append(AnsiEsc).Append("[KThreads:");
                 foreach (var line in additionalLines) {

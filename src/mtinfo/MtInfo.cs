@@ -78,16 +78,15 @@ namespace mtinfo {
           "",
           "longestpath")
         .WithThreadCountOption()
-        .WithNoProgressFlag()
-        .WithSingleLineProgressFlag()
+        .WithProgressOption()
         .WithGcFlag()
         .WithHelpFlag()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser.Contains("help")) {
-        if (!parser.Contains("help")) {
+      if (!parser.IsValid || parser["help"].BoolValue) {
+        if (!parser["help"].BoolValue) {
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
@@ -100,8 +99,9 @@ namespace mtinfo {
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       var levelCount = parser["depth"].IntValue;
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
-      _progressMonitor.ShowProgress = !parser.Contains("no-progress");
-      _progressMonitor.SingleLineProgress = parser.Contains("single-line-progress");
+      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
+        parser["progress"].StringValue
+      );
 
       var options = new CollectOptions {
         LevelCount = levelCount,
@@ -115,7 +115,7 @@ namespace mtinfo {
       Console.WriteLine();
       DisplayDirectoryEntries(summaryRoot, x => x.Stats.FileBytesTotal);
 
-      if (parser.Contains("gc")) {
+      if (parser["gc"].BoolValue) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
 
