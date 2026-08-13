@@ -69,9 +69,6 @@ foreach ($rid in $Platforms) {
   Write-Host " Building & Publishing for: $rid" -ForegroundColor Yellow
   Write-Host "-----------------------------------------------------------------" -ForegroundColor Yellow
 
-  # Run dotnet publish
-  dotnet publish "mtsuite.sln" -c Release -r $rid --nologo
-
   $packageName = "mtsuite-$Version-$rid"
   $outDir = Join-Path $PublishRoot $packageName
   if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
@@ -81,7 +78,11 @@ foreach ($rid in $Platforms) {
 
   foreach ($app in $Apps) {
     $binName = if ($isWindows) { "$app.exe" } else { $app }
-    $binPath = Join-Path $ScriptDir "bin\Release\net8.0\$rid\publish\$binName"
+    
+    # Run dotnet publish on project level
+    dotnet publish "src\$app\$app.csproj" -c Release -r $rid --nologo -o "bin\Release\net8.0\$rid\publish-$app"
+
+    $binPath = Join-Path $ScriptDir "bin\Release\net8.0\$rid\publish-$app\$binName"
 
     if (!(Test-Path $binPath)) {
       Write-Error "Expected binary not found: $binPath"

@@ -74,9 +74,6 @@ for RID in "${PLATFORMS[@]}"; do
   echo " Building & Publishing for: $RID"
   echo "-----------------------------------------------------------------"
 
-  # Publish solution for the target RID
-  $DOTNET publish mtsuite.sln -c Release -r "$RID" --nologo
-
   # Target directory per platform (unzipped folder)
   PACKAGE_NAME="mtsuite-${VERSION}-${RID}"
   OUT_DIR="$PUBLISH_ROOT/$PACKAGE_NAME"
@@ -96,7 +93,10 @@ for RID in "${PLATFORMS[@]}"; do
       BIN_NAME="${APP}"
     fi
 
-    BIN_PATH="src/${APP}/bin/Release/net8.0/${RID}/publish/${BIN_NAME}"
+    # Publish project individually to a project-specific output directory
+    $DOTNET publish "src/${APP}/${APP}.csproj" -c Release -r "$RID" --nologo -o "bin/Release/net8.0/${RID}/publish-${APP}"
+
+    BIN_PATH="bin/Release/net8.0/${RID}/publish-${APP}/${BIN_NAME}"
     if [ ! -f "$BIN_PATH" ]; then
       echo "Error: Expected binary not found: $BIN_PATH" >&2
       exit 1
