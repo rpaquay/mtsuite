@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections.Generic;
 using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
@@ -43,7 +44,7 @@ namespace mtsuite.shared {
       var clonedLabel = IsDryRun ? "# of files to clone" : "# of files cloned";
       var clonedShort = IsDryRun ? "to-clone" : "cloned";
 
-      var fields = new[] {
+      var fields = new List<PrinterEntry> {
         new PrinterEntry("Elapsed time", elapsedTimeText),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
         new PrinterEntry("Source"),
@@ -57,6 +58,9 @@ namespace mtsuite.shared {
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
+      if (ShowGc) {
+        fields.Add(GetGcPrinterEntry());
+      }
       var threadLines = GetThreadProgressLines();
       Print(fields, threadLines);
     }

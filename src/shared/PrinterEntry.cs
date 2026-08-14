@@ -14,14 +14,16 @@
 
 namespace mtsuite.shared {
   public class PrinterEntry {
+    
     public PrinterEntry(string displayName, string value = null, Align valueAlign = Align.Left, string valueUnit = null,
-      string shortName = null, int indent = 0, string extraValue = null) {
+      string shortName = null, int indent = 0, string extraValue = null, string shortExtraValue = null) {
       DisplayName = displayName;
       Value = value;
       ValueAlign = valueAlign;
       ShortName = shortName;
       Indent = indent;
       ExtraValue = extraValue;
+      ShortExtraValue = shortExtraValue;
       ValueUnit = valueUnit;
     }
 
@@ -31,6 +33,7 @@ namespace mtsuite.shared {
     public Align ValueAlign { get; }
     public string ShortName { get; }
     public string ExtraValue { get; }
+    public string ShortExtraValue { get; }
     public string ValueUnit { get; }
   }
 

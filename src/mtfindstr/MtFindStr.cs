@@ -64,6 +64,7 @@ namespace mtfindstr {
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
       _progressMonitor.ShowWarnings = arguments.Values.ShowWarnings;
       _progressMonitor.ShowErrors = arguments.Values.ShowErrors;
+      _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
       var followLinks = arguments.Values.FollowLinks;
       var isPlainOutput = arguments.Values.PlainOutput;
       if (!isPlainOutput) {

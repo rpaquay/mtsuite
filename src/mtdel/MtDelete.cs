@@ -80,6 +80,7 @@ I  Not content indexed Files  L  Reparse Points
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
         parser["progress"].StringValue
       );
+      _progressMonitor.ShowGc = parser["gc"].BoolValue;
 
       var options = new Options {
         QuietMode = parser["quiet"].BoolValue,

@@ -44,6 +44,7 @@ namespace mtsuite.shared {
 
     bool ShowWarnings { get; set; }
     bool ShowErrors { get; set; }
+    bool ShowGc { get; set; }
 
     #region single threaded methods
     void Start();

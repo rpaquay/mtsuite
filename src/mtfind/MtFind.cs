@@ -60,6 +60,7 @@ namespace mtfind {
       var pattern = arguments.Values.Pattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
       bool followLinks = arguments.Values.FollowLinks;
       bool isPlainOutput = arguments.Values.PlainOutput;
       bool includeDir = arguments.Values.IncludeDir;

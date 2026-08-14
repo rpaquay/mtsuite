@@ -86,6 +86,7 @@ namespace mtcompact {
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
         parser["progress"].StringValue
       );
+      _progressMonitor.ShowGc = parser["gc"].BoolValue;
       IFileComparer fileComparer;
       if (parser["ft"].BoolValue) {
         fileComparer = new LastWriteTimeFileComparer(_fileSystem);

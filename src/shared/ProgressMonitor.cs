@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using mtsuite.CoreFileSystem;
+using mtsuite.shared.Utils;
 
 namespace mtsuite.shared {
   public abstract class ProgressMonitor<TStatistics> : IProgressMonitor<TStatistics> where TStatistics : Statistics, new() {
@@ -29,7 +30,8 @@ namespace mtsuite.shared {
     private readonly Stopwatch _displayTimer = new Stopwatch();
     private readonly ConcurrentQueue<Exception> _errors = new ConcurrentQueue<Exception>();
     private readonly ConcurrentQueue<Exception> _warnings = new ConcurrentQueue<Exception>();
-
+#if false
+#endif
     private long _directoryEnumeratedCount;
     private long _fileEnumeratedCount;
     private long _symlinkEnumeratedCount;
@@ -75,6 +77,7 @@ namespace mtsuite.shared {
 
     public bool ShowWarnings { get; set; } = false;
     public bool ShowErrors { get; set; } = true;
+    public bool ShowGc { get; set; } = false;
 
     public bool IsAnsiSupported {
       get => _printer.IsAnsiSupported;
@@ -280,6 +283,23 @@ namespace mtsuite.shared {
 
     public virtual bool IsWarning(FullPath path, Exception e) {
       return false;
+    }
+
+    protected PrinterEntry GetGcPrinterEntry() {
+      var gcMemory = FormatHelpers.FormatSize(GC.GetTotalMemory(false));
+      var gen0 = GC.CollectionCount(0);
+      var gen1 = GC.CollectionCount(1);
+      var gen2 = GC.CollectionCount(2);
+      var gcInfo = GC.GetGCMemoryInfo();
+      var pauseMs = GC.GetTotalPauseDuration().TotalMilliseconds;
+      var pausePct = gcInfo.PauseTimePercentage;
+      var gcTotalAllocated = FormatHelpers.FormatSize(GC.GetTotalAllocatedBytes());
+      
+      var gcValue = $"{gcMemory}";
+      var gcExtraValue = $"(Gen 0/1/2: {gen0}/{gen1}/{gen2}, Pause: {pauseMs:N0}ms ({pausePct:F1}%), Total Allocated: {gcTotalAllocated})";
+      var gcShortExtraValue = $"";
+      
+      return new PrinterEntry("GC current", gcValue, valueAlign: Align.Right, shortName: "GC", extraValue: gcExtraValue, shortExtraValue: gcShortExtraValue);
     }
 
     protected abstract void DisplayStatus(TStatistics statistics);

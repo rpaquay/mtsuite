@@ -95,6 +95,7 @@ namespace mtmir {
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
         parser["progress"].StringValue
       );
+      _progressMonitor.ShowGc = parser["gc"].BoolValue;
       IFileComparer fileComparer;
       if (parser["fc"].BoolValue) {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);

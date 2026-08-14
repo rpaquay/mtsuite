@@ -102,6 +102,7 @@ namespace mtinfo {
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(
         parser["progress"].StringValue
       );
+      _progressMonitor.ShowGc = parser["gc"].BoolValue;
 
       var options = new CollectOptions {
         LevelCount = levelCount,
