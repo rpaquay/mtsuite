@@ -54,13 +54,13 @@ public sealed class PortableFileSystemExtensionHelper {
 
       if (beforeDelete(entries, i, ref state)) {
         try {
-          if (entry.IsFile || entry.IsReparsePoint) {
+          if (entry.IsDirectory) {
+            Directory.Delete(fullName, recursive: false);
+          } else {
             if (entry.IsReadOnly) {
               try { File.SetAttributes(fullName, FileAttributes.Normal); } catch { }
             }
             File.Delete(fullName);
-          } else if (entry.IsRegularDirectory) {
-            Directory.Delete(fullName, recursive: false);
           }
           afterDelete(entries, i, null, ref state);
         } catch (Exception ex) {

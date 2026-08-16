@@ -6,7 +6,10 @@ Each utility in the suite:
 
 * **Leverages all available CPU cores** for maximum disk throughput and concurrent I/O.
 * **Displays real-time worker thread progress** and live status updates during operation.
-* **Supports macOS APFS file cloning** (`fclonefile`/`clonefile`) for instant zero-copy file duplication in `mtcopy` and `mtmir`.
+* **Supports native file cloning**:
+  * macOS APFS (`clonefile`)
+  * Windows ReFS / Dev Drive (`FSCTL_DUPLICATE_EXTENTS_TO_FILE`)
+  for instant zero-copy file duplication and deduplication in `mtcopy`, `mtmir`, and `mtcompact`.
 * **Preserves Symbolic Links and Junction Points** (Junction Points are a Windows-only feature), copying and deleting links as link objects rather than following target content.
 * **Supports long paths** (> 260 characters).
 
@@ -14,13 +17,13 @@ Each utility in the suite:
 
 ## Included Utilities
 
-* **`mtcopy`**: Recursively copies a source directory to a destination directory in parallel. Similar to `ROBOCOPY /S`, `xcopy /S`, or `rsync -r`, with automatic APFS cloning support on macOS.
-* **`mtmir`**: Mirrors a source directory to a destination directory, copying new/modified files and deleting extra destination files not present in the source. Similar to `ROBOCOPY /MIR` or `rsync -a --delete`. Supports APFS cloning on macOS.
+* **`mtcopy`**: Recursively copies a source directory to a destination directory in parallel. Similar to `ROBOCOPY /S`, `xcopy /S`, or `rsync -r`, with automatic file cloning support on macOS (APFS) and Windows (ReFS / Dev Drive).
+* **`mtmir`**: Mirrors a source directory to a destination directory, copying new/modified files and deleting extra destination files not present in the source. Similar to `ROBOCOPY /MIR` or `rsync -a --delete`. Supports native cloning on macOS (APFS) and Windows (ReFS / Dev Drive).
 * **`mtdel`**: Recursively deletes a directory tree in parallel. Significantly faster than `rm -rf` or `rmdir /s /q`.
 * **`mtinfo`**: Recursively examines a directory tree and displays comprehensive statistics (file counts, directory counts, total size, symlink counts, and depth summaries).
 * **`mtfind`**: Recursively searches for files and directories matching file name wildcard patterns (similar to `find`), displaying matching paths in real-time alongside live progress tracking.
 * **`mtfindstr`**: Recursively searches inside file contents for text strings in parallel (similar to `grep` or `findstr`), displaying matching line and column hits in real-time.
-* **`mtcompact`**: Recursively compares directory entries and compacts/deduplicates identical files using file cloning (turning duplicate file content into copy-on-write file clones to reclaim disk space).
+* **`mtcompact`**: Recursively compares directory entries and compacts/deduplicates identical files using file cloning (turning duplicate file content into copy-on-write file clones on APFS and ReFS to reclaim disk space).
 
 ---
 

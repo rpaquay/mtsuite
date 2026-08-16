@@ -98,7 +98,6 @@ namespace tests {
       int rc = RunCommand(new[] { "cmd.exe", "/c", "mklink", "/j", junctionPointPath.FullName, fooTarget.Path.FullName });
       var info = _fileSystemSetup.FileSystem.GetReparsePointInfo(junctionPointPath);
 
-      // Assert
       Assert.AreEqual(0, rc);
       Assert.IsTrue(info.IsJunctionPoint);
       Assert.AreEqual(fooTarget.Path.FullName, info.Target);
@@ -353,13 +352,128 @@ namespace tests {
     }
 
     [TestMethod]
+    public void WindowsFileSystemExtension_AreFilesCloned_ReturnsTrueForZeroByteFiles() {
+      if (!OperatingSystem.IsWindows()) {
+        Assert.Inconclusive("Test only runs on Windows.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.WindowsFileSystemExtension(poolFactory);
+
+      var sourceFile = _fileSystemSetup.Root.CreateFile("source_file_zero_win.txt", 0);
+      var destinationFile = _fileSystemSetup.Root.CreateFile("dest_file_zero_win.txt", 0);
+
+      var entry1 = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
+      var entry2 = _fileSystemSetup.FileSystem.GetEntry(destinationFile.Path);
+      Assert.IsTrue(extension.AreFilesCloned(entry1, entry2));
+    }
+
+    [TestMethod]
+    public void WindowsFileSystemExtension_CloneFile_DoesNotSwallowException_LastWriteTime() {
+      if (!OperatingSystem.IsWindows()) {
+        Assert.Inconclusive("Test only runs on Windows.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.WindowsFileSystemExtension(poolFactory);
+
+      var sourceFile = _fileSystemSetup.Root.CreateFile("source_file_win.txt", 100);
+      var destinationPath = _fileSystemSetup.Root.Path.Combine("dest_file_win.txt");
+
+      var entry = _fileSystemSetup.FileSystem.GetEntry(sourceFile.Path);
+
+      // Construct an entry with invalid LastWriteTimeUtc ticks (e.g. long.MaxValue)
+      var invalidData = new mtsuite.CoreFileSystem.FileSystemEntryData(
+        System.IO.FileAttributes.Normal,
+        entry.FileSize,
+        long.MaxValue
+      );
+      var sourceEntry = new mtsuite.CoreFileSystem.FileSystemEntry(sourceFile.Path, invalidData);
+
+      Assert.ThrowsException<ArgumentOutOfRangeException>(() => {
+        extension.CloneFile(sourceEntry, destinationPath);
+      });
+    }
+
+    [TestMethod]
+    public void WindowsFileSystemExtension_ReFSBlockCloning_WorksWhenSupported() {
+      if (!OperatingSystem.IsWindows()) {
+        Assert.Inconclusive("Test only runs on Windows.");
+      }
+
+      // Check if any drive is formatted with ReFS
+      string refsDrive = null;
+      foreach (var drive in System.IO.DriveInfo.GetDrives()) {
+        try {
+          if (drive.IsReady && string.Equals(drive.DriveFormat, "ReFS", StringComparison.OrdinalIgnoreCase)) {
+            refsDrive = drive.RootDirectory.FullName;
+            break;
+          }
+        } catch { }
+      }
+
+      if (refsDrive == null) {
+        Assert.Inconclusive("No ReFS drive available for block cloning test.");
+        return;
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.WindowsFileSystemExtension(poolFactory);
+      var fs = mtsuite.CoreFileSystem.FileSystem.CreateDefault(poolFactory);
+
+      string testDir = System.IO.Path.Combine(refsDrive, "mtsuite_refs_test_" + Guid.NewGuid().ToString("N"));
+      System.IO.Directory.CreateDirectory(testDir);
+      try {
+        var testDirPath = new mtsuite.CoreFileSystem.FullPath(testDir);
+        Assert.IsTrue(extension.IsCloningSupported(testDirPath, testDirPath));
+
+        // Create test file (128 KB with non-trivial byte content)
+        string srcFile = System.IO.Path.Combine(testDir, "test_source.dat");
+        byte[] expectedBytes = new byte[128 * 1024 + 123]; // Non-cluster-aligned size to test tail remainder
+        for (int i = 0; i < expectedBytes.Length; i++) {
+          expectedBytes[i] = (byte)(i % 251);
+        }
+        System.IO.File.WriteAllBytes(srcFile, expectedBytes);
+
+        var srcEntry = fs.GetEntry(new mtsuite.CoreFileSystem.FullPath(srcFile));
+        var dstPath = new mtsuite.CoreFileSystem.FullPath(System.IO.Path.Combine(testDir, "test_clone.dat"));
+
+        // Clone file
+        extension.CloneFile(srcEntry, dstPath);
+
+        // Verify clone exists and matches content
+        Assert.IsTrue(System.IO.File.Exists(dstPath.FullName));
+        byte[] clonedBytes = System.IO.File.ReadAllBytes(dstPath.FullName);
+        CollectionAssert.AreEqual(expectedBytes, clonedBytes);
+
+        // Verify timestamps match
+        var dstEntry = fs.GetEntry(dstPath);
+        Assert.AreEqual(srcEntry.LastWriteTimeUtc, dstEntry.LastWriteTimeUtc);
+
+        // Verify AreFilesCloned returns true for cloned files
+        bool areCloned = extension.AreFilesCloned(srcEntry, dstEntry);
+        Assert.IsTrue(areCloned, "Expected AreFilesCloned to return true for freshly cloned ReFS file");
+
+        // Verify that modifying destination makes them no longer cloned
+        System.IO.File.WriteAllBytes(dstPath.FullName, new byte[expectedBytes.Length]);
+        var modifiedDstEntry = fs.GetEntry(dstPath);
+        Assert.IsFalse(extension.AreFilesCloned(srcEntry, modifiedDstEntry));
+      }
+      finally {
+        try { System.IO.Directory.Delete(testDir, recursive: true); } catch { }
+      }
+    }
+
+    [TestMethod]
     public void NullFileSystemExtensionBehavesSafely() {
       var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
       var nullExt = new mtsuite.CoreFileSystem.NullFileSystemExtension(poolFactory);
-      Assert.IsFalse(nullExt.IsCloningSupported(new mtsuite.CoreFileSystem.FullPath("/tmp/a"), new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
+      var pathA = OperatingSystem.IsWindows() ? new mtsuite.CoreFileSystem.FullPath(@"C:\tmp\a") : new mtsuite.CoreFileSystem.FullPath("/tmp/a");
+      var pathB = OperatingSystem.IsWindows() ? new mtsuite.CoreFileSystem.FullPath(@"C:\tmp\b") : new mtsuite.CoreFileSystem.FullPath("/tmp/b");
+      Assert.IsFalse(nullExt.IsCloningSupported(pathA, pathB));
       Assert.IsFalse(nullExt.AreFilesCloned(default(mtsuite.CoreFileSystem.FileSystemEntry), default(mtsuite.CoreFileSystem.FileSystemEntry)));
       Assert.ThrowsException<PlatformNotSupportedException>(() =>
-        nullExt.CloneFile(default, new mtsuite.CoreFileSystem.FullPath("/tmp/b")));
+        nullExt.CloneFile(default, pathB));
     }
   }
 }

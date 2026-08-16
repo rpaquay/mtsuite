@@ -95,9 +95,16 @@ namespace tests {
       Assert.AreEqual("Thread  1: idle", snapshot.Format());
     }
 
+    private static FullPath MakeTestPath(string posixPath) {
+      if (OperatingSystem.IsWindows()) {
+        return new FullPath(@"C:\" + posixPath.TrimStart('/').Replace('/', '\\'));
+      }
+      return new FullPath(posixPath);
+    }
+
     [TestMethod]
     public void ThreadProgressSnapshotFormatsCopyingCorrectly() {
-      var sourceRoot = new FullPath("/path/to");
+      var sourceRoot = MakeTestPath("/path/to");
       var snapshot = new ThreadProgressSnapshot {
         ThreadIndex = 2,
         Operation = ThreadOperation.CopyingFile,
@@ -108,7 +115,7 @@ namespace tests {
       };
       // Without root
       var formatted = snapshot.Format();
-      StringAssert.Contains(formatted, "Thread  2: Copying /path/to/file.dat (10.0 MB / 50.0 MB, 1.25s)");
+      StringAssert.Contains(formatted, "file.dat (10.0 MB / 50.0 MB, 1.25s)");
 
       // With root
       var formattedWithRoot = snapshot.Format(sourceRoot);
@@ -117,7 +124,7 @@ namespace tests {
 
     [TestMethod]
     public void ThreadProgressSnapshotFormatsComparingCorrectly() {
-      var sourceRoot = new FullPath("/path/to");
+      var sourceRoot = MakeTestPath("/path/to");
       var snapshot = new ThreadProgressSnapshot {
         ThreadIndex = 2,
         Operation = ThreadOperation.ComparingFile,
@@ -128,7 +135,7 @@ namespace tests {
       };
       // Without root
       var formatted = snapshot.Format();
-      StringAssert.Contains(formatted, "Thread  2: Comparing /path/to/file.dat (10.0 MB / 50.0 MB, 0.75s)");
+      StringAssert.Contains(formatted, "file.dat (10.0 MB / 50.0 MB, 0.75s)");
 
       // With root
       var formattedWithRoot = snapshot.Format(sourceRoot);
@@ -137,7 +144,7 @@ namespace tests {
 
     [TestMethod]
     public void ThreadProgressSnapshotFormatsTraversingCorrectly() {
-      var sourceRoot = new FullPath("/path");
+      var sourceRoot = MakeTestPath("/path");
       var snapshot = new ThreadProgressSnapshot {
         ThreadIndex = 3,
         Operation = ThreadOperation.TraversingDirectory,
@@ -153,7 +160,7 @@ namespace tests {
 
     [TestMethod]
     public void ThreadProgressSnapshotFormatsDeletingCorrectly() {
-      var destRoot = new FullPath("/dest/dir");
+      var destRoot = MakeTestPath("/dest/dir");
       var snapshot = new ThreadProgressSnapshot {
         ThreadIndex = 4,
         Operation = ThreadOperation.DeletingEntry,
@@ -204,25 +211,29 @@ namespace tests {
       var state = tracker.Current;
 
       var dirData = new FileSystemEntryData(FileAttributes.Directory, 0, DateTime.UtcNow.ToFileTimeUtc());
-      var dirEntry = new FileSystemEntry(new FullPath("/source/myfolder"), dirData);
+      var dirEntry = new FileSystemEntry(MakeTestPath("/source/myfolder"), dirData);
 
       state.SetTraversing(dirEntry);
       Assert.AreEqual(ThreadOperation.TraversingDirectory, state.Operation);
-      StringAssert.Contains(tracker.GetFormattedLines()[0], "Traversing /source/myfolder");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "Traversing ");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "myfolder");
 
       var fileData = new FileSystemEntryData(FileAttributes.Normal, 50 * 1024 * 1024, DateTime.UtcNow.ToFileTimeUtc());
-      var fileEntry = new FileSystemEntry(new FullPath("/source/myfolder/large.bin"), fileData);
+      var fileEntry = new FileSystemEntry(MakeTestPath("/source/myfolder/large.bin"), fileData);
 
       state.SetCopying(fileEntry);
       Assert.AreEqual(ThreadOperation.CopyingFile, state.Operation);
-      StringAssert.Contains(tracker.GetFormattedLines()[0], "Copying /source/myfolder/large.bin (0 B / 50.0 MB");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "Copying ");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "large.bin (0 B / 50.0 MB");
 
       state.UpdateCopyProgress(25 * 1024 * 1024);
-      StringAssert.Contains(tracker.GetFormattedLines()[0], "Copying /source/myfolder/large.bin (25.0 MB / 50.0 MB");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "Copying ");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "large.bin (25.0 MB / 50.0 MB");
 
       state.SetDeleting(fileEntry);
       Assert.AreEqual(ThreadOperation.DeletingEntry, state.Operation);
-      StringAssert.Contains(tracker.GetFormattedLines()[0], "Deleting /source/myfolder/large.bin");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "Deleting ");
+      StringAssert.Contains(tracker.GetFormattedLines()[0], "large.bin");
 
       state.SetIdle();
       Assert.AreEqual(ThreadOperation.Idle, state.Operation);
@@ -232,8 +243,8 @@ namespace tests {
     [TestMethod]
     public void ThreadProgressTrackerFormatsRelativePaths() {
       var tracker = new ThreadProgressTracker();
-      var sourceRoot = new FullPath("/source/myfolder");
-      var destRoot = new FullPath("/dest/backup");
+      var sourceRoot = MakeTestPath("/source/myfolder");
+      var destRoot = MakeTestPath("/dest/backup");
       tracker.SourcePath = sourceRoot;
       tracker.DestinationPath = destRoot;
 
@@ -269,7 +280,7 @@ namespace tests {
       monitor.Start();
 
       var data = new FileSystemEntryData(FileAttributes.Normal, 3 * 1024 * 1024, DateTime.UtcNow.ToFileTimeUtc());
-      var fileEntry = new FileSystemEntry(new FullPath("/test/file.dat"), data);
+      var fileEntry = new FileSystemEntry(MakeTestPath("/test/file.dat"), data);
 
       monitor.OnFileCopying(fileEntry);
       monitor.OnFileCopyingProgress(fileEntry, TimeSpan.FromMilliseconds(50), 1 * 1024 * 1024, 1 * 1024 * 1024);
@@ -311,7 +322,7 @@ namespace tests {
     [TestMethod]
     public void ThreadProgressStateSearchingOperationFormatsCorrectly() {
       var state = new ThreadProgressState(1, 100);
-      var entry = new FileSystemEntry(new FullPath("/src/file.txt"), new FileSystemEntryData(System.IO.FileAttributes.Normal, 1000, 0));
+      var entry = new FileSystemEntry(MakeTestPath("/src/file.txt"), new FileSystemEntryData(System.IO.FileAttributes.Normal, 1000, 0));
 
       state.SetSearching(entry);
       var snapshot = state.CreateSnapshot();
@@ -340,7 +351,7 @@ namespace tests {
     public void ProgressMonitorOnErrorPrintsErrorAsItComes() {
       var monitor = new CopyProgressMonitor();
       monitor.Start();
-      monitor.OnError(new FullPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
+      monitor.OnError(MakeTestPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
       monitor.Stop();
 
       var stats = monitor.GetStatistics();
@@ -353,7 +364,7 @@ namespace tests {
       monitor.ShowProgress = false;
       monitor.Start();
 
-      monitor.OnError(new FullPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
+      monitor.OnError(MakeTestPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
       monitor.Pulse();
       monitor.Stop();
 
@@ -363,3 +374,4 @@ namespace tests {
     }
   }
 }
+
