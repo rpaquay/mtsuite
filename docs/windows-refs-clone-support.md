@@ -17,15 +17,10 @@ Added native block cloning support on Windows for ReFS (Resilient File System) a
 - **`AreFilesCloned`**:
   - Queries physical extent mappings using `FSCTL_GET_RETRIEVAL_POINTERS`.
   - Inspects and compares logical cluster numbers (LCNs) across virtual clusters (VCNs) to accurately determine if two files share physical disk blocks.
+- **`TryGetReparsePointTag`**:
+  - Encapsulates Win32 P/Invoke calls (`CreateFileW`, `GetFileInformationByHandleEx`) to inspect platform-specific reparse point tags.
 
-### 2. File System Helpers & Reparse Point Handling
-[FileSystemPortable.cs](../src/core-filesystem/FileSystemPortable.cs)
-- Enhanced `GetReparsePointInfo` to distinguish Windows directory junctions from symbolic links by opening reparse points via Win32 `CreateFileW` (`FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT`) and querying `FileAttributeTagInfo`.
-
-[PortableFileSystemExtensionHelper.cs](../src/core-filesystem/PortableFileSystemExtensionHelper.cs)
-- Updated directory deletion logic to correctly unlink directory symlinks and junction points on Windows.
-
-### 3. Unit Tests
+### 2. Unit Tests
 [FileSystemTest.cs](../src/tests/FileSystemTest.cs)
 - Added tests for `WindowsFileSystemExtension`:
   - `WindowsFileSystemExtension_ReFSBlockCloning_WorksWhenSupported`: Verifies `IsCloningSupported`, `CloneFile`, `AreFilesCloned`, content integrity, and modification detection on ReFS.
@@ -36,7 +31,7 @@ Added native block cloning support on Windows for ReFS (Resilient File System) a
 [ThreadProgressTrackerTest.cs](../src/tests/ThreadProgressTrackerTest.cs)
 - Updated path creation to be cross-platform compatible.
 
-### 4. Documentation
+### 3. Documentation
 [README.md](../README.md)
 - Documented Windows ReFS / Dev Drive block cloning support.
 
@@ -45,7 +40,7 @@ Added native block cloning support on Windows for ReFS (Resilient File System) a
 ### Automated Tests
 Ran `dotnet test`:
 ```text
-Passed!  - Failed:     0, Passed:   192, Skipped:    12, Total:   204, Duration: 1 s - tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:   195, Skipped:    12, Total:   210, Duration: 1 s - tests.dll (net8.0)
 ```
 All unit and integration tests passed cleanly.
 
@@ -54,3 +49,4 @@ Tested `mtcopy`, `mtmir`, and `mtcompact` directly on `D:\`:
 1. **`mtcopy`**: Cloned 212 files (9.7 MB) in 0.35s via native ReFS block cloning with 27.7 MB/sec throughput.
 2. **`mtmir`**: ReFS block-cloned source tree to destination mirror, and on subsequent run correctly detected and skipped all identical already-cloned files.
 3. **`mtcompact`**: Successfully deduplicated separate physical copies into ReFS block clones, and on subsequent runs identified 197 files (9.7 MB) as already cloned with zero unnecessary I/O.
+

@@ -52,6 +52,12 @@ public interface IFileSystemExtension {
     ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete);
+
+  /// <summary>
+  /// Tries to inspect platform-specific reparse point tags (e.g. Windows directory junctions vs symlinks).
+  /// Returns <c>true</c> if reparse tag information was successfully queried; otherwise <c>false</c>.
+  /// </summary>
+  bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink);
 }
 
 /// <summary>

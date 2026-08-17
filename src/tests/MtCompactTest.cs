@@ -83,6 +83,9 @@ namespace tests {
         BeforeDeleteEntryCallback<TState> beforeDelete,
         AfterDeleteEntryCallback<TState> afterDelete) =>
         _inner.Extension.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
+
+      public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) =>
+        _inner.Extension.TryGetReparsePointTag(fullName, out isJunction, out isSymLink);
     }
 
     [TestInitialize]

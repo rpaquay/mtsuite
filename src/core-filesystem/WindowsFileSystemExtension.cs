@@ -79,6 +79,37 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     out uint lpNumberOfFreeClusters,
     out uint lpTotalNumberOfClusters);
 
+  [DllImport("kernel32.dll", EntryPoint = "CreateFileW", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+  private static extern SafeFileHandle CreateFileW(
+    string lpFileName,
+    uint dwDesiredAccess,
+    uint dwShareMode,
+    IntPtr lpSecurityAttributes,
+    uint dwCreationDisposition,
+    uint dwFlagsAndAttributes,
+    IntPtr hTemplateFile);
+
+  [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool GetFileInformationByHandleEx(
+    SafeFileHandle hFile,
+    int FileInformationClass,
+    out FILE_ATTRIBUTE_TAG_INFO lpFileInformation,
+    uint dwBufferSize);
+
+  [StructLayout(LayoutKind.Sequential)]
+  private struct FILE_ATTRIBUTE_TAG_INFO {
+    public uint FileAttributes;
+    public uint ReparseTag;
+  }
+
+  private const int FileAttributeTagInfoClass = 9;
+  private const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
+  private const uint IO_REPARSE_TAG_SYMLINK = 0xA000000C;
+  private const uint FILE_SHARE_READ_WRITE_DELETE = 7;
+  private const uint OPEN_EXISTING = 3;
+  private const uint FILE_FLAG_BACKUP_SEMANTICS_OPEN_REPARSE_POINT = 0x02000000 | 0x00200000;
+
   private readonly IPool<StringBuffer> _fullNameBufferPool;
   private readonly PortableFileSystemExtensionHelper _portableHelper;
 
@@ -386,5 +417,34 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
     _portableHelper.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
+
+  public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
+    isJunction = false;
+    isSymLink = false;
+
+    if (!OperatingSystem.IsWindows()) {
+      return false;
+    }
+
+    try {
+      using var handle = CreateFileW(
+        fullName,
+        0, // FILE_READ_ATTRIBUTES / query only
+        FILE_SHARE_READ_WRITE_DELETE,
+        IntPtr.Zero,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS_OPEN_REPARSE_POINT,
+        IntPtr.Zero);
+
+      if (!handle.IsInvalid && GetFileInformationByHandleEx(handle, FileAttributeTagInfoClass, out var tagInfo, (uint)Marshal.SizeOf<FILE_ATTRIBUTE_TAG_INFO>())) {
+        isJunction = tagInfo.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT;
+        isSymLink = tagInfo.ReparseTag == IO_REPARSE_TAG_SYMLINK;
+        return true;
+      }
+    }
+    catch { }
+
+    return false;
+  }
 }
 

@@ -51,4 +51,10 @@ public class NullFileSystemExtension : IFileSystemExtension {
     AfterDeleteEntryCallback<TState> afterDelete) {
     return _portableHelper.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
   }
+
+  public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
+    isJunction = false;
+    isSymLink = false;
+    return false;
+  }
 }

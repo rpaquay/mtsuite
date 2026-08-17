@@ -57,4 +57,10 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
     _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, ref state, beforeDelete, afterDelete);
+
+  public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
+    isJunction = false;
+    isSymLink = false;
+    return false;
+  }
 }
