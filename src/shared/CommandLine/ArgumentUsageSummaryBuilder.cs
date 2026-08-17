@@ -76,5 +76,14 @@ namespace mtsuite.shared.CommandLine {
         Append(arg.IsMandatory, "{0}{1}{2}", Delimiter, arg.LongName, valueSummary);
       }
     }
+
+    public void Visit(EnumOptionArgDef arg) {
+      var valueSummary = string.Format(" {0}", arg.ValueName);
+      if (string.IsNullOrEmpty(arg.LongName)) {
+        Append(arg.IsMandatory, "{0}{1}{2}", Delimiter, arg.ShortName, valueSummary);
+      } else {
+        Append(arg.IsMandatory, "{0}{1}{2}", Delimiter, arg.LongName, valueSummary);
+      }
+    }
   }
 }

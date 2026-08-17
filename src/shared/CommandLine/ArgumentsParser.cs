@@ -47,7 +47,17 @@ namespace mtsuite.shared.CommandLine {
           var prefixCount = argString.StartsWith("--") ? 2 : 1;
           var argName = argString.Substring(prefixCount);
 
-          var argDef = FindNamedArgument(argName);
+          if (argName == "no-progress" || argName == "np") {
+            var progressDef = _argumentDefinitions.OfType<EnumOptionArgDef>().SingleOrDefault(x => x.Id == "progress");
+            if (progressDef != null) {
+              _parserArguments.Add(new ParsedArgument(progressDef, "none"));
+              usedIndices.Add(index);
+              index++;
+              continue;
+            }
+          }
+
+          var argDef = FindNamedArgument(argName, out var isNegativeFlag);
           if (argDef == null) {
             _errors.Add(string.Format("Unknown argument \"{0}\"", argString));
             usedIndices.Add(index);
@@ -65,7 +75,13 @@ namespace mtsuite.shared.CommandLine {
             }
           }
 
-          object argValue = FindArgumentValue(argString, argDef, argStringValue);
+          object argValue;
+          if (argDef is FlagArgDef) {
+            argValue = !isNegativeFlag;
+          } else {
+            argValue = FindArgumentValue(argString, argDef, argStringValue);
+          }
+
           if (argValue != null) {
             _parserArguments.Add(new ParsedArgument(argDef, argValue));
           }
@@ -132,8 +148,8 @@ namespace mtsuite.shared.CommandLine {
         }
       }
 
+      AddMissingDefaultValues();
       if (_errors.Count == 0) {
-        AddMissingDefaultValues();
         CheckMissingMandatoryArguments();
       }
     }
@@ -170,6 +186,12 @@ namespace mtsuite.shared.CommandLine {
       foreach (var x in multiStringDefaults) {
         _parserArguments.Add(new ParsedArgument(x, x.DefaultValue.Value));
       }
+
+      var flagDefaults = _argumentDefinitions.OfType<FlagArgDef>()
+        .Where(x => !Contains(x.Id));
+      foreach (var x in flagDefaults) {
+        _parserArguments.Add(new ParsedArgument(x, x.DefaultValue));
+      }
     }
 
     private static bool IsPositionalArgDef(ArgDef argDef) {
@@ -177,11 +199,6 @@ namespace mtsuite.shared.CommandLine {
     }
 
     private object FindArgumentValue(string argString, NameArgDef argDef, string argValue) {
-      var flagDef = argDef as FlagArgDef;
-      if (flagDef != null) {
-        return FlagArgDef.ValueMarker;
-      }
-
       var valueArgDef = argDef as OptionArgDef;
       if (valueArgDef != null) {
         if (string.IsNullOrEmpty(argValue)) {
@@ -233,6 +250,20 @@ namespace mtsuite.shared.CommandLine {
           return argValue;
         }
 
+        var enumDef = valueArgDef as EnumOptionArgDef;
+        if (enumDef != null) {
+          if (string.IsNullOrEmpty(argValue)) {
+            argValue = (string)enumDef.DefaultValue;
+          }
+          var matchedValue = enumDef.Values.FirstOrDefault(v => string.Equals(v.Name, argValue, StringComparison.OrdinalIgnoreCase));
+          if (matchedValue == null) {
+            var allowedValues = string.Join(", ", enumDef.Values.Select(v => $"\"{v.Name}\""));
+            _errors.Add(string.Format("Argument \"{0}\" value \"{1}\" is invalid. Allowed values are: {2}", argString, argValue, allowedValues));
+            return null;
+          }
+          return matchedValue.Name;
+        }
+
         return argValue;
       }
 
@@ -240,12 +271,25 @@ namespace mtsuite.shared.CommandLine {
       return null;
     }
 
-    private NameArgDef FindNamedArgument(string name) {
-      return _argumentDefinitions
+    private NameArgDef FindNamedArgument(string name, out bool isNegativeFlag) {
+      isNegativeFlag = false;
+      var exactMatch = _argumentDefinitions
         .OfType<NameArgDef>()
-        .Where(x => {
-          return (x.ShortName == name || x.AltShortName == name || x.LongName == name);
-        }).SingleOrDefault();
+        .SingleOrDefault(x => x.ShortName == name || x.AltShortName == name || x.LongName == name);
+      if (exactMatch != null) {
+        return exactMatch;
+      }
+      if (name.StartsWith("no-")) {
+        var flagName = name.Substring(3);
+        var flagMatch = _argumentDefinitions
+          .OfType<FlagArgDef>()
+          .SingleOrDefault(x => x.LongName == flagName && x.AllowNegation);
+        if (flagMatch != null) {
+          isNegativeFlag = true;
+          return flagMatch;
+        }
+      }
+      return null;
     }
 
     public bool Contains(string id) {

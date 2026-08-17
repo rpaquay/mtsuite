@@ -361,7 +361,7 @@ namespace tests {
     [TestMethod]
     public void ProgressMonitorNoProgressOptionSuppressesPeriodicUpdatesButPreservesStatsAndErrors() {
       var monitor = new CopyProgressMonitor();
-      monitor.ShowProgress = false;
+      monitor.ProgressMode = ProgressMode.None;
       monitor.Start();
 
       monitor.OnError(MakeTestPath("/test/file.txt"), new System.IO.FileNotFoundException("File missing"));
@@ -370,7 +370,48 @@ namespace tests {
 
       var stats = monitor.GetStatistics();
       Assert.AreEqual(1, stats.Errors.Count);
-      Assert.IsFalse(monitor.ShowProgress);
+      Assert.AreEqual(ProgressMode.None, monitor.ProgressMode);
+    }
+
+    [TestMethod]
+    public void ProgressMonitorShouldRespectShowErrorsAndShowWarnings() {
+      var monitor = new CopyProgressMonitor();
+      monitor.IsAnsiSupported = true;
+      
+      // Let's test errors
+      {
+        monitor.ShowErrors = true;
+        using (var writer = new System.IO.StringWriter()) {
+          var oldError = Console.Error;
+          Console.SetError(writer);
+          try {
+            monitor.OnError(new FullPath("/test/err.txt"), new Exception("My Error"));
+          } finally {
+            Console.SetError(oldError);
+          }
+          
+          var output = writer.ToString();
+          Assert.IsTrue(output.Contains("Error: My Error"), "Error should be printed when ShowErrors is true");
+        }
+
+        monitor.ShowErrors = false;
+        using (var writer = new System.IO.StringWriter()) {
+          var oldError = Console.Error;
+          Console.SetError(writer);
+          try {
+            monitor.OnError(new FullPath("/test/err2.txt"), new Exception("My Hidden Error"));
+          } finally {
+            Console.SetError(oldError);
+          }
+          
+          var output = writer.ToString();
+          Assert.IsFalse(output.Contains("My Hidden Error"), "Error should not be printed when ShowErrors is false");
+        }
+        
+        // Even when ShowErrors is false, stats should still record it!
+        var stats = monitor.GetStatistics();
+        Assert.AreEqual(2, stats.Errors.Count);
+      }
     }
   }
 }

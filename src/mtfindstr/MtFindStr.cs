@@ -61,8 +61,11 @@ namespace mtfindstr {
       var filePatterns = arguments.Values.FileNamePatterns;
       var searchPattern = arguments.Values.SearchPattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
-      _progressMonitor.ShowProgress = !arguments.Values.NoProgress;
-      var followLinks = !arguments.Values.NoFollowLinks;
+      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      _progressMonitor.ShowWarnings = arguments.Values.ShowWarnings;
+      _progressMonitor.ShowErrors = arguments.Values.ShowErrors;
+      _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
+      var followLinks = arguments.Values.FollowLinks;
       var isPlainOutput = arguments.Values.PlainOutput;
       if (!isPlainOutput) {
         DisplayBanner();

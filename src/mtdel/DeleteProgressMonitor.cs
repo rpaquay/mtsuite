@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections.Generic;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
@@ -27,7 +28,7 @@ namespace mtdel {
       var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryDeletedCount / statistics.ElapsedTime.TotalSeconds) : "0";
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
-      var fields = new[] {
+      var fields = new List<PrinterEntry> {
         new PrinterEntry("Elapsed time", elapsedTimeText, valueAlign: Align.Right),
         new PrinterEntry("CPU time", cpuTimeText, valueAlign: Align.Right),
         new PrinterEntry("# of directories deleted", directoriesDeletedText, shortName: "directories", valueAlign: Align.Right),
@@ -36,6 +37,9 @@ namespace mtdel {
         new PrinterEntry("# of entries deleted/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
+      if (ShowGc) {
+        fields.Add(GetGcPrinterEntry());
+      }
       var threadLines = GetThreadProgressLines();
       Print(fields, threadLines);
     }

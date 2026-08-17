@@ -59,8 +59,9 @@ namespace mtfind {
       var sourcePath = ProgramHelpers.MakeFullPath(arguments.Values.Directory);
       var pattern = arguments.Values.Pattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
-      _progressMonitor.ShowProgress = !arguments.Values.NoProgress;
-      bool followLinks = !arguments.Values.NoFollowLinks;
+      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
+      bool followLinks = arguments.Values.FollowLinks;
       bool isPlainOutput = arguments.Values.PlainOutput;
       bool includeDir = arguments.Values.IncludeDir;
       if (!isPlainOutput) {

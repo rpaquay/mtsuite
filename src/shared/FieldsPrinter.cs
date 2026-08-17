@@ -56,7 +56,7 @@ namespace mtsuite.shared {
           field.ShortName ?? field.DisplayName,
           field.Value,
           field.ValueUnit == null ? "" : (" " + field.ValueUnit),
-          field.ExtraValue == null ? "" : (" " + field.ExtraValue));
+          field.ShortExtraValue == null ? "" : (" " + field.ShortExtraValue));
         if (s.Length > 0) {
           return s + ", " + entry;
         } else {

@@ -64,6 +64,12 @@ namespace mtsuite.shared.CommandLine {
         return;
       }
 
+      var enumDef = argDef as EnumOptionArgDef;
+      if (enumDef != null) {
+        visitor.Visit(enumDef);
+        return;
+      }
+
       throw new ArgumentException("Unknown argument definition type", "argDef");
     }
   }

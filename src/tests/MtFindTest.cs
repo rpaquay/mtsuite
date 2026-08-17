@@ -17,6 +17,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtfind;
 using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.shared.CommandLine;
+using mtsuite.shared;
+using mtsuite.CoreFileSystem;
 using tests.FileSystemHelpers;
 
 namespace tests {
@@ -91,6 +93,91 @@ namespace tests {
         Assert.IsTrue(args.Values.PlainOutput);
         Assert.AreEqual("my/dir/path", args.Values.Directory);
         Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
+    }
+
+    [TestMethod]
+    public void FindProgressMonitorShouldSupportSingleLineProgress() {
+      var monitor = new FindProgressMonitor();
+      monitor.ProgressMode = ProgressMode.Line;
+      monitor.IsAnsiSupported = true;
+      
+      using (var writer = new System.IO.StringWriter()) {
+        var oldOut = Console.Out;
+        Console.SetOut(writer);
+        try {
+          monitor.Start();
+          monitor.Stop();
+        } finally {
+          Console.SetOut(oldOut);
+        }
+        
+        var output = writer.ToString();
+        
+        Assert.IsFalse(output.Contains('\n'), "Single-line progress should not contain newlines");
+        Assert.IsTrue(output.Contains("Elapsed time"), "Should contain elapsed time field");
+        Assert.IsTrue(output.Contains("CPU time"), "Should contain CPU time field");
+      }
+    }
+
+    [TestMethod]
+    public void FindProgressMonitorShouldSupportDefaultProgressModeWithoutThreads() {
+      var monitor = new FindProgressMonitor();
+      monitor.ProgressMode = ProgressMode.Default;
+      monitor.IsAnsiSupported = true;
+      
+      var entry = new FileSystemEntry(
+        new FullPath("/foo/bar"),
+        new FileSystemEntryData(System.IO.FileAttributes.Directory, 0, 0)
+      );
+      monitor.OnDirectoryTraversing(entry);
+      
+      using (var writer = new System.IO.StringWriter()) {
+        var oldOut = Console.Out;
+        Console.SetOut(writer);
+        try {
+          monitor.Start();
+          monitor.Stop();
+        } finally {
+          Console.SetOut(oldOut);
+        }
+        
+        var output = writer.ToString();
+        
+        Assert.IsTrue(output.Contains('\n'), "Default progress should contain newlines");
+        Assert.IsTrue(output.Contains("Elapsed time"), "Should contain elapsed time field");
+        Assert.IsFalse(output.Contains("Threads:"), "Default progress should not contain thread progress");
+        Assert.IsFalse(output.Contains("/foo/bar"), "Default progress should not show traversing directories");
+      }
+    }
+
+    [TestMethod]
+    public void FindProgressMonitorShouldSupportFullProgressModeWithThreads() {
+      var monitor = new FindProgressMonitor();
+      monitor.ProgressMode = ProgressMode.Full;
+      monitor.IsAnsiSupported = true;
+      
+      var entry = new FileSystemEntry(
+        new FullPath("/foo/bar"),
+        new FileSystemEntryData(System.IO.FileAttributes.Directory, 0, 0)
+      );
+      monitor.OnDirectoryTraversing(entry);
+      
+      using (var writer = new System.IO.StringWriter()) {
+        var oldOut = Console.Out;
+        Console.SetOut(writer);
+        try {
+          monitor.Start();
+          monitor.Stop();
+        } finally {
+          Console.SetOut(oldOut);
+        }
+        
+        var output = writer.ToString();
+        
+        Assert.IsTrue(output.Contains('\n'), "Full progress should contain newlines");
+        Assert.IsTrue(output.Contains("Threads:"), "Full progress should contain thread progress");
+        Assert.IsTrue(output.Contains("/foo/bar"), "Full progress should show traversing directories");
       }
     }
   }

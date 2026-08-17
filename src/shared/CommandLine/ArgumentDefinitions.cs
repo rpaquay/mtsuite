@@ -73,7 +73,8 @@ namespace mtsuite.shared.CommandLine {
   /// Definition for named boolean arguments (e.g. "/h").
   /// </summary>
   public class FlagArgDef : NameArgDef {
-    public static object ValueMarker = new object();
+    public bool DefaultValue { get; set; } = false;
+    public bool AllowNegation { get; set; } = true;
   }
 
   /// <summary>
@@ -89,5 +90,17 @@ namespace mtsuite.shared.CommandLine {
   /// </summary>
   public class StringOptionArgDef : OptionArgDef {
     public Func<string, string> Validator { get; set; }
+  }
+
+  /// <summary>
+  /// Definition for named arguments which have a value restricted to a set of enums.
+  /// </summary>
+  public class EnumOptionArgDef : OptionArgDef {
+    public IReadOnlyList<EnumOptionValue> Values { get; set; }
+  }
+
+  public class EnumOptionValue {
+    public string Name { get; set; }
+    public string Description { get; set; }
   }
 }

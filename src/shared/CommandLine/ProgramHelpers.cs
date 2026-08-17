@@ -261,5 +261,12 @@ namespace mtsuite.shared.CommandLine {
           pool.OutstandingCount);
       }
     }
+
+    public static ProgressMode ParseProgressMode(string progressModeStr) {
+      if (Enum.TryParse<ProgressMode>(progressModeStr, true, out var progressMode)) {
+        return progressMode;
+      }
+      return ProgressMode.Default;
+    }
   }
 }

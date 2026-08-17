@@ -28,8 +28,8 @@ namespace mtfind {
         .WithHelpFlag()
         .WithFlag("include-dir", "Include directory names in search", "i", "", "include-dir")
         .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
-        .WithFlag("no-progress", "Don't display progress at regular intervals", "np", "", "no-progress")
-        .WithFlag("no-follow-links", "Don't follow symbolic links when traversing directories", "nl", "", "no-follow-links")
+        .WithProgressOption()
+        .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links", defaultValue: true)
         .WithThreadCountOption()
         .WithGcFlag()
         .WithPositional("directory", "The path of the directory search (default is current directory)", false, () => Environment.CurrentDirectory)
@@ -69,7 +69,7 @@ namespace mtfind {
         _parser = parser;
       }
 
-      public bool Help => _parser.Contains("help");
+      public bool Help => _parser["help"].BoolValue;
 
       public string Directory => _parser["directory"].StringValue;
 
@@ -77,15 +77,15 @@ namespace mtfind {
 
       public int ThreadCount => _parser["thread-count"].IntValue;
 
-      public bool GarbageCollect => _parser.Contains("gc");
+      public bool GarbageCollect => _parser["gc"].BoolValue;
 
-      public bool NoFollowLinks => _parser.Contains("no-follow-links");
+      public bool FollowLinks => _parser["follow-links"].BoolValue;
 
-      public bool PlainOutput => _parser.Contains("plain-output");
+      public bool PlainOutput => _parser["plain-output"].BoolValue;
 
-      public bool IncludeDir => _parser.Contains("include-dir");
+      public bool IncludeDir => _parser["include-dir"].BoolValue;
 
-      public bool NoProgress => _parser.Contains("no-progress");
+      public string Progress => _parser["progress"].StringValue;
     }
   }
 }
