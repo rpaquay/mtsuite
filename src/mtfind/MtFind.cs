@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared;
@@ -60,6 +59,7 @@ namespace mtfind {
       var pattern = arguments.Values.Pattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      _progressMonitor.ShowErrors = arguments.Values.ShowErrors;
       _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
       bool followLinks = arguments.Values.FollowLinks;
       bool isPlainOutput = arguments.Values.PlainOutput;
@@ -74,7 +74,7 @@ namespace mtfind {
 
       var statistics = _progressMonitor.GetStatistics();
       if (!isPlainOutput) {
-        DisplayStatistics(statistics);
+        DisplayStatistics(statistics, arguments.Values.ShowErrors);
         Console.WriteLine();
       }
 
@@ -131,7 +131,7 @@ namespace mtfind {
       };
     }
 
-    private static void DisplayStatistics(Statistics statistics) {
+    private static void DisplayStatistics(Statistics statistics, bool showErrors) {
       var elapsedTimeText = FormatHelpers.FormatElapsedTime(statistics.ElapsedTime);
       var cpuTimeText = FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime);
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
@@ -152,21 +152,16 @@ namespace mtfind {
       Console.WriteLine();
       FieldsPrinter.WriteLine(fields);
 
-      ProgramHelpers.DisplayErrors(statistics.Errors);
+      if (showErrors) {
+        ProgramHelpers.DisplayErrors(statistics.Errors);
+      }
     }
 
     private static void DisplayMatchesFiles(List<FileSystemEntry> matchedFiles, string searchPattern, bool isPlainOutput) {
-      var matchedEntries = matchedFiles
-        .OrderBy(entry => entry.Path)
-        .ToList();
-
-      if (isPlainOutput) {
-        foreach (var entry in matchedEntries) {
-          Console.WriteLine(entry.Path.FullName);
-        }
-      } else {
+      // Matches are displayed as they are found (see FindProgressMonitor.OnFileMatchFound).
+      if (!isPlainOutput) {
         Console.WriteLine();
-        Console.WriteLine("Found {0} file names matching pattern \"{1}\"", matchedEntries.Count, searchPattern);
+        Console.WriteLine("Found {0} file names matching pattern \"{1}\"", matchedFiles.Count, searchPattern);
       }
     }
   }

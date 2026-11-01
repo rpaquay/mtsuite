@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.ObjectPool;
 
@@ -65,7 +66,8 @@ namespace mtfindstr {
     /// <description><b>UTF-8 Conformant Column Calculations:</b> Newline bytes (\n) are identified
     /// at the byte level. Character columns are computed by skipping UTF-8 continuation bytes
     /// ((b &amp; 0xC0) == 0x80) from the start of the line to the match index, producing accurate
-    /// character-based offsets instead of raw byte offsets.</description>
+    /// character-based offsets instead of raw byte offsets. Positions are only computed when needed
+    /// (i.e. for a match, or at the end of a block that is not the last block of the file).</description>
     /// </item>
     /// <item>
     /// <description><b>Heuristic Binary File Check:</b> Performs a fast ratio-based ASCII check
@@ -93,6 +95,7 @@ namespace mtfindstr {
 
             int bufferOffset = 0;
             long streamOffset = 0; // Cumulative file byte offset of buffer[0]
+            long totalBytesRead = 0;
             int lineIndex = 0;
             int charIndexInLine = 0;
             int currentScanOffset = 0;
@@ -104,6 +107,7 @@ namespace mtfindstr {
                 break;
               }
 
+              totalBytesRead += bytesRead;
               int totalBytes = bufferOffset + bytesRead;
               if (totalBytes < patternLength) {
                 // Not enough bytes to match the pattern
@@ -118,7 +122,7 @@ namespace mtfindstr {
                   break;
                 }
 
-                if (!IsValidUtf8(buffer, totalBytes)) {
+                if (!Ascii.IsValid(new ReadOnlySpan<byte>(buffer, 0, totalBytes)) && !IsValidUtf8(buffer, totalBytes)) {
                   // Not valid UTF-8. Could be legacy text or binary.
                   // Distinguish them using the ASCII ratio check.
                   int asciiCount = 0;
@@ -154,16 +158,7 @@ namespace mtfindstr {
                 int absoluteMatchIndex = searchOffset + matchIndex;
 
                 // Scan up to absoluteMatchIndex to update lineIndex and charIndexInLine
-                for (int i = currentScanOffset; i < absoluteMatchIndex; i++) {
-                  byte b = buffer[i];
-                  if ((b & 0xC0) != 0x80) {
-                    charIndexInLine++;
-                  }
-                  if (b == '\n') {
-                    lineIndex++;
-                    charIndexInLine = 0;
-                  }
-                }
+                AdvancePosition(searchSpan.Slice(currentScanOffset, absoluteMatchIndex - currentScanOffset), ref lineIndex, ref charIndexInLine);
                 currentScanOffset = absoluteMatchIndex;
 
                 result.Item.Add(new FindStrEntry {
@@ -174,7 +169,8 @@ namespace mtfindstr {
                 searchOffset = absoluteMatchIndex + patternLength;
               }
 
-              if (bytesRead == 0) {
+              // No need for another read (or position update) if we reached the end of the file
+              if (bytesRead == 0 || totalBytesRead >= entry.FileSize) {
                 break;
               }
 
@@ -182,16 +178,7 @@ namespace mtfindstr {
               int boundaryOffset = totalBytes - (patternLength - 1);
 
               // Scan up to boundaryOffset to update running counts for the next block
-              for (int i = currentScanOffset; i < boundaryOffset; i++) {
-                byte b = buffer[i];
-                if ((b & 0xC0) != 0x80) {
-                  charIndexInLine++;
-                }
-                if (b == '\n') {
-                  lineIndex++;
-                  charIndexInLine = 0;
-                }
-              }
+              AdvancePosition(searchSpan.Slice(currentScanOffset, boundaryOffset - currentScanOffset), ref lineIndex, ref charIndexInLine);
 
               int lineIndexAtBoundary = lineIndex;
               int charIndexAtBoundary = charIndexInLine;
@@ -226,6 +213,29 @@ namespace mtfindstr {
         using (var reader = new StreamReader(stream)) {
           var searcher = new FindStrStream();
           return searcher.Search(reader, _pattern.ToCharArray(), _listPool);
+        }
+      }
+    }
+
+    /// <summary>
+    /// Updates the line and character indices after going through <paramref name="bytes"/>.
+    /// </summary>
+    private static void AdvancePosition(ReadOnlySpan<byte> bytes, ref int lineIndex, ref int charIndexInLine) {
+      int lastNewLine = bytes.LastIndexOf((byte)'\n');
+      if (lastNewLine >= 0) {
+        lineIndex += bytes.Slice(0, lastNewLine + 1).Count((byte)'\n');
+        charIndexInLine = 0;
+        bytes = bytes.Slice(lastNewLine + 1);
+      }
+
+      if (Ascii.IsValid(bytes)) {
+        charIndexInLine += bytes.Length;
+        return;
+      }
+
+      foreach (byte b in bytes) {
+        if ((b & 0xC0) != 0x80) {
+          charIndexInLine++;
         }
       }
     }

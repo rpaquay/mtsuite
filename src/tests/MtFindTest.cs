@@ -64,6 +64,77 @@ namespace tests {
     }
 
     [TestMethod]
+    public void MtFindPlainOutputShouldDisplayEachMatchOnce() {
+      _fileSystemSetup.Root.CreateFile("file1.txt", 10);
+      _fileSystemSetup.Root.CreateFile("file2.log", 20);
+      var sub = _fileSystemSetup.Root.CreateDirectory("sub");
+      sub.CreateFile("file3.txt", 30);
+
+      var output = RunAndCaptureOutput("--plain-output", "-p", "none", _fileSystemSetup.Root.Path.FullName, "-name", "*.txt");
+
+      var lines = output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+      Assert.AreEqual(2, lines.Length, output);
+      CollectionAssert.Contains(lines, _fileSystemSetup.Root.Path.Combine("file1.txt").FullName);
+      CollectionAssert.Contains(lines, sub.Path.Combine("file3.txt").FullName);
+    }
+
+    [TestMethod]
+    public void MtFindShouldNotFollowLinksByDefault() {
+      Assert.IsFalse(new MtFindArguments(new[] { "-name", "x" }).Values.FollowLinks);
+      Assert.IsTrue(new MtFindArguments(new[] { "--follow-links", "-name", "x" }).Values.FollowLinks);
+    }
+
+    [TestMethod]
+    public void MtFindShouldDisplayErrorsUnlessDisabled() {
+      if (OperatingSystem.IsWindows()) {
+        Assert.Inconclusive("Test relies on Unix file permissions.");
+      }
+
+      var denied = _fileSystemSetup.Root.CreateDirectory("denied");
+      var rootName = _fileSystemSetup.Root.Path.FullName;
+      System.IO.File.SetUnixFileMode(denied.Path.FullName, System.IO.UnixFileMode.None);
+      try {
+        var withErrors = RunAndCaptureErrors("--plain-output", "-p", "none", rootName, "-name", "*.txt");
+        Assert.IsTrue(withErrors.Contains("Error:"), withErrors);
+
+        var withoutErrors = RunAndCaptureErrors("--no-errors", "-p", "none", rootName, "-name", "*.txt");
+        Assert.AreEqual("", withoutErrors);
+      }
+      finally {
+        System.IO.File.SetUnixFileMode(denied.Path.FullName,
+          System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite | System.IO.UnixFileMode.UserExecute);
+      }
+    }
+
+    private string RunAndCaptureOutput(params string[] args) {
+      using var writer = new System.IO.StringWriter();
+      var oldOut = Console.Out;
+      Console.SetOut(writer);
+      try {
+        new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory()).Run(args);
+      }
+      finally {
+        Console.SetOut(oldOut);
+      }
+      return writer.ToString();
+    }
+
+    private string RunAndCaptureErrors(params string[] args) {
+      using var writer = new System.IO.StringWriter();
+      var oldError = Console.Error;
+      Console.SetError(writer);
+      try {
+        // The directory that cannot be read results in a non-zero exit code
+        Assert.ThrowsException<CommandLineReturnValueException>(() =>
+          new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory()).Run(args));
+      }
+      finally {
+        Console.SetError(oldError);
+      }
+      return writer.ToString();
+    }
+
+    [TestMethod]
     public void MtFindArgumentsShouldParsePositionalDirectoryAndPattern() {
       // 1. Omitted directory
       {

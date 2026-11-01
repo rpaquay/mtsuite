@@ -94,7 +94,7 @@ namespace mtfindstr {
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTFIND :: Multi-Threaded File String Search - version {0}",
+      Console.WriteLine("MTFINDSTR :: Multi-Threaded File String Search - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version);
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
@@ -180,26 +180,14 @@ namespace mtfindstr {
     }
 
     private static void DisplayMatchesFiles(List<FindStrFileResult> fileResults, IList<string> fileNamePatterns, string searchPattern, bool isPlainOutput) {
-      var sortedFileResults = fileResults
-        .OrderBy(entry => entry.Path)
-        .ToList();
-
+      // Matches are displayed as they are found (see FindStrProgressMonitor.OnFileMatchFound).
       if (!isPlainOutput) {
         Console.WriteLine("Found {0} occurrences of \"{1}\" in {2} files matching file pattern(s) {3}",
-          sortedFileResults.Aggregate(0, (agg, result) => agg + result.Entries.Count),
+          fileResults.Aggregate(0, (agg, result) => agg + result.Entries.Count),
           searchPattern,
-          sortedFileResults.Count,
+          fileResults.Count,
           FormatFileNamePatternList(fileNamePatterns));
         Console.WriteLine();
-      } else {
-        foreach (var fileResult in sortedFileResults) {
-          foreach (var entry in fileResult.Entries) {
-            Console.WriteLine("{0}:{1}:{2}",
-              fileResult.Path.FullName,
-              entry.LineNumber,
-              entry.ColumnNumber);
-          }
-        }
       }
     }
   }
