@@ -135,6 +135,21 @@ namespace tests {
     }
 
     [TestMethod]
+    public void MtDeleteShouldDeleteJunctionPointWithoutDeletingTarget() {
+      var keep = _fileSystemSetup.Root.CreateDirectory("keep");
+      var file = keep.CreateFile("file.txt", 10);
+      var deleted = _fileSystemSetup.Root.CreateDirectory("deleted");
+      deleted.CreateJunctionPoint("jct", keep.Path.FullName);
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
+      var stats = mtdelete.DoDelete(deleted.Path, new MtDelete.Options { QuietMode = true });
+
+      AssertExt.IsEmpty(stats.Errors);
+      Assert.IsFalse(deleted.Exists());
+      Assert.IsTrue(file.Exists());
+    }
+
+    [TestMethod]
     public void MtDeleteShouldWorkWithDirectorySymbolicLinks() {
       if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
         Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");

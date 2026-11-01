@@ -15,10 +15,12 @@
 #nullable enable
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32.SafeHandles;
 using mtsuite.CoreFileSystem.ObjectPool;
 using mtsuite.CoreFileSystem.Utils;
@@ -31,6 +33,7 @@ namespace mtsuite.CoreFileSystem;
 public class WindowsFileSystemExtension : IFileSystemExtension {
   private const uint FSCTL_DUPLICATE_EXTENTS_TO_FILE = 0x00098344;
   private const uint FSCTL_GET_RETRIEVAL_POINTERS = 0x00090073;
+  private const uint FSCTL_SET_REPARSE_POINT = 0x000900A4;
   private const int ERROR_MORE_DATA = 234;
 
   [StructLayout(LayoutKind.Sequential)]
@@ -79,6 +82,22 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     out uint lpNumberOfFreeClusters,
     out uint lpTotalNumberOfClusters);
 
+  [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool DeviceIoControl(
+    SafeFileHandle hDevice,
+    uint dwIoControlCode,
+    byte[] lpInBuffer,
+    uint nInBufferSize,
+    IntPtr lpOutBuffer,
+    uint nOutBufferSize,
+    out uint lpBytesReturned,
+    IntPtr lpOverlapped);
+
+  [DllImport("kernel32.dll", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool CreateDirectoryW(string lpPathName, IntPtr lpSecurityAttributes);
+
   [DllImport("kernel32.dll", EntryPoint = "CreateFileW", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
   private static extern SafeFileHandle CreateFileW(
     string lpFileName,
@@ -125,6 +144,9 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
   private const uint IO_REPARSE_TAG_SYMLINK = 0xA000000C;
   private const uint FILE_SHARE_READ_WRITE_DELETE = 7;
   private const uint OPEN_EXISTING = 3;
+  private const uint GENERIC_WRITE = 0x40000000;
+  private const int MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 16384;
+  private const int MAX_DIRECTORY_PATH = 248;
   private const uint FILE_FLAG_BACKUP_SEMANTICS_OPEN_REPARSE_POINT = 0x02000000 | 0x00200000;
 
   private readonly IPool<StringBuffer> _fullNameBufferPool;
@@ -466,6 +488,67 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     catch { }
 
     return false;
+  }
+
+  public void CreateJunctionPoint(string fullName, string target) {
+    if (!OperatingSystem.IsWindows()) {
+      throw new PlatformNotSupportedException("Junction points are only supported on Windows.");
+    }
+
+    var reparseData = CreateJunctionReparseData(target);
+    var path = fullName.Length >= MAX_DIRECTORY_PATH && !fullName.StartsWith(@"\\?\") ? @"\\?\" + fullName : fullName;
+    if (!CreateDirectoryW(path, IntPtr.Zero)) {
+      throw new Win32Exception(Marshal.GetLastPInvokeError(), $"Failed to create junction point \"{fullName}\"");
+    }
+
+    try {
+      using var handle = CreateFileW(
+        path,
+        GENERIC_WRITE,
+        FILE_SHARE_READ_WRITE_DELETE,
+        IntPtr.Zero,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS_OPEN_REPARSE_POINT,
+        IntPtr.Zero);
+
+      if (handle.IsInvalid ||
+          !DeviceIoControl(handle, FSCTL_SET_REPARSE_POINT, reparseData, (uint)reparseData.Length, IntPtr.Zero, 0, out _, IntPtr.Zero)) {
+        throw new Win32Exception(Marshal.GetLastPInvokeError(), $"Failed to create junction point \"{fullName}\"");
+      }
+    }
+    catch {
+      try { Directory.Delete(path); } catch { }
+      throw;
+    }
+  }
+
+  /// <summary>
+  /// Creates the <c>REPARSE_DATA_BUFFER</c> of a junction point to the absolute path <paramref name="target"/>.
+  /// </summary>
+  private static byte[] CreateJunctionReparseData(string target) {
+    const int headerSize = 8;
+    const int mountPointHeaderSize = 8;
+    const int nullTerminatorSize = 2;
+
+    var printName = target.StartsWith(@"\\?\") ? target.Substring(4) : target;
+    var substituteNameBytes = Encoding.Unicode.GetBytes(@"\??\" + printName);
+    var printNameBytes = Encoding.Unicode.GetBytes(printName);
+    var dataLength = mountPointHeaderSize + substituteNameBytes.Length + nullTerminatorSize + printNameBytes.Length + nullTerminatorSize;
+    if (headerSize + dataLength > MAXIMUM_REPARSE_DATA_BUFFER_SIZE) {
+      throw new PathTooLongException($"Junction point target \"{target}\" is too long");
+    }
+
+    var buffer = new byte[headerSize + dataLength];
+    var span = buffer.AsSpan();
+    var printNameOffset = substituteNameBytes.Length + nullTerminatorSize;
+    BinaryPrimitives.WriteUInt32LittleEndian(span, IO_REPARSE_TAG_MOUNT_POINT);
+    BinaryPrimitives.WriteUInt16LittleEndian(span.Slice(4), (ushort)dataLength);
+    BinaryPrimitives.WriteUInt16LittleEndian(span.Slice(10), (ushort)substituteNameBytes.Length);
+    BinaryPrimitives.WriteUInt16LittleEndian(span.Slice(12), (ushort)printNameOffset);
+    BinaryPrimitives.WriteUInt16LittleEndian(span.Slice(14), (ushort)printNameBytes.Length);
+    substituteNameBytes.CopyTo(span.Slice(headerSize + mountPointHeaderSize));
+    printNameBytes.CopyTo(span.Slice(headerSize + mountPointHeaderSize + printNameOffset));
+    return buffer;
   }
 
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {

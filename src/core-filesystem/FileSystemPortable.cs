@@ -344,30 +344,25 @@ public class FileSystemPortable : IFileSystem {
     Directory.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), target);
   }
 
-  public void CreateJunctionPoint(FullPath path, string target) {
-    ArgumentNullException.ThrowIfNull(path);
-    var targetPath = PathHelpers.IsPathAbsolute(target)
-      ? target
-      : path.Parent?.Combine(target).GetFullName(_fullNameBufferPool);
-    targetPath = PathHelpers.NormalizePath(targetPath);
-    Directory.CreateSymbolicLink(path.GetFullName(_fullNameBufferPool), targetPath);
-  }
-
   private void CopyDirectoryReparsePoint(FullPath sourcePath, FullPath destinationPath) {
     var info = GetReparsePointInfo(sourcePath);
 
     if (info.IsSymbolicLink) {
       Directory.CreateSymbolicLink(destinationPath.GetFullName(_fullNameBufferPool), info.Target);
-      try {
-        Directory.SetLastWriteTimeUtc(destinationPath.GetFullName(_fullNameBufferPool), info.LastWriteTimeUtc);
-      }
-      catch {
-        // Best effort
-      }
+    }
+    else if (info.IsJunctionPoint) {
+      _extension.CreateJunctionPoint(destinationPath.GetFullName(_fullNameBufferPool), info.Target);
     }
     else {
       throw new NotSupportedException(
         $"Error copying reparse point \"{sourcePath.GetFullName(_fullNameBufferPool)}\" (unsupported reparse point type?)");
+    }
+
+    try {
+      Directory.SetLastWriteTimeUtc(destinationPath.GetFullName(_fullNameBufferPool), info.LastWriteTimeUtc);
+    }
+    catch {
+      // Best effort
     }
   }
 

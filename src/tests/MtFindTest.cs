@@ -26,6 +26,8 @@ using tests.FileSystemHelpers;
 namespace tests {
   [TestClass]
   public class MtFindTest {
+    private static readonly string ProgressPath = OperatingSystem.IsWindows() ? @"C:\foo\bar" : "/foo/bar";
+
     private FileSystemSetup _fileSystemSetup;
 
     [TestInitialize]
@@ -99,6 +101,16 @@ namespace tests {
       var b = a.CreateDirectory("b");
       b.CreateFile("f.txt", 1);
       _fileSystemSetup.CreateDirectorySymbolicLink(b.Path.Combine("up"), a.Path.FullName);
+
+      CollectionAssert.AreEqual(new[] { "a/b/f.txt" }, FindFollowingLinks(_fileSystemSetup.Root.Path));
+    }
+
+    [TestMethod]
+    public void MtFindShouldNotFollowJunctionPointToParent() {
+      var a = _fileSystemSetup.Root.CreateDirectory("a");
+      var b = a.CreateDirectory("b");
+      b.CreateFile("f.txt", 1);
+      b.CreateJunctionPoint("up", a.Path.FullName);
 
       CollectionAssert.AreEqual(new[] { "a/b/f.txt" }, FindFollowingLinks(_fileSystemSetup.Root.Path));
     }
@@ -270,7 +282,7 @@ namespace tests {
       monitor.IsAnsiSupported = true;
       
       var entry = new FileSystemEntry(
-        new FullPath("/foo/bar"),
+        new FullPath(ProgressPath),
         new FileSystemEntryData(System.IO.FileAttributes.Directory, 0, 0)
       );
       monitor.OnDirectoryTraversing(entry);
@@ -290,7 +302,7 @@ namespace tests {
         Assert.IsTrue(output.Contains('\n'), "Default progress should contain newlines");
         Assert.IsTrue(output.Contains("Elapsed time"), "Should contain elapsed time field");
         Assert.IsFalse(output.Contains("Threads:"), "Default progress should not contain thread progress");
-        Assert.IsFalse(output.Contains("/foo/bar"), "Default progress should not show traversing directories");
+        Assert.IsFalse(output.Contains(ProgressPath), "Default progress should not show traversing directories");
       }
     }
 
@@ -301,7 +313,7 @@ namespace tests {
       monitor.IsAnsiSupported = true;
       
       var entry = new FileSystemEntry(
-        new FullPath("/foo/bar"),
+        new FullPath(ProgressPath),
         new FileSystemEntryData(System.IO.FileAttributes.Directory, 0, 0)
       );
       monitor.OnDirectoryTraversing(entry);
@@ -320,7 +332,7 @@ namespace tests {
         
         Assert.IsTrue(output.Contains('\n'), "Full progress should contain newlines");
         Assert.IsTrue(output.Contains("Threads:"), "Full progress should contain thread progress");
-        Assert.IsTrue(output.Contains("/foo/bar"), "Full progress should show traversing directories");
+        Assert.IsTrue(output.Contains(ProgressPath), "Full progress should show traversing directories");
       }
     }
   }

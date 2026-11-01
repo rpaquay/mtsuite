@@ -147,7 +147,7 @@ public class FileSystemSetup : IDisposable {
 
   public void CreateJunctionPoint(FullPath path, string target) {
     try {
-      throw new PlatformNotSupportedException("Junction point not supported on this platform");
+      FileSystem.Extension.CreateJunctionPoint(path.FullName, Path.GetFullPath(target, path.Parent.FullName));
     }
     catch (PlatformNotSupportedException e) {
       Assert.Inconclusive(e.Message);

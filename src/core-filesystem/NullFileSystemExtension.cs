@@ -69,4 +69,7 @@ public class NullFileSystemExtension : IFileSystemExtension {
     isSymLink = false;
     return false;
   }
+
+  public void CreateJunctionPoint(string fullName, string target) =>
+    throw new PlatformNotSupportedException("Junction points are only supported on Windows.");
 }

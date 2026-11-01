@@ -415,6 +415,43 @@ public class MtCopyTest {
   }
 
   [TestMethod]
+  public void MtCopyShouldCopyDanglingJunctionPoints() {
+    // Prepare
+    var dir1 = _sourcefs.Root.CreateDirectory("a");
+    var target = dir1.CreateDirectory("subdir");
+    dir1.CreateJunctionPoint("jct", "subdir");
+    var targetFullName = target.Path.FullName;
+    target.Delete();
+
+    // Act
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, _poolFactory);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+    // Assert
+    Assert.AreEqual(targetFullName, _destfs.Root.GetDirectory("a").GetJunctionPoint("jct").Target);
+    Assert.AreEqual(1, stats.SymlinkCopiedCount);
+    Assert.AreEqual(0, stats.Errors.Count);
+  }
+
+  [TestMethod]
+  public void MtCopyShouldNotChangeJunctionPointTarget() {
+    // Prepare
+    var dir1 = _sourcefs.Root.CreateDirectory("a");
+    var target = dir1.CreateDirectory("subdir");
+    dir1.CreateJunctionPoint("jct", "subdir");
+    var targetTime = new System.DateTime(2001, 2, 3, 4, 5, 6, System.DateTimeKind.Utc);
+    System.IO.Directory.SetLastWriteTimeUtc(target.Path.FullName, targetTime);
+
+    // Act
+    var mtcopy = new MtCopy(_sourcefs.FileSystem, _poolFactory);
+    var stats = mtcopy.DoCopy(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer);
+
+    // Assert
+    Assert.AreEqual(0, stats.Errors.Count);
+    Assert.AreEqual(targetTime, System.IO.Directory.GetLastWriteTimeUtc(target.Path.FullName));
+  }
+
+  [TestMethod]
   public void MtCopyShouldPreserveFileModificationTime() {
     // Prepare
     var sourceFile = _sourcefs.Root.CreateFile("timestamp.txt", 50);

@@ -92,6 +92,9 @@ namespace tests {
 
       public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) =>
         _inner.Extension.TryGetReparsePointTag(fullName, out isJunction, out isSymLink);
+
+      public void CreateJunctionPoint(string fullName, string target) =>
+        _inner.Extension.CreateJunctionPoint(fullName, target);
     }
 
     [TestInitialize]

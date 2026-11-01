@@ -385,7 +385,7 @@ namespace tests {
           var oldError = Console.Error;
           Console.SetError(writer);
           try {
-            monitor.OnError(new FullPath("/test/err.txt"), new Exception("My Error"));
+            monitor.OnError(MakeTestPath("/test/err.txt"), new Exception("My Error"));
           } finally {
             Console.SetError(oldError);
           }
@@ -399,7 +399,7 @@ namespace tests {
           var oldError = Console.Error;
           Console.SetError(writer);
           try {
-            monitor.OnError(new FullPath("/test/err2.txt"), new Exception("My Hidden Error"));
+            monitor.OnError(MakeTestPath("/test/err2.txt"), new Exception("My Hidden Error"));
           } finally {
             Console.SetError(oldError);
           }

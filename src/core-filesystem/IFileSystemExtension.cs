@@ -73,6 +73,12 @@ public interface IFileSystemExtension {
   /// Returns <c>true</c> if reparse tag information was successfully queried; otherwise <c>false</c>.
   /// </summary>
   bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink);
+
+  /// <summary>
+  /// Creates a junction point at <paramref name="fullName"/> pointing to the absolute path <paramref name="target"/>,
+  /// which does not have to exist. Throws <see cref="PlatformNotSupportedException"/> if the platform has no junction points.
+  /// </summary>
+  void CreateJunctionPoint(string fullName, string target);
 }
 
 /// <summary>
