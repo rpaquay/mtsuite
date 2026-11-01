@@ -1,0 +1,35 @@
+# Builds NativeAOT binaries for Windows. Only runs when started manually or from build-all-nativeaot.yml.
+name: Build Windows (NativeAOT)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: win-arm64, os: windows-11-arm }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish and zip
+        id: publish
+        shell: bash
+        run: bash .github/scripts/publish-nativeaot.sh ${{ matrix.rid }}
+      - name: Upload zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.publish.outputs.zip }}
+          archive: false
+          if-no-files-found: error

@@ -1,0 +1,37 @@
+# Builds NativeAOT binaries for Linux. Only runs when started manually or from build-all-nativeaot.yml.
+name: Build Linux (NativeAOT)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest available Ubuntu, so the binaries run on as many glibc versions as possible.
+          - { rid: linux-x64, os: ubuntu-22.04 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+      - name: Install the native toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+      - name: Publish and zip
+        id: publish
+        shell: bash
+        run: bash .github/scripts/publish-nativeaot.sh ${{ matrix.rid }}
+      - name: Upload zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.publish.outputs.zip }}
+          archive: false
+          if-no-files-found: error

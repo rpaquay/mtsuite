@@ -1,0 +1,35 @@
+# Builds NativeAOT binaries for macOS. Only runs when started manually or from build-all-nativeaot.yml.
+name: Build macOS (NativeAOT)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: osx-arm64, os: macos-latest }
+          - { rid: osx-x64, os: macos-15-intel }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish and zip
+        id: publish
+        shell: bash
+        run: bash .github/scripts/publish-nativeaot.sh ${{ matrix.rid }}
+      - name: Upload zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.publish.outputs.zip }}
+          archive: false
+          if-no-files-found: error

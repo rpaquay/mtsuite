@@ -1,0 +1,39 @@
+# Builds NativeAOT binaries for all platforms, and combines them into one zip file.
+# Only runs when started manually.
+name: Build all platforms (NativeAOT)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    uses: ./.github/workflows/build-macos-nativeaot.yml
+  linux:
+    uses: ./.github/workflows/build-linux-nativeaot.yml
+  windows:
+    uses: ./.github/workflows/build-windows-nativeaot.yml
+
+  package:
+    name: Combine into one zip file
+    needs: [macos, linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download the zip file of each platform
+        uses: actions/download-artifact@v8
+        with:
+          pattern: mtsuite-*-nativeaot.zip
+          path: artifacts
+          skip-decompress: true
+      - name: Combine
+        id: combine
+        run: bash .github/scripts/package-all-nativeaot.sh artifacts publish/nativeaot 5
+      - name: Upload zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.combine.outputs.zip }}
+          archive: false
+          if-no-files-found: error
