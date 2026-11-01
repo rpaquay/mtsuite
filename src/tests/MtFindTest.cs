@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtfind;
 using mtsuite.CoreFileSystem.ObjectPool;
@@ -76,6 +78,76 @@ namespace tests {
       Assert.AreEqual(2, lines.Length, output);
       CollectionAssert.Contains(lines, _fileSystemSetup.Root.Path.Combine("file1.txt").FullName);
       CollectionAssert.Contains(lines, sub.Path.Combine("file3.txt").FullName);
+    }
+
+    private List<string> FindFollowingLinks(FullPath directory) {
+      var mtfind = new MtFind(_fileSystemSetup.FileSystem, new MtPoolFactory());
+      var matches = mtfind.DoFind(directory, "*.txt", isPlainOutput: true, followLinks: true, includeDir: false);
+      return matches.Select(m => m.Path.FullName.Substring(directory.FullName.Length + 1).Replace('\\', '/')).OrderBy(x => x, StringComparer.Ordinal).ToList();
+    }
+
+    private void RequireSymbolicLinks() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+    }
+
+    [TestMethod]
+    public void MtFindShouldNotFollowLinkToParent() {
+      RequireSymbolicLinks();
+      var a = _fileSystemSetup.Root.CreateDirectory("a");
+      var b = a.CreateDirectory("b");
+      b.CreateFile("f.txt", 1);
+      _fileSystemSetup.CreateDirectorySymbolicLink(b.Path.Combine("up"), a.Path.FullName);
+
+      CollectionAssert.AreEqual(new[] { "a/b/f.txt" }, FindFollowingLinks(_fileSystemSetup.Root.Path));
+    }
+
+    [TestMethod]
+    public void MtFindShouldStopAtLoopAcrossTwoDirectories() {
+      RequireSymbolicLinks();
+      var a = _fileSystemSetup.Root.CreateDirectory("a");
+      var b = _fileSystemSetup.Root.CreateDirectory("b");
+      a.CreateFile("f.txt", 1);
+      _fileSystemSetup.CreateDirectorySymbolicLink(a.Path.Combine("tob"), b.Path.FullName);
+      _fileSystemSetup.CreateDirectorySymbolicLink(b.Path.Combine("toa"), a.Path.FullName);
+
+      CollectionAssert.AreEqual(new[] { "a/f.txt", "b/toa/f.txt" }, FindFollowingLinks(_fileSystemSetup.Root.Path));
+    }
+
+    [TestMethod]
+    public void MtFindShouldStopAtBranchingLoops() {
+      RequireSymbolicLinks();
+      var x = _fileSystemSetup.Root.CreateDirectory("x");
+      var y = _fileSystemSetup.Root.CreateDirectory("y");
+      x.CreateFile("f.txt", 1);
+      _fileSystemSetup.CreateDirectorySymbolicLink(x.Path.Combine("l1"), y.Path.FullName);
+      _fileSystemSetup.CreateDirectorySymbolicLink(x.Path.Combine("l2"), x.Path.FullName);
+      _fileSystemSetup.CreateDirectorySymbolicLink(y.Path.Combine("l1"), x.Path.FullName);
+      _fileSystemSetup.CreateDirectorySymbolicLink(y.Path.Combine("l2"), y.Path.FullName);
+
+      CollectionAssert.AreEqual(new[] { "x/f.txt", "y/l1/f.txt" }, FindFollowingLinks(_fileSystemSetup.Root.Path));
+    }
+
+    [TestMethod]
+    public void MtFindShouldNotFollowLinkAboveStartingDirectory() {
+      RequireSymbolicLinks();
+      var start = _fileSystemSetup.Root.CreateDirectory("start");
+      start.CreateFile("f.txt", 1);
+      _fileSystemSetup.CreateDirectorySymbolicLink(start.Path.Combine("up"), _fileSystemSetup.Root.Path.FullName);
+
+      CollectionAssert.AreEqual(new[] { "f.txt" }, FindFollowingLinks(start.Path));
+    }
+
+    [TestMethod]
+    public void MtFindShouldStillFollowLinkToSiblingDirectory() {
+      RequireSymbolicLinks();
+      var a = _fileSystemSetup.Root.CreateDirectory("a");
+      var b = _fileSystemSetup.Root.CreateDirectory("b");
+      b.CreateFile("f.txt", 1);
+      _fileSystemSetup.CreateDirectorySymbolicLink(a.Path.Combine("tob"), b.Path.FullName);
+
+      CollectionAssert.AreEqual(new[] { "a/tob/f.txt", "b/f.txt" }, FindFollowingLinks(_fileSystemSetup.Root.Path));
     }
 
     [TestMethod]

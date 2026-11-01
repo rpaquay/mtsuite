@@ -87,6 +87,9 @@ namespace tests {
       public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) =>
         _inner.Extension.TryGetDirectoryEntries(directory, entries);
 
+      public bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity) =>
+        _inner.Extension.TryGetDirectoryIdentity(path, out identity);
+
       public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) =>
         _inner.Extension.TryGetReparsePointTag(fullName, out isJunction, out isSymLink);
     }

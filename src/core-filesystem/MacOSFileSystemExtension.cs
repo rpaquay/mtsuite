@@ -211,6 +211,14 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
     return _directoryEnumerator.TryGetDirectoryEntries(directory, entries);
   }
 
+  public bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity) {
+    if (!OperatingSystem.IsMacOS()) {
+      identity = default;
+      return false;
+    }
+    return _directoryEnumerator.TryGetDirectoryIdentity(path, out identity);
+  }
+
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;
     isSymLink = false;

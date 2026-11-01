@@ -30,6 +30,7 @@ namespace mtfind {
         .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
         .WithProgressOption()
         .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
+        .WithFlag("show-warnings", "Display warnings", "w", "", "warnings")
         .WithFlag("show-errors", "Display errors", "e", "", "errors", defaultValue: true)
         .WithThreadCountOption()
         .WithGcFlag()
@@ -87,6 +88,8 @@ namespace mtfind {
       public bool IncludeDir => _parser["include-dir"].BoolValue;
 
       public string Progress => _parser["progress"].StringValue;
+
+      public bool ShowWarnings => _parser["show-warnings"].BoolValue;
 
       public bool ShowErrors => _parser["show-errors"].BoolValue;
     }

@@ -62,11 +62,23 @@ public interface IFileSystemExtension {
   bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries);
 
   /// <summary>
+  /// Tries to get the identity of the directory at <paramref name="path"/>, following symbolic links, so that
+  /// two paths can be compared to determine if they refer to the same directory.
+  /// Returns <c>false</c> if the identity is not available on this platform or could not be retrieved.
+  /// </summary>
+  bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity);
+
+  /// <summary>
   /// Tries to inspect platform-specific reparse point tags (e.g. Windows directory junctions vs symlinks).
   /// Returns <c>true</c> if reparse tag information was successfully queried; otherwise <c>false</c>.
   /// </summary>
   bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink);
 }
+
+/// <summary>
+/// Identifies a directory within a machine: a volume (or device) id and a file id (or inode) within that volume.
+/// </summary>
+public readonly record struct DirectoryIdentity(ulong VolumeId, ulong FileIdLow, ulong FileIdHigh);
 
 /// <summary>
 /// Callback invoked before an entry is deleted.

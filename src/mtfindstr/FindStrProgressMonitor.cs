@@ -96,7 +96,7 @@ namespace mtfindstr {
     }
 
     private static bool IsIgnorableError(Exception e) {
-      return e is DirectoryNotFoundException || e is FileNotFoundException;
+      return e is DirectoryNotFoundException || e is FileNotFoundException || e is DirectoryLinkLoopException;
     }
   }
 }

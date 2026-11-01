@@ -167,6 +167,26 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     );
   }
 
+  /// <summary>
+  /// Returns <c>true</c> (and reports a warning) if <paramref name="link"/> points to one of its own
+  /// ancestors, in which case following it would never end. Only called for links being followed.
+  /// If the identity of the target is not available, the link is not considered a loop.
+  /// </summary>
+  private bool IsDirectoryLinkLoop(FileSystemEntry link) {
+    var extension = _fileSystem.Extension;
+    if (!extension.TryGetDirectoryIdentity(link.Path, out var target)) {
+      return false;
+    }
+
+    for (var ancestor = link.Path.Parent; ancestor != null; ancestor = ancestor.Parent) {
+      if (extension.TryGetDirectoryIdentity(ancestor, out var identity) && identity == target) {
+        OnError(link.Path, new DirectoryLinkLoopException(link.Path));
+        return true;
+      }
+    }
+    return false;
+  }
+
   private async Task<T> TraverseDirectoryEntriesAsync<T>(
     FileSystemEntry directoryEntry,
     IDirectorCollector<T> collector,
@@ -194,7 +214,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var childDirectoriesTasks = taskListPool.AllocateFrom();
     foreach (var entry in entries.Item) {
       if (entry.IsDirectory) {
-        var followDirectoryLink = entry.IsReparsePoint && followLinks;
+        var followDirectoryLink = entry.IsReparsePoint && followLinks && !IsDirectoryLinkLoop(entry);
         if (entry.IsRegularDirectory || followDirectoryLink) {
           childDirectoriesTasks.Item.Add(TraverseDirectoryAsync(entry, collector, taskListPool, followLinks,
             depth + 1));

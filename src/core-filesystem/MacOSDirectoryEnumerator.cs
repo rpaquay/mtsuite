@@ -39,6 +39,9 @@ public sealed class MacOSDirectoryEnumerator {
   [DllImport("libSystem", EntryPoint = "getattrlistbulk", SetLastError = true)]
   private static extern unsafe int getattrlistbulk(int dirfd, ref AttrList attrList, byte* attrBuf, nuint attrBufSize, ulong options);
 
+  [DllImport("libSystem", EntryPoint = "getattrlist", SetLastError = true)]
+  private static extern unsafe int getattrlist([MarshalAs(UnmanagedType.LPUTF8Str)] string path, ref AttrList attrList, byte* attrBuf, nuint attrBufSize, uint options);
+
   [DllImport("libSystem", EntryPoint = "geteuid")]
   private static extern uint geteuid();
 
@@ -54,12 +57,14 @@ public sealed class MacOSDirectoryEnumerator {
 
   private const ushort ATTR_BIT_MAP_COUNT = 5;
   private const uint ATTR_CMN_NAME = 0x00000001;
+  private const uint ATTR_CMN_DEVID = 0x00000002;
   private const uint ATTR_CMN_OBJTYPE = 0x00000008;
   private const uint ATTR_CMN_MODTIME = 0x00000400;
   private const uint ATTR_CMN_OWNERID = 0x00008000;
   private const uint ATTR_CMN_GRPID = 0x00010000;
   private const uint ATTR_CMN_ACCESSMASK = 0x00020000;
   private const uint ATTR_CMN_FLAGS = 0x00040000;
+  private const uint ATTR_CMN_FILEID = 0x02000000;
   private const uint ATTR_CMN_ERROR = 0x20000000;
   private const uint ATTR_CMN_RETURNED_ATTRS = 0x80000000;
   private const uint ATTR_FILE_DATALENGTH = 0x00000200;
@@ -173,6 +178,25 @@ public sealed class MacOSDirectoryEnumerator {
       }
       close(fd);
     }
+  }
+
+  /// <summary>
+  /// Gets the device and file id of <paramref name="path"/>, following symbolic links.
+  /// </summary>
+  public unsafe bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity) {
+    identity = default;
+    var attrList = new AttrList {
+      bitmapcount = ATTR_BIT_MAP_COUNT,
+      commonattr = ATTR_CMN_DEVID | ATTR_CMN_FILEID,
+    };
+
+    // Layout: length, then attributes in bit order: dev_t (32 bits), file id (64 bits)
+    byte* buffer = stackalloc byte[16];
+    if (getattrlist(path.GetFullName(_fullNameBufferPool), ref attrList, buffer, 16, 0) != 0) {
+      return false;
+    }
+    identity = new DirectoryIdentity(Read<uint>(buffer + 4), Read<ulong>(buffer + 8), 0);
+    return true;
   }
 
   private unsafe bool TryParseEntry(FullPath directory, string directoryFullName, byte* entryStart, List<FileSystemEntry> entries) {

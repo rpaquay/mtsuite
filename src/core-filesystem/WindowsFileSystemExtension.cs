@@ -97,6 +97,21 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     out FILE_ATTRIBUTE_TAG_INFO lpFileInformation,
     uint dwBufferSize);
 
+  [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool GetFileInformationByHandleEx(
+    SafeFileHandle hFile,
+    int FileInformationClass,
+    out FILE_ID_INFO lpFileInformation,
+    uint dwBufferSize);
+
+  [StructLayout(LayoutKind.Sequential)]
+  private struct FILE_ID_INFO {
+    public ulong VolumeSerialNumber;
+    public ulong FileIdLow;
+    public ulong FileIdHigh;
+  }
+
   [StructLayout(LayoutKind.Sequential)]
   private struct FILE_ATTRIBUTE_TAG_INFO {
     public uint FileAttributes;
@@ -104,6 +119,8 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
   }
 
   private const int FileAttributeTagInfoClass = 9;
+  private const int FileIdInfoClass = 18;
+  private const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
   private const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
   private const uint IO_REPARSE_TAG_SYMLINK = 0xA000000C;
   private const uint FILE_SHARE_READ_WRITE_DELETE = 7;
@@ -425,6 +442,32 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
 
   public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) => false;
 
+  public bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity) {
+    identity = default;
+    if (!OperatingSystem.IsWindows()) {
+      return false;
+    }
+
+    try {
+      using var handle = CreateFileW(
+        path.GetFullName(_fullNameBufferPool),
+        0, // Query only
+        FILE_SHARE_READ_WRITE_DELETE,
+        IntPtr.Zero,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS, // Required for directories, and follows reparse points
+        IntPtr.Zero);
+
+      if (!handle.IsInvalid && GetFileInformationByHandleEx(handle, FileIdInfoClass, out FILE_ID_INFO info, (uint)Marshal.SizeOf<FILE_ID_INFO>())) {
+        identity = new DirectoryIdentity(info.VolumeSerialNumber, info.FileIdLow, info.FileIdHigh);
+        return true;
+      }
+    }
+    catch { }
+
+    return false;
+  }
+
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;
     isSymLink = false;
@@ -443,7 +486,7 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
         FILE_FLAG_BACKUP_SEMANTICS_OPEN_REPARSE_POINT,
         IntPtr.Zero);
 
-      if (!handle.IsInvalid && GetFileInformationByHandleEx(handle, FileAttributeTagInfoClass, out var tagInfo, (uint)Marshal.SizeOf<FILE_ATTRIBUTE_TAG_INFO>())) {
+      if (!handle.IsInvalid && GetFileInformationByHandleEx(handle, FileAttributeTagInfoClass, out FILE_ATTRIBUTE_TAG_INFO tagInfo, (uint)Marshal.SizeOf<FILE_ATTRIBUTE_TAG_INFO>())) {
         isJunction = tagInfo.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT;
         isSymLink = tagInfo.ReparseTag == IO_REPARSE_TAG_SYMLINK;
         return true;

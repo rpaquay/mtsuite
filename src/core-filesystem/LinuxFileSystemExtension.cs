@@ -26,12 +26,15 @@ namespace mtsuite.CoreFileSystem;
 /// </summary>
 public class LinuxFileSystemExtension : IFileSystemExtension {
   private const int O_RDONLY = 0x0000;
-  private const int O_DIRECTORY = 0x00010000;
   private const int O_CLOEXEC = 0x00080000;
   private const int AT_REMOVEDIR = 0x0200;
 
+  // Generic Linux value, for architectures the enumerator does not know
+  private static int OpenDirectoryFlag => LinuxDirectoryEnumerator.O_DIRECTORY ?? 0x00010000;
+
   private readonly IPool<StringBuffer> _fullNameBufferPool;
   private readonly PosixFileSystemExtension _posix;
+  private readonly LinuxDirectoryEnumerator _directoryEnumerator;
 
   /// <summary>
   /// Default number of worker threads for this platform.
@@ -42,6 +45,8 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
     ArgumentNullException.ThrowIfNull(poolFactory);
     _fullNameBufferPool = poolFactory.Create("LinuxFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
     _posix = new PosixFileSystemExtension(_fullNameBufferPool);
+    var directoryEntriesBufferPool = poolFactory.Create("LinuxFileSystemExtension.DirectoryEntriesBuffer", static () => new byte[LinuxDirectoryEnumerator.BufferSize]);
+    _directoryEnumerator = new LinuxDirectoryEnumerator(_fullNameBufferPool, directoryEntriesBufferPool);
   }
 
   public bool IsCloningSupported(FullPath sourcePath, FullPath destinationPath) {
@@ -61,9 +66,13 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
     ref TState state,
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
-    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, ref state, beforeDelete, afterDelete);
+    _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | OpenDirectoryFlag | O_CLOEXEC, AT_REMOVEDIR, ref state, beforeDelete, afterDelete);
 
-  public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) => false;
+  public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) =>
+    _directoryEnumerator.TryGetDirectoryEntries(directory, entries);
+
+  public bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity) =>
+    _directoryEnumerator.TryGetDirectoryIdentity(path, out identity);
 
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;

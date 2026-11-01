@@ -59,6 +59,7 @@ namespace mtfind {
       var pattern = arguments.Values.Pattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
       _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      _progressMonitor.ShowWarnings = arguments.Values.ShowWarnings;
       _progressMonitor.ShowErrors = arguments.Values.ShowErrors;
       _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
       bool followLinks = arguments.Values.FollowLinks;
@@ -138,6 +139,7 @@ namespace mtfind {
       var filesText = string.Format("{0:n0}", statistics.FileEnumeratedCount);
       var symlinksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
       var fields = new[] {
         new PrinterEntry("Statistics"),
@@ -147,6 +149,7 @@ namespace mtfind {
         new PrinterEntry("# of files", filesText, shortName: "files", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of links", symlinksText, shortName: "links", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right, indent: 2),
       };
       Console.WriteLine();

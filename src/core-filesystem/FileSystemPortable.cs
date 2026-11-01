@@ -188,7 +188,14 @@ public class FileSystemPortable : IFileSystem {
   public void DeleteEntry(FileSystemEntry entry) {
     RemoveAccessDeniedAttributes(entry);
     if (entry.IsDirectory) {
-      Directory.Delete(entry.Path.GetFullName(_fullNameBufferPool), recursive: false);
+      try {
+        Directory.Delete(entry.Path.GetFullName(_fullNameBufferPool), recursive: false);
+      }
+      catch (DirectoryNotFoundException) when (entry.IsReparsePoint) {
+        // The target of the link was deleted since the entry was enumerated, and on Unix
+        // Directory.Delete does not remove a dangling link.
+        File.Delete(entry.Path.GetFullName(_fullNameBufferPool));
+      }
     }
     else {
       File.Delete(entry.Path.GetFullName(_fullNameBufferPool));

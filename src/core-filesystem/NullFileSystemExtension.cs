@@ -59,6 +59,11 @@ public class NullFileSystemExtension : IFileSystemExtension {
 
   public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) => false;
 
+  public bool TryGetDirectoryIdentity(FullPath path, out DirectoryIdentity identity) {
+    identity = default;
+    return false;
+  }
+
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;
     isSymLink = false;

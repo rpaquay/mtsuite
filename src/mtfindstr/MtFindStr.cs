@@ -161,6 +161,7 @@ namespace mtfindstr {
       var filesSearchedText = string.Format("{0:n0}", statistics.FileSearchedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
       var entriesPerSecondText = string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
       var fields = new[] {
         new PrinterEntry("Statistics"),
@@ -174,6 +175,7 @@ namespace mtfindstr {
         new PrinterEntry("# of files searched", filesSearchedText, shortName: "searched", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of files containing string", filesMatchedCount, shortName: "matched", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right, indent: 2),
+        new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right, indent: 2),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right, indent: 2),
       };
       Console.WriteLine();

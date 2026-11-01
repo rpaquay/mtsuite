@@ -301,6 +301,132 @@ namespace tests {
     }
 
     [TestMethod]
+    public void LinuxFileSystemExtension_TryGetDirectoryEntries_MatchesPortableEnumeration() {
+      if (!OperatingSystem.IsLinux()) {
+        Assert.Inconclusive("Test only runs on Linux.");
+      }
+
+      // Prepare
+      var root = _fileSystemSetup.Root;
+      root.CreateFile("regular.txt", 100);
+      root.CreateFile("empty.txt", 0);
+      root.CreateFile("large.bin", 3 * 1024 * 1024);
+      root.CreateFile(".hidden.txt", 10);
+      root.CreateFile("read-only.txt", 10);
+      root.CreateFile("unicodé 文件.txt", 10);
+      var subDir = root.CreateDirectory("sub dir");
+      subDir.CreateFile("nested.txt", 10);
+      var readOnlyDir = root.CreateDirectory("read-only-dir");
+      root.CreateFileLink("file.link", "regular.txt");
+      root.CreateFileLink("broken.link", "does-not-exist.txt");
+      _fileSystemSetup.CreateDirectorySymbolicLink(root.Path.Combine("dir.link"), subDir.Path.FullName);
+
+      var rootName = root.Path.FullName;
+      System.IO.File.SetUnixFileMode(System.IO.Path.Combine(rootName, "read-only.txt"),
+        System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.GroupRead | System.IO.UnixFileMode.OtherRead);
+      System.IO.File.SetUnixFileMode(readOnlyDir.Path.FullName,
+        System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserExecute |
+        System.IO.UnixFileMode.GroupRead | System.IO.UnixFileMode.GroupExecute);
+
+      try {
+        var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+        var extension = new mtsuite.CoreFileSystem.LinuxFileSystemExtension(poolFactory);
+        var portable = new mtsuite.CoreFileSystem.FileSystemPortable(poolFactory,
+          new mtsuite.CoreFileSystem.NullFileSystemExtension(poolFactory));
+
+        // Act
+        var fastEntries = new System.Collections.Generic.List<mtsuite.CoreFileSystem.FileSystemEntry>();
+        var result = extension.TryGetDirectoryEntries(root.Path, fastEntries);
+        using var portableEntries = portable.GetDirectoryFiles(root.Path);
+
+        // Assert
+        Assert.IsTrue(result);
+        Assert.AreEqual(portableEntries.Item.Count, fastEntries.Count);
+        foreach (var expected in portableEntries.Item) {
+          var actual = fastEntries.Find(x => x.Name == expected.Name);
+          Assert.AreEqual(expected.Name, actual.Name);
+          Assert.AreEqual(expected.Path, actual.Path, expected.Name);
+          Assert.AreEqual(expected.FileAttributes, actual.FileAttributes, expected.Name);
+          Assert.AreEqual(expected.FileSize, actual.FileSize, expected.Name);
+          Assert.AreEqual(expected.LastWriteTimeUtc, actual.LastWriteTimeUtc, expected.Name);
+        }
+
+        // Sanity check a few attributes, so the test does not pass vacuously
+        Assert.IsTrue(fastEntries.Find(x => x.Name == "read-only.txt").IsReadOnly);
+        Assert.IsTrue((fastEntries.Find(x => x.Name == ".hidden.txt").FileAttributes & System.IO.FileAttributes.Hidden) != 0);
+        Assert.IsTrue(fastEntries.Find(x => x.Name == "dir.link").IsDirectory);
+        Assert.IsTrue(fastEntries.Find(x => x.Name == "dir.link").IsReparsePoint);
+        Assert.IsFalse(fastEntries.Find(x => x.Name == "broken.link").IsDirectory);
+        Assert.AreEqual(3 * 1024 * 1024, fastEntries.Find(x => x.Name == "large.bin").FileSize);
+      }
+      finally {
+        System.IO.File.SetUnixFileMode(readOnlyDir.Path.FullName,
+          System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite | System.IO.UnixFileMode.UserExecute);
+      }
+    }
+
+    [TestMethod]
+    public void LinuxFileSystemExtension_TryGetDirectoryEntries_ReturnsFalseForMissingDirectory() {
+      if (!OperatingSystem.IsLinux()) {
+        Assert.Inconclusive("Test only runs on Linux.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.LinuxFileSystemExtension(poolFactory);
+      var entries = new System.Collections.Generic.List<mtsuite.CoreFileSystem.FileSystemEntry>();
+
+      var result = extension.TryGetDirectoryEntries(_fileSystemSetup.Root.Path.Combine("missing"), entries);
+
+      Assert.IsFalse(result);
+      Assert.AreEqual(0, entries.Count);
+    }
+
+    [TestMethod]
+    public void DeleteEntry_DeletesDirectoryLinkWhoseTargetWasDeleted() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      // Prepare: The entry is a snapshot, so it still says "directory" after the target is deleted
+      var root = _fileSystemSetup.Root;
+      var target = root.CreateDirectory("target");
+      var linkPath = root.Path.Combine("target.link");
+      _fileSystemSetup.CreateDirectorySymbolicLink(linkPath, target.Path.FullName);
+      var fs = _fileSystemSetup.FileSystem;
+      var linkEntry = fs.GetEntry(linkPath);
+      Assert.IsTrue(linkEntry.IsDirectory);
+      fs.DeleteEntry(fs.GetEntry(target.Path));
+
+      // Act
+      fs.DeleteEntry(linkEntry);
+
+      // Assert
+      Assert.IsNull(new System.IO.FileInfo(linkPath.FullName).LinkTarget);
+      Assert.IsFalse(System.IO.Path.Exists(linkPath.FullName));
+    }
+
+    [TestMethod]
+    public void Extension_TryGetDirectoryIdentity_IdentifiesSameDirectoryThroughLink() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+
+      var root = _fileSystemSetup.Root;
+      var target = root.CreateDirectory("target");
+      var other = root.CreateDirectory("other");
+      var linkPath = root.Path.Combine("target.link");
+      _fileSystemSetup.CreateDirectorySymbolicLink(linkPath, target.Path.FullName);
+      var extension = _fileSystemSetup.FileSystem.Extension;
+
+      Assert.IsTrue(extension.TryGetDirectoryIdentity(target.Path, out var targetIdentity));
+      Assert.IsTrue(extension.TryGetDirectoryIdentity(linkPath, out var linkIdentity));
+      Assert.IsTrue(extension.TryGetDirectoryIdentity(other.Path, out var otherIdentity));
+      Assert.AreEqual(targetIdentity, linkIdentity);
+      Assert.AreNotEqual(targetIdentity, otherIdentity);
+      Assert.IsFalse(extension.TryGetDirectoryIdentity(root.Path.Combine("missing"), out _));
+    }
+
+    [TestMethod]
     public void MacOSFileSystemExtension_CloneFile_DoesNotSwallowException_LastWriteTime() {
       if (!OperatingSystem.IsMacOS()) {
         Assert.Inconclusive("Test only runs on macOS.");
