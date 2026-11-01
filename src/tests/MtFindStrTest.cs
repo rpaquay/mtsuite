@@ -83,6 +83,65 @@ namespace tests {
     }
 
     [TestMethod]
+    [Timeout(60000)]
+    public void MtFindStrShouldSearchAllFilesOfLargeDirectories() {
+      var sub = _fileSystemSetup.Root.CreateDirectory("sub");
+      var expected = new List<string>();
+      for (var i = 0; i < 1000; i++) {
+        var file = (i % 2 == 0 ? _fileSystemSetup.Root : sub).CreateFile("file" + i + ".txt", 10);
+        var isMatch = i % 3 == 0;
+        System.IO.File.WriteAllText(file.Path.FullName, isMatch ? "hello world" : "other text");
+        if (isMatch) {
+          expected.Add(file.Path.FullName);
+        }
+      }
+
+      var results = new MtFindStr(_fileSystemSetup.FileSystem, new MtPoolFactory())
+        .DoFindStr(_fileSystemSetup.Root.Path, new[] { "*.txt" }, "hello", isPlainOutput: false, followLinks: false);
+
+      CollectionAssert.AreEquivalent(expected, results.Select(x => x.Path.FullName).ToList());
+    }
+
+    [TestMethod]
+    [Timeout(60000)]
+    public void MtFindStrShouldCompleteWithoutAnyFileToSearch() {
+      var results = new MtFindStr(_fileSystemSetup.FileSystem, new MtPoolFactory())
+        .DoFindStr(_fileSystemSetup.Root.Path, new[] { "*.txt" }, "hello", isPlainOutput: false, followLinks: false);
+
+      Assert.AreEqual(0, results.Count);
+    }
+
+    [TestMethod]
+    [Timeout(60000)]
+    public void MtFindStrShouldCompleteAndReportErrorWhenFileCannotBeRead() {
+      if (OperatingSystem.IsWindows()) {
+        Assert.Inconclusive("Test relies on Unix file permissions.");
+      }
+
+      var readable = _fileSystemSetup.Root.CreateFile("readable.txt", 10);
+      System.IO.File.WriteAllText(readable.Path.FullName, "hello world");
+      var denied = _fileSystemSetup.Root.CreateFile("denied.txt", 10);
+      System.IO.File.WriteAllText(denied.Path.FullName, "hello world");
+      System.IO.File.SetUnixFileMode(denied.Path.FullName, System.IO.UnixFileMode.None);
+
+      using var writer = new System.IO.StringWriter();
+      var oldError = Console.Error;
+      Console.SetError(writer);
+      try {
+        var results = new MtFindStr(_fileSystemSetup.FileSystem, new MtPoolFactory())
+          .DoFindStr(_fileSystemSetup.Root.Path, new[] { "*.txt" }, "hello", isPlainOutput: false, followLinks: false);
+
+        Assert.AreEqual(1, results.Count);
+        Assert.AreEqual(readable.Path.FullName, results[0].Path.FullName);
+        Assert.IsTrue(writer.ToString().Contains("denied.txt"), writer.ToString());
+      }
+      finally {
+        Console.SetError(oldError);
+        System.IO.File.SetUnixFileMode(denied.Path.FullName, System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite);
+      }
+    }
+
+    [TestMethod]
     public void MtFindStrShouldNotFollowLinksByDefault() {
       Assert.IsFalse(new MtFindStrArguments(new[] { "x" }).Values.FollowLinks);
       Assert.IsTrue(new MtFindStrArguments(new[] { "--follow-links", "x" }).Values.FollowLinks);

@@ -15,6 +15,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using mtsuite.CoreFileSystem;
 using mtsuite.shared;
 using mtsuite.shared.FileNameMatching;
@@ -25,6 +27,8 @@ namespace mtfindstr {
     private readonly List<FindStrFileResult> _fileResults = new List<FindStrFileResult>();
     private readonly IList<FileNameMatcher> _fileNameMatchers;
     private readonly FindStrMatcher _findStrMatcher;
+    private readonly TaskCompletionSource _searchesCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _pendingCount = 1; // The extra count is released in WaitForSearchesAsync, when the traversal is done
 
     public FindStrSummaryCollector(FindStrProgressMonitor progressMonitor, IList<FileNameMatcher> fileNameMatched, FindStrMatcher fileStrMatcher) {
       _progressMonitor = progressMonitor;
@@ -33,6 +37,15 @@ namespace mtfindstr {
     }
 
     public List<FindStrFileResult> FileResults => _fileResults;
+
+    /// <summary>
+    /// Returns a task that completes when all files have been searched. This must
+    /// be called once, after the directory traversal has completed.
+    /// </summary>
+    public Task WaitForSearchesAsync() {
+      ReleasePendingSearch();
+      return _searchesCompleted.Task;
+    }
 
     public VoidValue CreateItemForDirectory(IFileSystem fileSystem, FileSystemEntry directory, int depth) {
       return VoidValue.Instance;
@@ -43,6 +56,13 @@ namespace mtfindstr {
         return;
       }
 
+      // Search files concurrently, so that large directories use all threads, and
+      // so that sub-directories are not waiting for files to be searched.
+      Interlocked.Increment(ref _pendingCount);
+      Task.Run(() => SearchFile(fileSystem, entry));
+    }
+
+    private void SearchFile(IFileSystem fileSystem, FileSystemEntry entry) {
       _progressMonitor.OnFileSearching(entry);
       try {
         using var findStrEntries = _findStrMatcher(fileSystem, entry);
@@ -55,6 +75,13 @@ namespace mtfindstr {
       }
       finally {
         _progressMonitor.OnFileSearched(entry);
+        ReleasePendingSearch();
+      }
+    }
+
+    private void ReleasePendingSearch() {
+      if (Interlocked.Decrement(ref _pendingCount) == 0) {
+        _searchesCompleted.SetResult();
       }
     }
 

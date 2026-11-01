@@ -123,6 +123,7 @@ namespace mtfindstr {
       var collector = new FindStrSummaryCollector(_progressMonitor, CreateFileNameMatchers(fileNamePatterns), CreateFindStrMatcher(searchPattern));
       var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, collector, followLinks);
       _parallelFileSystem.WaitForTask(task);
+      _parallelFileSystem.WaitForTask(collector.WaitForSearchesAsync());
       _progressMonitor.Stop();
       return collector.FileResults;
     }
