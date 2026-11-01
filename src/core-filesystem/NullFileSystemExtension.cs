@@ -28,6 +28,11 @@ namespace mtsuite.CoreFileSystem;
 public class NullFileSystemExtension : IFileSystemExtension {
   private readonly PortableFileSystemExtensionHelper _portableHelper;
 
+  /// <summary>
+  /// Default number of worker threads for this platform.
+  /// </summary>
+  public static int DefaultThreadCount => Math.Min(Environment.ProcessorCount, 16);
+
   public NullFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
     var fullNameBufferPool = poolFactory.Create("NullFileSystemExtension.FullNameBuffer",
@@ -51,6 +56,8 @@ public class NullFileSystemExtension : IFileSystemExtension {
     AfterDeleteEntryCallback<TState> afterDelete) {
     return _portableHelper.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
   }
+
+  public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) => false;
 
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;

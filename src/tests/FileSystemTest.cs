@@ -219,6 +219,88 @@ namespace tests {
     }
 
     [TestMethod]
+    public void MacOSFileSystemExtension_TryGetDirectoryEntries_MatchesPortableEnumeration() {
+      if (!OperatingSystem.IsMacOS()) {
+        Assert.Inconclusive("Test only runs on macOS.");
+      }
+
+      // Prepare
+      var root = _fileSystemSetup.Root;
+      root.CreateFile("regular.txt", 100);
+      root.CreateFile("empty.txt", 0);
+      root.CreateFile("large.bin", 3 * 1024 * 1024);
+      root.CreateFile(".hidden.txt", 10);
+      root.CreateFile("flag-hidden.txt", 10);
+      root.CreateFile("read-only.txt", 10);
+      root.CreateFile("unicodé 文件.txt", 10);
+      var subDir = root.CreateDirectory("sub dir");
+      subDir.CreateFile("nested.txt", 10);
+      var readOnlyDir = root.CreateDirectory("read-only-dir");
+      root.CreateFileLink("file.link", "regular.txt");
+      root.CreateFileLink("broken.link", "does-not-exist.txt");
+      _fileSystemSetup.CreateDirectorySymbolicLink(root.Path.Combine("dir.link"), subDir.Path.FullName);
+
+      var rootName = root.Path.FullName;
+      System.IO.File.SetUnixFileMode(System.IO.Path.Combine(rootName, "read-only.txt"),
+        System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.GroupRead | System.IO.UnixFileMode.OtherRead);
+      Assert.AreEqual(0, RunCommand(new[] { "chflags", "hidden", System.IO.Path.Combine(rootName, "flag-hidden.txt") }));
+      System.IO.File.SetUnixFileMode(readOnlyDir.Path.FullName,
+        System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserExecute |
+        System.IO.UnixFileMode.GroupRead | System.IO.UnixFileMode.GroupExecute);
+
+      try {
+        var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+        var extension = new mtsuite.CoreFileSystem.MacOSFileSystemExtension(poolFactory);
+        var portable = new mtsuite.CoreFileSystem.FileSystemPortable(poolFactory,
+          new mtsuite.CoreFileSystem.NullFileSystemExtension(poolFactory));
+
+        // Act
+        var fastEntries = new System.Collections.Generic.List<mtsuite.CoreFileSystem.FileSystemEntry>();
+        var result = extension.TryGetDirectoryEntries(root.Path, fastEntries);
+        using var portableEntries = portable.GetDirectoryFiles(root.Path);
+
+        // Assert
+        Assert.IsTrue(result);
+        Assert.AreEqual(portableEntries.Item.Count, fastEntries.Count);
+        foreach (var expected in portableEntries.Item) {
+          var actual = fastEntries.Find(x => x.Name == expected.Name);
+          Assert.AreEqual(expected.Name, actual.Name);
+          Assert.AreEqual(expected.Path, actual.Path, expected.Name);
+          Assert.AreEqual(expected.FileAttributes, actual.FileAttributes, expected.Name);
+          Assert.AreEqual(expected.FileSize, actual.FileSize, expected.Name);
+          Assert.AreEqual(expected.LastWriteTimeUtc, actual.LastWriteTimeUtc, expected.Name);
+        }
+
+        // Sanity check a few attributes, so the test does not pass vacuously
+        Assert.IsTrue(fastEntries.Find(x => x.Name == "read-only.txt").IsReadOnly);
+        Assert.IsTrue((fastEntries.Find(x => x.Name == "flag-hidden.txt").FileAttributes & System.IO.FileAttributes.Hidden) != 0);
+        Assert.IsTrue(fastEntries.Find(x => x.Name == "dir.link").IsDirectory);
+        Assert.IsTrue(fastEntries.Find(x => x.Name == "dir.link").IsReparsePoint);
+        Assert.AreEqual(3 * 1024 * 1024, fastEntries.Find(x => x.Name == "large.bin").FileSize);
+      }
+      finally {
+        System.IO.File.SetUnixFileMode(readOnlyDir.Path.FullName,
+          System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite | System.IO.UnixFileMode.UserExecute);
+      }
+    }
+
+    [TestMethod]
+    public void MacOSFileSystemExtension_TryGetDirectoryEntries_ReturnsFalseForMissingDirectory() {
+      if (!OperatingSystem.IsMacOS()) {
+        Assert.Inconclusive("Test only runs on macOS.");
+      }
+
+      var poolFactory = new mtsuite.CoreFileSystem.ObjectPool.MtPoolFactory();
+      var extension = new mtsuite.CoreFileSystem.MacOSFileSystemExtension(poolFactory);
+      var entries = new System.Collections.Generic.List<mtsuite.CoreFileSystem.FileSystemEntry>();
+
+      var result = extension.TryGetDirectoryEntries(_fileSystemSetup.Root.Path.Combine("missing"), entries);
+
+      Assert.IsFalse(result);
+      Assert.AreEqual(0, entries.Count);
+    }
+
+    [TestMethod]
     public void MacOSFileSystemExtension_CloneFile_DoesNotSwallowException_LastWriteTime() {
       if (!OperatingSystem.IsMacOS()) {
         Assert.Inconclusive("Test only runs on macOS.");

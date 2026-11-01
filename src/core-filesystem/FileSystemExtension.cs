@@ -39,4 +39,20 @@ public static class FileSystemExtension {
     }
     return new NullFileSystemExtension(poolFactory);
   }
+
+  /// <summary>
+  /// Returns the default number of worker threads for the current runtime platform.
+  /// </summary>
+  public static int GetDefaultThreadCount() {
+    if (OperatingSystem.IsMacOS()) {
+      return MacOSFileSystemExtension.DefaultThreadCount;
+    }
+    if (OperatingSystem.IsLinux()) {
+      return LinuxFileSystemExtension.DefaultThreadCount;
+    }
+    if (OperatingSystem.IsWindows()) {
+      return WindowsFileSystemExtension.DefaultThreadCount;
+    }
+    return NullFileSystemExtension.DefaultThreadCount;
+  }
 }

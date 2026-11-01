@@ -180,13 +180,13 @@ namespace tests {
     }
 
     [TestMethod]
-    public void ArgumentsParserThreadCountDefaultIsMinCoresAnd16() {
+    public void ArgumentsParserThreadCountDefaultIsPlatformDefault() {
       var builder = new ArgumentDefinitionBuilder()
         .WithThreadCountOption();
       var parser = new ArgumentsParser(builder.Build(), Array.Empty<string>());
       parser.Parse();
       Assert.IsTrue(parser.IsValid);
-      Assert.AreEqual(Math.Min(Environment.ProcessorCount, 16), parser["thread-count"].IntValue);
+      Assert.AreEqual(mtsuite.CoreFileSystem.FileSystemExtension.GetDefaultThreadCount(), parser["thread-count"].IntValue);
     }
 
     [TestMethod]

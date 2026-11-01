@@ -52,11 +52,21 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
 
   private readonly IPool<StringBuffer> _fullNameBufferPool;
   private readonly PosixFileSystemExtension _posix;
+  private readonly MacOSDirectoryEnumerator _directoryEnumerator;
+
+  /// <summary>
+  /// Default number of worker threads for this platform. Metadata-heavy traversals on APFS are
+  /// bound by kernel lock contention, and using all cores is slower than using ~3/4 of them.
+  /// </summary>
+  public static int DefaultThreadCount => Math.Clamp(Environment.ProcessorCount * 3 / 4, 1, 12);
 
   public MacOSFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
     _fullNameBufferPool = poolFactory.Create("MacOSFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
     _posix = new PosixFileSystemExtension(_fullNameBufferPool);
+    var bufferPool = poolFactory.Create("MacOSFileSystemExtension.DirectoryEntriesBuffer",
+      static () => new byte[MacOSDirectoryEnumerator.BufferSize]);
+    _directoryEnumerator = new MacOSDirectoryEnumerator(_fullNameBufferPool, bufferPool);
   }
 
   public bool AreFilesCloned(FileSystemEntry file1, FileSystemEntry file2) {
@@ -193,6 +203,13 @@ public class MacOSFileSystemExtension : IFileSystemExtension {
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
     _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, ref state, beforeDelete, afterDelete);
+
+  public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) {
+    if (!OperatingSystem.IsMacOS()) {
+      return false;
+    }
+    return _directoryEnumerator.TryGetDirectoryEntries(directory, entries);
+  }
 
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;

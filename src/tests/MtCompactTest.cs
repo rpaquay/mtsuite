@@ -84,6 +84,9 @@ namespace tests {
         AfterDeleteEntryCallback<TState> afterDelete) =>
         _inner.Extension.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
 
+      public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) =>
+        _inner.Extension.TryGetDirectoryEntries(directory, entries);
+
       public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) =>
         _inner.Extension.TryGetReparsePointTag(fullName, out isJunction, out isSymLink);
     }

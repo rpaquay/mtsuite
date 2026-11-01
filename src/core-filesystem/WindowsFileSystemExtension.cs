@@ -113,6 +113,11 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
   private readonly IPool<StringBuffer> _fullNameBufferPool;
   private readonly PortableFileSystemExtensionHelper _portableHelper;
 
+  /// <summary>
+  /// Default number of worker threads for this platform.
+  /// </summary>
+  public static int DefaultThreadCount => Math.Min(Environment.ProcessorCount, 16);
+
   public WindowsFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
     _fullNameBufferPool = poolFactory.Create("WindowsFileSystemExtension.FullNameBuffer",
@@ -417,6 +422,8 @@ public class WindowsFileSystemExtension : IFileSystemExtension {
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
     _portableHelper.DeleteDirectoryEntries(directory, entries, ref state, beforeDelete, afterDelete);
+
+  public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) => false;
 
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;

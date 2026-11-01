@@ -54,6 +54,14 @@ public interface IFileSystemExtension {
     AfterDeleteEntryCallback<TState> afterDelete);
 
   /// <summary>
+  /// Tries to enumerate the entries of <paramref name="directory"/> using a platform-specific
+  /// fast path (e.g. <c>getattrlistbulk</c> on macOS), appending them to <paramref name="entries"/>.
+  /// Returns <c>false</c> (leaving <paramref name="entries"/> unchanged) if the fast path is not
+  /// available or failed, in which case the caller should fall back to portable enumeration.
+  /// </summary>
+  bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries);
+
+  /// <summary>
   /// Tries to inspect platform-specific reparse point tags (e.g. Windows directory junctions vs symlinks).
   /// Returns <c>true</c> if reparse tag information was successfully queried; otherwise <c>false</c>.
   /// </summary>

@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared.CommandLine {
   public class ArgumentDefinitionBuilder {
@@ -178,10 +179,11 @@ namespace mtsuite.shared.CommandLine {
     public ArgumentDefinitionBuilder WithThreadCountOption() {
       return WithIntOption(
         "thread-count",
-        "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=min(# cores, 16))",
+        "Determine the # of concurrent threads (minimum=1, \"all\"=# of CPU cores, default=" +
+        FileSystemExtension.GetDefaultThreadCount() + ")",
         "t",
         "count",
-        Math.Min(Environment.ProcessorCount, 16),
+        FileSystemExtension.GetDefaultThreadCount(),
         value => {
           if (value < 1)
             return "Thread count must be greater or equal to 1";

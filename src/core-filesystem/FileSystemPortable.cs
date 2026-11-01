@@ -165,9 +165,11 @@ public class FileSystemPortable : IFileSystem {
     ArgumentNullException.ThrowIfNull(path);
     var list = _entryListPool.AllocateFrom();
     try {
-      using var enumerator = new DirectoryEntriesEnumerator(path, _fullNameBufferPool, _enumerationOptions);
-      while (enumerator.MoveNext()) {
-        list.Item.Add(enumerator.Current);
+      if (!_extension.TryGetDirectoryEntries(path, list.Item)) {
+        using var enumerator = new DirectoryEntriesEnumerator(path, _fullNameBufferPool, _enumerationOptions);
+        while (enumerator.MoveNext()) {
+          list.Item.Add(enumerator.Current);
+        }
       }
     }
     catch {

@@ -33,6 +33,11 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
   private readonly IPool<StringBuffer> _fullNameBufferPool;
   private readonly PosixFileSystemExtension _posix;
 
+  /// <summary>
+  /// Default number of worker threads for this platform.
+  /// </summary>
+  public static int DefaultThreadCount => Math.Min(Environment.ProcessorCount, 16);
+
   public LinuxFileSystemExtension(MtPoolFactory poolFactory) {
     ArgumentNullException.ThrowIfNull(poolFactory);
     _fullNameBufferPool = poolFactory.Create("LinuxFileSystemExtension.FullNameBuffer", static () => new StringBuffer(), static sb => sb.Clear());
@@ -57,6 +62,8 @@ public class LinuxFileSystemExtension : IFileSystemExtension {
     BeforeDeleteEntryCallback<TState> beforeDelete,
     AfterDeleteEntryCallback<TState> afterDelete) =>
     _posix.DeleteDirectoryEntries(directory, entries, O_RDONLY | O_DIRECTORY | O_CLOEXEC, AT_REMOVEDIR, ref state, beforeDelete, afterDelete);
+
+  public bool TryGetDirectoryEntries(FullPath directory, List<FileSystemEntry> entries) => false;
 
   public bool TryGetReparsePointTag(string fullName, out bool isJunction, out bool isSymLink) {
     isJunction = false;
