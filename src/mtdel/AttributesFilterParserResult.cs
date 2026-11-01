@@ -24,10 +24,13 @@ namespace mtdel {
     /// <summary>
     /// Return <code>true</code> if <paramref name="fileAttributes"/> contains
     /// any attribute defined in <see cref="IncludedAttributes"/> and does not
-    /// contain any attribute define in <see cref="ExcludedAttributes"/>.
+    /// contain any attribute define in <see cref="ExcludedAttributes"/>. If there
+    /// are only excluded attributes (e.g. "-R"), all other files are included.
     /// </summary>
     public bool AnyIncludes(FileAttributes fileAttributes) {
-      var included = (IncludedAttributes & fileAttributes) != 0;
+      var included = IncludedAttributes == 0
+        ? ExcludedAttributes != 0
+        : (IncludedAttributes & fileAttributes) != 0;
       var excluded = (ExcludedAttributes & fileAttributes) != 0;
       return included && !excluded;
     }

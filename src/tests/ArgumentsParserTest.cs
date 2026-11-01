@@ -402,7 +402,7 @@ namespace tests {
     }
 
     [TestMethod]
-    public void ArgumentsParserShouldRejectInlineSeparators() {
+    public void ArgumentsParserShouldOnlyAcceptEqualsAsInlineSeparator() {
       var definitions = new ArgDef[] {
         new IntOptionArgDef {
           Id = "depth",
@@ -412,12 +412,12 @@ namespace tests {
         }
       };
 
-      // Case A: Using '=' inline separator should fail
+      // Case A: Using '=' inline separator should work
       {
         var parser = new ArgumentsParser(definitions, new[] { "-d=4" });
         parser.Parse();
-        Assert.IsFalse(parser.IsValid);
-        Assert.IsTrue(parser.Errors.Any(e => e.Contains("Unknown argument \"-d=4\"")));
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual(4, parser["depth"].IntValue);
       }
 
       // Case B: Using ':' inline separator should fail
@@ -501,6 +501,148 @@ namespace tests {
         parser.Parse();
         Assert.IsTrue(parser.IsValid);
         Assert.IsFalse(parser["plain-output"].BoolValue);
+      }
+    }
+
+    private static ArgDef[] CreateDefinitionsWithPositional() {
+      return new ArgumentDefinitionBuilder()
+        .WithPositional("path", "Path", false)
+        .WithFlag("quiet", "Quiet", "q", "", "quiet")
+        .WithStringOption("required", "No default value", "r", "value", null, longName: "required")
+        .WithStringOption("optional", "Has default value", "o", "value", "default-value", longName: "optional")
+        .WithProgressOption()
+        .Build().ToArray();
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldTreatArgumentsAfterDoubleDashAsPositional() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-q", "--", "-z" });
+      parser.Parse();
+      Assert.IsTrue(parser.IsValid);
+      Assert.IsTrue(parser["quiet"].BoolValue);
+      Assert.AreEqual("-z", parser["path"].StringValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldAcceptDoubleDashWithNothingAfterIt() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "--" });
+      parser.Parse();
+      Assert.IsTrue(parser.IsValid);
+      Assert.IsFalse(parser.Contains("path"));
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldTreatLoneDashAsPositional() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-" });
+      parser.Parse();
+      Assert.IsTrue(parser.IsValid);
+      Assert.AreEqual("-", parser["path"].StringValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldNotCrashWithEmptyNameBeforeEquals() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "--=x" });
+      parser.Parse();
+      Assert.IsFalse(parser.IsValid);
+      Assert.IsTrue(parser.Errors.Any(e => e.Contains("Unknown argument \"--=x\"")));
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldStillRejectUnknownFlags() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-z" });
+      parser.Parse();
+      Assert.IsFalse(parser.IsValid);
+      Assert.IsTrue(parser.Errors.Any(e => e.Contains("Unknown argument \"-z\"")));
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldAcceptOptionValuesStartingWithDash() {
+      // 1. An option without a default value takes the next argument, even if it is a known name
+      {
+        var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-r", "-q" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("-q", parser["required"].StringValue);
+        Assert.IsFalse(parser["quiet"].BoolValue);
+      }
+
+      // 2. An option with a default value takes the next argument if it is not a known name
+      {
+        var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-o", "-z" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("-z", parser["optional"].StringValue);
+      }
+
+      // 3. An option with a default value doesn't take the next argument if it is a known name
+      foreach (var next in new[] { "-q", "--quiet", "--no-quiet", "-np", "--required=x" }) {
+        var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-o", next });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid, next);
+        Assert.AreEqual("default-value", parser["optional"].StringValue, next);
+      }
+
+      // 4. The "=" form takes anything
+      {
+        var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "--optional=-q=x" });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.AreEqual("-q=x", parser["optional"].StringValue);
+      }
+
+      // 5. "--" is never a value
+      {
+        var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-r", "--" });
+        parser.Parse();
+        Assert.IsFalse(parser.IsValid);
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldNotAcceptEqualsOnFlags() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "--quiet=true" });
+      parser.Parse();
+      Assert.IsFalse(parser.IsValid);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldUseLastValueWhenRepeated() {
+      var parser = new ArgumentsParser(CreateDefinitionsWithPositional(), new[] { "-o", "a", "--optional=b", "-q", "--no-quiet" });
+      parser.Parse();
+      Assert.IsTrue(parser.IsValid);
+      Assert.AreEqual("b", parser["optional"].StringValue);
+      Assert.IsFalse(parser["quiet"].BoolValue);
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldTreatFtAsNoContent() {
+      foreach (var defaultValue in new[] { false, true }) {
+        var definitions = new ArgumentDefinitionBuilder().WithCompareContentFlag("Compare", defaultValue).Build();
+        void Check(bool expected, params string[] args) {
+          var parser = new ArgumentsParser(definitions, args);
+          parser.Parse();
+          Assert.IsTrue(parser.IsValid);
+          Assert.AreEqual(expected, parser["fc"].BoolValue, string.Join(" ", args));
+        }
+
+        Check(defaultValue);
+        Check(true, "--content");
+        Check(true, "-fc");
+        Check(false, "--no-content");
+        Check(false, "--ft");
+        Check(true, "--ft", "--content");
+        Check(false, "--content", "--ft");
+      }
+    }
+
+    [TestMethod]
+    public void ArgumentsParserShouldAcceptDryRunNames() {
+      var definitions = new ArgumentDefinitionBuilder().WithDryRunFlag("Dry run").Build();
+      foreach (var name in new[] { "-n", "--dry-run" }) {
+        var parser = new ArgumentsParser(definitions, new[] { name });
+        parser.Parse();
+        Assert.IsTrue(parser.IsValid);
+        Assert.IsTrue(parser["dry-run"].BoolValue);
       }
     }
 

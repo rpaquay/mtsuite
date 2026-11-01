@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Collections.Generic;
+using mtsuite.CoreFileSystem;
 using mtsuite.shared;
 using mtsuite.shared.Utils;
 
@@ -42,6 +44,10 @@ namespace mtinfo {
       }
       var threadLines = GetThreadProgressLines();
       Print(fields, threadLines);
+    }
+
+    public override bool IsWarning(FullPath path, Exception e) {
+      return IsIgnorableTraversalError(e);
     }
   }
 }

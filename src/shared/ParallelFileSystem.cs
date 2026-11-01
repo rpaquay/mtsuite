@@ -129,6 +129,29 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     return CopyDirectoryAsync(sourceDirectory, destinationDirectory.Path, destinationDirectory, options, fileComparer, useCloneFile);
   }
 
+  public Task DryRunCopyToMissingDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath,
+    CopyOptions options, IFileComparer fileComparer) {
+    ArgumentNullException.ThrowIfNull(fileComparer);
+
+    var useCloneFile = (options & CopyOptions.NoClone) == 0 &&
+      FindExistingAncestor(destinationPath) is { } ancestor &&
+      _fileSystem.Extension.IsCloningSupported(sourceDirectory.Path, ancestor);
+    return CopyDirectoryAsync(sourceDirectory, destinationPath, null, options | CopyOptions.DryRun, fileComparer, useCloneFile);
+  }
+
+  private FullPath? FindExistingAncestor(FullPath path) {
+    for (var ancestor = path.Parent; ancestor != null; ancestor = ancestor.Parent) {
+      try {
+        _fileSystem.GetEntry(ancestor);
+        return ancestor;
+      }
+      catch {
+        // Keep looking
+      }
+    }
+    return null;
+  }
+
   public Task CompactDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory,
     IFileComparer fileComparer, bool dryRun) {
     ArgumentNullException.ThrowIfNull(fileComparer);
@@ -136,12 +159,12 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     return CompactDirectoryAsyncImpl(sourceDirectory, destinationDirectory, fileComparer, dryRun);
   }
 
-  public async Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
+  public async Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter, bool dryRun = false) {
     if (entry.IsFile || entry.IsReparsePoint) {
-      return DeleteSingleEntry(entry, includeFilter);
+      return DeleteSingleEntry(entry, includeFilter, dryRun);
     }
     else if (entry.IsRegularDirectory) {
-      var state = new DeleteState(includeFilter);
+      var state = new DeleteState(includeFilter, dryRun);
       await DeleteDirectoryAsync(entry, state).ConfigureAwait(false);
       return state.AllEntriesDeleted;
     }
@@ -264,12 +287,16 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     //
     // Create destination directory (if needed)
     //
-    var optionalDestinationDirectory = destinationDirectoryEntry ?? CreateDirectory(destinationPath);
-    if (optionalDestinationDirectory == null) {
-      // Bail out if error creating destination directory
-      return;
+    var dryRun = (options & CopyOptions.DryRun) != 0;
+    if (destinationDirectoryEntry == null) {
+      if (dryRun) {
+        OnDirectoryCreated(sourceDirectory);
+      }
+      else if (CreateDirectory(destinationPath) == null) {
+        // Bail out if error creating destination directory
+        return;
+      }
     }
-    var destinationDirectory = optionalDestinationDirectory.Value;
 
     //
     // 1. Enumerate entries in source and destination directory
@@ -277,7 +304,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     OnDirectoryTraversing(sourceDirectory);
     var optionalSourceEntries = GetDirectoryEntries(sourceDirectory);
     var optionalDestinationEntries = destinationDirectoryEntry.HasValue
-      ? GetDirectoryEntries(destinationDirectory)
+      ? GetDirectoryEntries(destinationDirectoryEntry.Value)
       : _entryListPool.AllocateFrom();
     OnDirectoryTraversed(sourceDirectory, optionalSourceEntries?.Item);
     if (optionalSourceEntries == null || optionalDestinationEntries == null) {
@@ -298,7 +325,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     //OnEntriesToDeleteDiscovered(destinationDirectory, entriesToDelete.Item);
     var deleteTaskList = _taskListPool.AllocateFrom();
     foreach (var entry in entriesToDelete.Item) {
-      deleteTaskList.Item.Add(DeleteEntryAsync(entry, static _ => true));
+      deleteTaskList.Item.Add(DeleteEntryAsync(entry, static _ => true, dryRun));
     }
     entriesToDelete.Dispose();
     await deleteTaskList.WhenAllAndDispose().ConfigureAwait(false);
@@ -309,11 +336,11 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     var copyTasks = _taskListPool.AllocateFrom();
     foreach (var sourceEntry in sourceEntries.Item) {
       if (sourceEntry.IsRegularFile || sourceEntry.IsReparsePoint) {
-        PerformOrScheduleFileEntryCopy(sourceEntry, destinationDirectory, fileComparer, destinationSet.Item,
-          copyTasks.Item, useCloneFile);
+        PerformOrScheduleFileEntryCopy(sourceEntry, destinationPath, fileComparer, destinationSet.Item,
+          copyTasks.Item, useCloneFile, dryRun);
       }
       else if (sourceEntry.IsRegularDirectory) {
-        var destinationEntryPath = new FullPath(destinationDirectory.Path, sourceEntry.Name);
+        var destinationEntryPath = new FullPath(destinationPath, sourceEntry.Name);
         var destinationExists = destinationSet.Item.TryGet(sourceEntry, out var childDestEntry);
         copyTasks.Item.Add(CopyDirectoryAsync(
           sourceEntry,
@@ -395,7 +422,7 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   /// </summary>
   private async Task DeleteDirectoryAsync(FileSystemEntry sourceDirectory, DeleteState state) {
     await DeleteDirectoryEntriesAsync(sourceDirectory, state).ConfigureAwait(false); 
-    var deleted = DeleteSingleEntry(sourceDirectory, state.IncludeFilter);
+    var deleted = DeleteSingleEntry(sourceDirectory, state.IncludeFilter, state.DryRun);
     if (!deleted) {
       state.ReportFailure();
     } 
@@ -443,6 +470,18 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     List<FileSystemEntry> sourceEntries,
     DeleteState state) {
     var sw = _stopwatchFactory.Create();
+    if (state.DryRun) {
+      foreach (var entry in sourceEntries) {
+        if ((entry.IsDirectory || entry.IsFile || entry.IsReparsePoint) && state.IncludeFilter(entry)) {
+          OnEntryDeleting(entry);
+          OnEntryDeleted(entry, sw.Elapsed);
+        }
+        else {
+          state.ReportFailure();
+        }
+      }
+      return;
+    }
     var entriesState = new DeleteDirectoryEntriesState(this, state, sw);
     try {
       _fileSystem.Extension.DeleteDirectoryEntries(
@@ -562,25 +601,26 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
 
   /// <summary>
   /// Copy (or clone) a regular file or symlink from <paramref name="sourceEntry"/> to
-  /// <paramref name="destinationDirectory"/> unless the file already exist and is the same as the source file
+  /// <paramref name="destinationDirectoryPath"/> unless the file already exist and is the same as the source file
   /// (see <paramref name="fileComparer"/>
   ///
   /// Note: Errors are reported via <see cref="OnError"/> 
   /// </summary>
   private void PerformOrScheduleFileEntryCopy(
     FileSystemEntry sourceEntry,
-    FileSystemEntry destinationDirectory,
+    FullPath destinationDirectoryPath,
     IFileComparer fileComparer,
     SmallSet<FileSystemEntry> destinationDirectoryEntries,
     List<Task> fileTaskList,
-    bool useCloneFile) {
+    bool useCloneFile,
+    bool dryRun) {
     Guard.CheckArgument(sourceEntry.IsFile || sourceEntry.IsReparsePoint,
       "Internal error: Only regular files and reparse points can be copied directly");
 
     var destinationExists = destinationDirectoryEntries.TryGet(sourceEntry, out var destinationEntry);
     var destinationPath = destinationExists
       ? destinationEntry.Path
-      : new FullPath(destinationDirectory.Path, sourceEntry.Name);
+      : new FullPath(destinationDirectoryPath, sourceEntry.Name);
 
     if (destinationExists) {
       try {
@@ -601,10 +641,10 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     if (useCloneFile && sourceEntry.IsRegularFile) {
       // If file size is >= threshold, offload cloning to a background task
       if (sourceEntry.FileSize >= _largeFileAsyncThreshold) {
-        fileTaskList.Add(Task.Run(() => PerformCloneFile(sourceEntry, destinationPath, dryRun: false)));
+        fileTaskList.Add(Task.Run(() => PerformCloneFile(sourceEntry, destinationPath, dryRun)));
       }
       else {
-        PerformCloneFile(sourceEntry, destinationPath, dryRun: false);
+        PerformCloneFile(sourceEntry, destinationPath, dryRun);
       }
     }
     else {
@@ -612,10 +652,10 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
       // If file size is >= threshold, offload copying to a background task
       if (sourceEntry.IsRegularFile && sourceEntry.FileSize >= _largeFileAsyncThreshold) {
         fileTaskList.Add(Task.Run(() =>
-          PerformCopyFile(sourceEntry, destinationPath, destinationExists ? destinationEntry : null, copyFileOptions)));
+          PerformCopyFile(sourceEntry, destinationPath, destinationExists ? destinationEntry : null, copyFileOptions, dryRun)));
       }
       else {
-        PerformCopyFile(sourceEntry, destinationPath, destinationExists ? destinationEntry : null, copyFileOptions);
+        PerformCopyFile(sourceEntry, destinationPath, destinationExists ? destinationEntry : null, copyFileOptions, dryRun);
       }
     }
   }
@@ -629,11 +669,16 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     FileSystemEntry sourceEntry,
     FullPath destinationPath,
     FileSystemEntry? destinationEntry,
-    CopyFileOptions copyFileOptions) {
+    CopyFileOptions copyFileOptions,
+    bool dryRun) {
     Guard.CheckArgument(sourceEntry.IsFile || sourceEntry.IsReparsePoint,
       "Internal error: Only regular files and reparse points can be copied directly");
     var sw = _stopwatchFactory.Create();
     OnFileCopying(sourceEntry);
+    if (dryRun) {
+      OnFileCopied(sourceEntry, sw.Elapsed, sourceEntry.FileSize);
+      return;
+    }
     try {
       var copyData = new CopyFileData(this, sw);
       if (destinationEntry.HasValue) {
@@ -764,13 +809,17 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
   ///
   ///  Note: Errors are reported via <see cref="OnError"/> 
   /// </summary>
-  private bool DeleteSingleEntry(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter) {
+  private bool DeleteSingleEntry(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter, bool dryRun) {
     if (!includeFilter(entry)) {
       return false;
     }
 
     var sw = _stopwatchFactory.Create();
     OnEntryDeleting(entry);
+    if (dryRun) {
+      OnEntryDeleted(entry, sw.Elapsed);
+      return true;
+    }
     try {
       _fileSystem.DeleteEntry(entry);
     }
@@ -913,8 +962,9 @@ public sealed class ParallelFileSystem : IParallelFileSystem {
     }
   }
 
-  private class DeleteState(Func<FileSystemEntry, bool> includeFilter) {
+  private class DeleteState(Func<FileSystemEntry, bool> includeFilter, bool dryRun) {
     public readonly Func<FileSystemEntry, bool> IncludeFilter = includeFilter;
+    public readonly bool DryRun = dryRun;
     private volatile bool _allEntriesDeleted = true;
 
     public bool AllEntriesDeleted => _allEntriesDeleted;

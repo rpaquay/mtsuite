@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using mtdel;
@@ -55,6 +56,61 @@ namespace tests {
       AssertExt.IsEmpty(stats.Warnings);  
       Assert.IsFalse(_fileSystemSetup.Root.Exists());
       Assert.AreEqual(1, stats.DirectoryDeletedCount);
+    }
+
+    [TestMethod]
+    public void MtDeleteDryRunShouldNotDeleteAnything() {
+      _fileSystemSetup.Root.CreateFile("a", 10);
+      _fileSystemSetup.Root.CreateDirectory("b").CreateFile("c", 11);
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
+
+      // Note: No "QuietMode", as a dry run has nothing to confirm
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, new MtDelete.Options { DryRun = true });
+      AssertExt.IsEmpty(stats.Errors);
+      Assert.AreEqual(2, stats.DirectoryDeletedCount);
+      Assert.AreEqual(2, stats.FileDeletedCount);
+      Assert.AreEqual(21, stats.FileDeletedTotalSize);
+      Assert.IsTrue(_fileSystemSetup.Root.GetFile("a").Exists());
+      Assert.IsTrue(_fileSystemSetup.Root.GetDirectory("b").GetFile("c").Exists());
+    }
+
+    [TestMethod]
+    public void MtDeleteShouldSupportExcludeOnlyAttributesFilter() {
+      var readOnly = _fileSystemSetup.Root.CreateFile("a", 10);
+      readOnly.SetReadOnlyAttribute();
+      var other = _fileSystemSetup.Root.CreateFile("b", 11);
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
+
+      var options = new MtDelete.Options { QuietMode = true, Attributes = new AttributesFilterParser().Parse("-R") };
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, options);
+      AssertExt.IsEmpty(stats.Errors);
+      Assert.AreEqual(1, stats.FileDeletedCount);
+      Assert.IsTrue(readOnly.Exists());
+      Assert.IsFalse(other.Exists());
+    }
+
+    [TestMethod]
+    public void AttributesFilterShouldNotMatchWhenEmpty() {
+      Assert.IsFalse(new AttributesFilterParser().Parse("").AnyIncludes(FileAttributes.Normal));
+    }
+
+    [TestMethod]
+    public void MtDeleteDryRunShouldApplyAttributesFilter() {
+      var readOnly = _fileSystemSetup.Root.CreateFile("a", 10);
+      readOnly.SetReadOnlyAttribute();
+      _fileSystemSetup.Root.CreateFile("b", 11);
+
+      var mtdelete = new MtDelete(_fileSystemSetup.FileSystem, _poolFactory);
+
+      var options = new MtDelete.Options { DryRun = true, Attributes = new AttributesFilterParser().Parse("-R") };
+      var stats = mtdelete.DoDelete(_fileSystemSetup.Root.Path, options);
+      AssertExt.IsEmpty(stats.Errors);
+      Assert.AreEqual(0, stats.DirectoryDeletedCount);
+      Assert.AreEqual(1, stats.FileDeletedCount);
+      Assert.AreEqual(11, stats.FileDeletedTotalSize);
+      Assert.IsTrue(readOnly.Exists());
     }
 
     [TestMethod]

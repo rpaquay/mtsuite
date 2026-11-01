@@ -51,15 +51,13 @@ namespace mtdel {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithPositional("directory-path", "The path of the directory to delete", true)
         .WithFlag("quiet", "Quiet mode, do not ask if ok to delete", "q", "", "quiet")
-        .WithStringOption("attributes", @"Selects files to delete based on attributes
+        .WithDryRunFlag("Show what would be deleted, without changing anything or asking for confirmation")
+        .WithStringOption("attributes", @"Selects files to delete based on attributes (e.g. ""-a R"" or ""-a -R"")
 R  Read-only files            S  System files
 H  Hidden files               A  Files ready for archiving
 I  Not content indexed Files  L  Reparse Points
--  Prefix meaning not", "a", "attributes", null, value => new AttributesFilterParser().Parse(value).Error)
-        .WithThreadCountOption()
-        .WithProgressOption()
-        .WithGcFlag()
-        .WithHelpFlag()
+-  Prefix meaning not", "a", "attributes", null, value => new AttributesFilterParser().Parse(value).Error, longName: "attributes")
+        .WithCommonOptions()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
@@ -84,10 +82,11 @@ I  Not content indexed Files  L  Reparse Points
 
       var options = new Options {
         QuietMode = parser["quiet"].BoolValue,
+        DryRun = parser["dry-run"].BoolValue,
         Attributes = parser.Contains("attributes") ? new AttributesFilterParser().Parse(parser["attributes"].StringValue) : null,
       };
       var statistics = DoDelete(sourcePath, options);
-      DisplayResults(statistics);
+      DisplayResults(statistics, options.DryRun);
       if (parser["gc"].BoolValue) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
@@ -108,6 +107,7 @@ I  Not content indexed Files  L  Reparse Points
 
     public class Options {
       public bool QuietMode { get; init; }
+      public bool DryRun { get; init; }
       public AttributesFilterParserResult Attributes { get; init; }
     }
 
@@ -121,7 +121,7 @@ I  Not content indexed Files  L  Reparse Points
         throw new CommandLineReturnValueException(8); // To match robocopy
       }
 
-      if (!options.QuietMode) {
+      if (!options.QuietMode && !options.DryRun) {
         while (true) {
           Console.Write("{0}, Are you sure (Y/N)? ", sourcePath.FullName);
           var result = Console.ReadLine();
@@ -136,13 +136,16 @@ I  Not content indexed Files  L  Reparse Points
         }
       }
 
+      if (options.DryRun) {
+        Console.WriteLine("Dry run: nothing will be changed.");
+      }
       Console.WriteLine("Deleting files and subdirectories from \"{0}\"",
         sourcePath.FullName);
 
       var includeFilter = CreateFilter(options);
       _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
-      var task = _parallelFileSystem.DeleteEntryAsync(rootEntry, includeFilter);
+      var task = _parallelFileSystem.DeleteEntryAsync(rootEntry, includeFilter, options.DryRun);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return _progressMonitor.GetStatistics();
@@ -168,15 +171,15 @@ I  Not content indexed Files  L  Reparse Points
     private static void DisplayBanner() {
       Console.WriteLine();
       Console.WriteLine("-------------------------------------------------------------------------------");
-      Console.WriteLine("MTDEL :: Multi-threaded Delete - version {0}",
+      Console.WriteLine("MTDEL :: Multi-Threaded Delete - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version.ToString());
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
     }
 
-    private static void DisplayResults(Statistics statistics) {
+    private static void DisplayResults(Statistics statistics, bool isDryRun) {
       Console.WriteLine();
-      Console.WriteLine("Statistics:");
+      Console.WriteLine(isDryRun ? "Statistics (dry run, nothing was changed):" : "Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       Console.WriteLine("  # of directories deleted: {0:n0}", statistics.DirectoryDeletedCount);

@@ -129,9 +129,9 @@ namespace mtsuite.shared.CommandLine {
     //   ThreadPool.SetMaxThreads(Math.Max(count, Environment.ProcessorCount), maxc);
     // }
 
-    public static void DisplayFullStatistics(Statistics statistics) {
+    public static void DisplayFullStatistics(Statistics statistics, bool isDryRun = false) {
       Console.WriteLine();
-      Console.WriteLine("Statistics:");
+      Console.WriteLine(isDryRun ? "Statistics (dry run, nothing was changed):" : "Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
       Console.WriteLine("  # of source directories:  {0:n0}", statistics.DirectoryTraversedCount);

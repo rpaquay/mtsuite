@@ -19,6 +19,8 @@ using mtsuite.CoreFileSystem;
 
 namespace mtsuite.shared.CommandLine {
   public class ArgumentsParser {
+    private const string EndOfOptions = "--";
+
     private readonly IList<ArgDef> _argumentDefinitions;
     private readonly IList<string> _args;
     private readonly IList<ParsedArgument> _parserArguments = new List<ParsedArgument>();
@@ -43,21 +45,22 @@ namespace mtsuite.shared.CommandLine {
       // Phase 1: Parse named options and flags
       for (var index = 0; index < _args.Count; ) {
         var argString = _args[index];
+        if (argString == EndOfOptions) {
+          // All the arguments after "--" are positional, even if they start with a prefix
+          usedIndices.Add(index);
+          break;
+        }
         if (StartsWithNamedArgumentPrefix(argString)) {
-          var prefixCount = argString.StartsWith("--") ? 2 : 1;
-          var argName = argString.Substring(prefixCount);
+          var argName = RemoveNamedArgumentPrefix(argString);
 
-          if (argName == "no-progress" || argName == "np") {
-            var progressDef = _argumentDefinitions.OfType<EnumOptionArgDef>().SingleOrDefault(x => x.Id == "progress");
-            if (progressDef != null) {
-              _parserArguments.Add(new ParsedArgument(progressDef, "none"));
-              usedIndices.Add(index);
-              index++;
-              continue;
-            }
+          if (IsNoProgressArgument(argName, out var progressDef)) {
+            _parserArguments.Add(new ParsedArgument(progressDef, "none"));
+            usedIndices.Add(index);
+            index++;
+            continue;
           }
 
-          var argDef = FindNamedArgument(argName, out var isNegativeFlag);
+          var argDef = FindNamedArgument(argName, out var isNegativeFlag, out var inlineValue);
           if (argDef == null) {
             _errors.Add(string.Format("Unknown argument \"{0}\"", argString));
             usedIndices.Add(index);
@@ -68,8 +71,10 @@ namespace mtsuite.shared.CommandLine {
           int argsConsumed = 1;
           string argStringValue = "";
 
-          if (argDef is OptionArgDef) {
-            if (index + 1 < _args.Count && !StartsWithNamedArgumentPrefix(_args[index + 1])) {
+          if (argDef is OptionArgDef optionDef) {
+            if (inlineValue != null) {
+              argStringValue = inlineValue;
+            } else if (index + 1 < _args.Count && IsOptionValue(optionDef, _args[index + 1])) {
               argStringValue = _args[index + 1];
               argsConsumed = 2;
             }
@@ -155,9 +160,41 @@ namespace mtsuite.shared.CommandLine {
     }
     
     private static bool StartsWithNamedArgumentPrefix(string argString) {
+      // Note: A lone prefix character is not a name (e.g. "/" is a path on Unix)
+      if (argString.Length < 2) {
+        return false;
+      }
       return (PathHelpers.DirectorySeparatorString == "/")
         ? argString.StartsWith("-") || argString.StartsWith("--")
         : argString.StartsWith("/") || argString.StartsWith("-") || argString.StartsWith("--");
+    }
+
+    private static string RemoveNamedArgumentPrefix(string argString) {
+      return argString.Substring(argString.StartsWith("--") ? 2 : 1);
+    }
+
+    private bool IsNoProgressArgument(string argName, out EnumOptionArgDef progressDef) {
+      progressDef = null;
+      if (argName == "no-progress" || argName == "np") {
+        progressDef = _argumentDefinitions.OfType<EnumOptionArgDef>().SingleOrDefault(x => x.Id == "progress");
+      }
+      return progressDef != null;
+    }
+
+    /// <summary>
+    /// Returns whether <paramref name="argString"/> is the value of <paramref name="optionDef"/>. An option
+    /// that can't be used without a value takes the next argument, whatever it is (e.g. "-a -h"). Otherwise,
+    /// the next argument is a value unless it is the name of another argument (e.g. "--depth -1").
+    /// </summary>
+    private bool IsOptionValue(OptionArgDef optionDef, string argString) {
+      if (argString == EndOfOptions) {
+        return false;
+      }
+      if (optionDef.DefaultValue == null || !StartsWithNamedArgumentPrefix(argString)) {
+        return true;
+      }
+      var argName = RemoveNamedArgumentPrefix(argString);
+      return !IsNoProgressArgument(argName, out _) && FindNamedArgument(argName, out _, out _) == null;
     }
 
     private void CheckMissingMandatoryArguments() {
@@ -271,8 +308,28 @@ namespace mtsuite.shared.CommandLine {
       return null;
     }
 
+    private NameArgDef FindNamedArgument(string name, out bool isNegativeFlag, out string inlineValue) {
+      inlineValue = null;
+      var argDef = FindNamedArgument(name, out isNegativeFlag);
+      if (argDef != null) {
+        return argDef;
+      }
+
+      // "--name=value" form, for options only
+      var separatorIndex = name.IndexOf('=');
+      if (separatorIndex > 0 &&
+          FindNamedArgument(name.Substring(0, separatorIndex), out _) is OptionArgDef optionDef) {
+        inlineValue = name.Substring(separatorIndex + 1);
+        return optionDef;
+      }
+      return null;
+    }
+
     private NameArgDef FindNamedArgument(string name, out bool isNegativeFlag) {
       isNegativeFlag = false;
+      if (string.IsNullOrEmpty(name)) {
+        return null;
+      }
       var exactMatch = _argumentDefinitions
         .OfType<NameArgDef>()
         .SingleOrDefault(x => x.ShortName == name || x.AltShortName == name || x.LongName == name);
@@ -289,6 +346,13 @@ namespace mtsuite.shared.CommandLine {
           return flagMatch;
         }
       }
+      var aliasMatch = _argumentDefinitions
+        .OfType<FlagArgDef>()
+        .SingleOrDefault(x => x.NegativeAlias == name);
+      if (aliasMatch != null) {
+        isNegativeFlag = true;
+        return aliasMatch;
+      }
       return null;
     }
 
@@ -298,7 +362,8 @@ namespace mtsuite.shared.CommandLine {
 
     public ParsedArgument this[string id] {
       get {
-        return _parserArguments.Single(x => x.ArgDef.Id == id);
+        // Note: The last occurrence wins if an argument is specified more than once
+        return _parserArguments.Last(x => x.ArgDef.Id == id);
       }
     }
   }

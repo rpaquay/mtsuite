@@ -66,13 +66,10 @@ namespace mtcopy {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithPositional("source-path", "The path of the source directory", true)
         .WithPositional("destination-path", "The path of the destination directory", true)
-        .WithFlag("fc", "Compare file contents instead of file modification time (slower)", "fc", "", "content")
-        .WithFlag("ft", "Compare file modification time (default)", "ft")
+        .WithCompareContentFlag("Compare file contents (slower) instead of file modification time", defaultValue: false)
         .WithFlag("clone", "Enable file cloning (CoW) on supported platforms (e.g. macOS APFS)", "clone", "", "clone", defaultValue: true)
-        .WithProgressOption()
-        .WithThreadCountOption()
-        .WithGcFlag()
-        .WithHelpFlag()
+        .WithDryRunFlag("Show what would be copied, without changing anything")
+        .WithCommonOptions()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
@@ -107,9 +104,13 @@ namespace mtcopy {
       if (!parser["clone"].BoolValue) {
         copyOptions |= CopyOptions.NoClone;
       }
+      var isDryRun = parser["dry-run"].BoolValue;
+      if (isDryRun) {
+        copyOptions |= CopyOptions.DryRun;
+      }
 
       var statistics = DoCopy(sourcePath, destinationPath, fileComparer, copyOptions);
-      DisplayResults(statistics);
+      ProgramHelpers.DisplayFullStatistics(statistics, isDryRun);
       if (parser["gc"].BoolValue) {
         ProgramHelpers.DisplayGcStatistics(_poolFactory);
       }
@@ -144,14 +145,17 @@ namespace mtcopy {
       }
 
       // Lookup or create destination directory
-      FileSystemEntry destinationDirectory;
+      var isDryRun = (copyOptions & CopyOptions.DryRun) != 0;
+      FileSystemEntry? destinationDirectory = null;
       try {
         try {
           destinationDirectory = _fileSystem.GetEntry(destinationPath);
         }
         catch {
-          _fileSystem.CreateDirectory(destinationPath);
-          destinationDirectory = _fileSystem.GetEntry(destinationPath);
+          if (!isDryRun) {
+            _fileSystem.CreateDirectory(destinationPath);
+            destinationDirectory = _fileSystem.GetEntry(destinationPath);
+          }
         }
       } catch (Exception e) {
         Console.WriteLine(e.Message);
@@ -159,6 +163,9 @@ namespace mtcopy {
         throw new CommandLineReturnValueException(8);
       }
 
+      if (isDryRun) {
+        Console.WriteLine("Dry run: nothing will be changed.");
+      }
       Console.WriteLine("Copying files and subdirectories from \"{0}\" to \"{1}\"",
         sourcePath.FullName,
         destinationPath.FullName);
@@ -167,11 +174,9 @@ namespace mtcopy {
       _progressMonitor.Start();
       //_progressMonitor.OnEntriesDiscovered(new List<FileSystemEntry>(new[] { sourceDirectory }));
 
-      var task = _parallelFileSystem.CopyDirectoryAsync(
-        sourceDirectory,
-        destinationDirectory,
-        copyOptions,
-        fileComparer);
+      var task = destinationDirectory.HasValue
+        ? _parallelFileSystem.CopyDirectoryAsync(sourceDirectory, destinationDirectory.Value, copyOptions, fileComparer)
+        : _parallelFileSystem.DryRunCopyToMissingDirectoryAsync(sourceDirectory, destinationPath, copyOptions, fileComparer);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return _progressMonitor.GetStatistics();
@@ -184,10 +189,6 @@ namespace mtcopy {
         Assembly.GetExecutingAssembly().GetName().Version.ToString());
       Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
-    }
-
-    private static void DisplayResults(Statistics statistics) {
-      ProgramHelpers.DisplayFullStatistics(statistics);
     }
   }
 }

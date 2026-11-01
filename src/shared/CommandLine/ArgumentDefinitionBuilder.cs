@@ -149,6 +149,42 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
+    /// <summary>
+    /// Adds the options that all tools have, so that they have the same order everywhere.
+    /// </summary>
+    public ArgumentDefinitionBuilder WithCommonOptions() {
+      return WithProgressOption()
+        .WithThreadCountOption()
+        .WithGcFlag()
+        .WithHelpFlag();
+    }
+
+    /// <summary>
+    /// Adds the flag that selects how files are compared. It is <c>true</c> to compare file contents, and
+    /// <c>false</c> to compare file modification times ("--no-content" or "--ft").
+    /// </summary>
+    public ArgumentDefinitionBuilder WithCompareContentFlag(string description, bool defaultValue) {
+      _definitions.Add(new FlagArgDef {
+        Id = "fc",
+        Description = description,
+        ShortName = "fc",
+        AltShortName = "",
+        LongName = "content",
+        DefaultValue = defaultValue,
+        NegativeAlias = "ft",
+      });
+      return this;
+    }
+
+    public ArgumentDefinitionBuilder WithDryRunFlag(string description) {
+      return WithFlag("dry-run", description, "n", "", "dry-run");
+    }
+
+    public ArgumentDefinitionBuilder WithWarningsAndErrorsFlags() {
+      return WithFlag("show-warnings", "Display warnings", "w", "", "warnings")
+        .WithFlag("show-errors", "Display errors", "e", "", "errors", defaultValue: true);
+    }
+
     public ArgumentDefinitionBuilder WithHelpFlag() {
       return WithFlag("help", "Display help", "h", "?", "help", defaultValue: false, allowNegation: false);
     }

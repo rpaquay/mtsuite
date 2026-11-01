@@ -46,6 +46,12 @@ namespace mtsuite.shared {
     Task CopyDirectoryAsync(FileSystemEntry sourceDirectory, FileSystemEntry destinationDirectory, CopyOptions options, IFileComparer fileComparer);
 
     /// <summary>
+    /// Report what <see cref="CopyDirectoryAsync"/> would do with <paramref name="destinationPath"/>, a directory
+    /// that doesn't exist yet, without creating it.
+    /// </summary>
+    Task DryRunCopyToMissingDirectoryAsync(FileSystemEntry sourceDirectory, FullPath destinationPath, CopyOptions options, IFileComparer fileComparer);
+
+    /// <summary>
     /// Look for all regular files in <paramref name="sourceDirectory"/> that are in
     /// <paramref name="destinationDirectory"/>, at the same relative hierarchy, and replace the destination
     /// with a clone from the source. 
@@ -57,7 +63,7 @@ namespace mtsuite.shared {
     /// Directories are deleted only if <paramref name="includeFilter"/> matches all files in a given
     /// directory. Returns whether all files and directories were deleted.
     /// </summary>
-    Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter);
+    Task<bool> DeleteEntryAsync(FileSystemEntry entry, Func<FileSystemEntry, bool> includeFilter, bool dryRun = false);
   }
 
   /// <summary>
@@ -90,5 +96,9 @@ namespace mtsuite.shared {
     DeleteExtraFiles = 0x02,
     DeleteMismatchedFiles = 0x04,
     NoClone = 0x08,
+    /// <summary>
+    /// Report the operations without performing them, so that nothing changes on disk.
+    /// </summary>
+    DryRun = 0x10,
   }
 }

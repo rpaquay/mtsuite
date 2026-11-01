@@ -52,7 +52,7 @@ namespace mtinfo {
       DisplayBanner();
 
       var argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithPositional("directory-path", "The path of the directory to examine", false, () => Environment.CurrentDirectory)
+        .WithPositional("directory-path", "The path of the directory to examine (default is the current directory)", false, () => Environment.CurrentDirectory)
         .WithIntOption("depth",
           "Determine the # of levels of sub-directories to display in the final summary (default=2, minimum=1)",
           "d",
@@ -75,12 +75,10 @@ namespace mtinfo {
               return "Count must be greater or equal to 0";
             return null;
           },
-          "",
-          "longestpath")
-        .WithThreadCountOption()
-        .WithProgressOption()
-        .WithGcFlag()
-        .WithHelpFlag()
+          "longestpath", // Former name, still accepted
+          "longest-path")
+        .WithWarningsAndErrorsFlags()
+        .WithCommonOptions()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
@@ -103,6 +101,8 @@ namespace mtinfo {
         parser["progress"].StringValue
       );
       _progressMonitor.ShowGc = parser["gc"].BoolValue;
+      _progressMonitor.ShowWarnings = parser["show-warnings"].BoolValue;
+      _progressMonitor.ShowErrors = parser["show-errors"].BoolValue;
 
       var options = new CollectOptions {
         LevelCount = levelCount,
@@ -111,7 +111,7 @@ namespace mtinfo {
       var summaryRoot = DoCollect(sourcePath, options);
 
       var statistics = _progressMonitor.GetStatistics();
-      DisplayResults(statistics);
+      DisplayResults(statistics, parser["show-errors"].BoolValue);
 
       Console.WriteLine();
       DisplayDirectoryEntries(summaryRoot, x => x.Stats.FileBytesTotal);
@@ -242,7 +242,7 @@ namespace mtinfo {
       }
     }
 
-    private static void DisplayResults(Statistics statistics) {
+    private static void DisplayResults(Statistics statistics, bool showErrors) {
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
@@ -252,8 +252,11 @@ namespace mtinfo {
       Console.WriteLine("  Total file size:          {0}", FormatHelpers.FormatSize(statistics.FileEnumeratedTotalSize));
       Console.WriteLine("  # entries/sec:            {0:n0}",
         statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
+      Console.WriteLine("  # of warnings:            {0:n0}", statistics.Warnings.Count);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      ProgramHelpers.DisplayErrors(statistics.Errors);
+      if (showErrors) {
+        ProgramHelpers.DisplayErrors(statistics.Errors);
+      }
     }
 
     private static void DisplayDirectoryEntries(

@@ -25,23 +25,52 @@ namespace mtfind {
 
     public MtFindArguments(string[] args) {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithHelpFlag()
+        .WithPositional("directory-path", "The path of the directory to search (default is the current directory)", false)
+        .WithPositional("pattern", "The file name pattern to search for (e.g. \"*.xml\")", false)
+        .WithStringOption("name", "Another way to specify the file name pattern", "name", "pattern", null)
         .WithFlag("include-dir", "Include directory names in search", "i", "", "include-dir")
-        .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
-        .WithProgressOption()
+        .WithFlag("plain-output", "Plain output, i.e. only display the list of file paths that match the search pattern", "po", "", "plain-output")
         .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
-        .WithFlag("show-warnings", "Display warnings", "w", "", "warnings")
-        .WithFlag("show-errors", "Display errors", "e", "", "errors", defaultValue: true)
-        .WithThreadCountOption()
-        .WithGcFlag()
-        .WithPositional("directory", "The path of the directory search (default is current directory)", false, () => Environment.CurrentDirectory)
-        .WithStringOption("pattern", "The file name pattern to search for (e.g. \"*.xml\")", "name", "pattern", null, isMandatory: true)
+        .WithWarningsAndErrorsFlags()
+        .WithCommonOptions()
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);
       _values = new ArgumentValues(_parser);
 
       _parser.Parse();
+      ResolveDirectoryAndPattern();
+    }
+
+    /// <summary>
+    /// The pattern is either the "--name" option or the last positional argument, so that both
+    /// "mtfind directory --name pattern" and "mtfind [directory] pattern" work.
+    /// </summary>
+    private void ResolveDirectoryAndPattern() {
+      if (!_parser.IsValid) {
+        return;
+      }
+
+      var directory = _parser.Contains("directory-path") ? _parser["directory-path"].StringValue : null;
+      var pattern = _parser.Contains("pattern") ? _parser["pattern"].StringValue : null;
+      if (_parser.Contains("name")) {
+        if (pattern != null) {
+          _parser.Errors.Add(string.Format("Extra argument \"{0}\"", pattern));
+          return;
+        }
+        pattern = _parser["name"].StringValue;
+      }
+      else if (pattern == null) {
+        pattern = directory;
+        directory = null;
+      }
+
+      if (pattern == null) {
+        _parser.Errors.Add("Missing argument \"pattern\"");
+        return;
+      }
+      _values.Directory = directory ?? Environment.CurrentDirectory;
+      _values.Pattern = pattern;
     }
 
     public bool IsValid => _parser.IsValid;
@@ -73,9 +102,9 @@ namespace mtfind {
 
       public bool Help => _parser["help"].BoolValue;
 
-      public string Directory => _parser["directory"].StringValue;
+      public string Directory { get; internal set; }
 
-      public string Pattern => _parser["pattern"].StringValue;
+      public string Pattern { get; internal set; }
 
       public int ThreadCount => _parser["thread-count"].IntValue;
 

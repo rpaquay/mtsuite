@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Diagnostics;
 using System.Threading;
 using mtsuite.CoreFileSystem;
@@ -283,6 +284,14 @@ namespace mtsuite.shared {
 
     public virtual bool IsWarning(FullPath path, Exception e) {
       return false;
+    }
+
+    /// <summary>
+    /// Returns whether <paramref name="e"/> is harmless when only reading a directory tree, such as an entry
+    /// that went away during the traversal.
+    /// </summary>
+    protected static bool IsIgnorableTraversalError(Exception e) {
+      return e is DirectoryNotFoundException || e is FileNotFoundException || e is DirectoryLinkLoopException;
     }
 
     protected PrinterEntry GetGcPrinterEntry() {

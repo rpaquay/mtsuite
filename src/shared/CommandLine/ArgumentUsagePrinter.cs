@@ -55,8 +55,13 @@ namespace mtsuite.shared.CommandLine {
         var valueSummary = arg.AllowNegation 
           ? string.Format("{0}{1}, {0}no-{1}", Delimiter, arg.LongName)
           : string.Format("{0}{1}", Delimiter, arg.LongName);
-        var description = string.Format("{0} (short: {1}{2}, default: {3})", 
-          arg.Description, ShortDelimiter, arg.ShortName, arg.DefaultValue.ToString().ToLower());
+        if (!string.IsNullOrEmpty(arg.NegativeAlias)) {
+          valueSummary += string.Format(", {0}{1}", Delimiter, arg.NegativeAlias);
+        }
+        var defaultText = arg.DefaultValue.ToString().ToLower();
+        var description = arg.ShortName == arg.LongName
+          ? string.Format("{0} (default: {1})", arg.Description, defaultText)
+          : string.Format("{0} (short: {1}{2}, default: {3})", arg.Description, ShortDelimiter, arg.ShortName, defaultText);
         Append("  {0,-" + ColumnWidth + "} {1}", valueSummary, FormatMultiLine(description, IndentWidth));
       }
     }
@@ -105,7 +110,10 @@ namespace mtsuite.shared.CommandLine {
     }
 
     private static string FormatMultiLine(string description, int indent, string shortArgName) {
-      return FormatMultiLine(string.Format("{0} (short: {1}{2})", description, ShortDelimiter, shortArgName), indent);
+      // The short name goes at the end of the first line, since the other lines are details
+      var suffix = string.Format(" (short: {0}{1})", ShortDelimiter, shortArgName);
+      var index = description.IndexOf(Environment.NewLine, StringComparison.OrdinalIgnoreCase);
+      return FormatMultiLine(index < 0 ? description + suffix : description.Insert(index, suffix), indent);
     }
     private static string FormatMultiLine(string description, int indent) {
       var sb = new StringBuilder();

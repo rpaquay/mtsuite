@@ -31,6 +31,9 @@ namespace mtsuite.shared.CommandLine {
         DispatchArgumentDefintion(argDef, sb);
         Console.WriteLine(sb.Text);
       }
+      Console.WriteLine();
+      Console.WriteLine("Options can start with \"-\" or \"--\" (or \"/\" on Windows), and take a value with a space or \"=\".");
+      Console.WriteLine("All arguments after \"--\" are positional, even if they start with \"-\".");
     }
 
     public static void DispatchArgumentDefintion(ArgDef argDef, IArgumentDefinitionVisitor visitor) {

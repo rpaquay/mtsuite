@@ -92,11 +92,7 @@ namespace mtfindstr {
     /// a directory.
     /// </summary>
     public override bool IsWarning(FullPath path, Exception e) {
-      return IsIgnorableError(e);
-    }
-
-    private static bool IsIgnorableError(Exception e) {
-      return e is DirectoryNotFoundException || e is FileNotFoundException || e is DirectoryLinkLoopException;
+      return IsIgnorableTraversalError(e);
     }
   }
 }

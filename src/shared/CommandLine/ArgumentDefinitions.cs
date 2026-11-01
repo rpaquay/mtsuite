@@ -75,6 +75,10 @@ namespace mtsuite.shared.CommandLine {
   public class FlagArgDef : NameArgDef {
     public bool DefaultValue { get; set; } = false;
     public bool AllowNegation { get; set; } = true;
+    /// <summary>
+    /// Optional name that sets the flag to <c>false</c>, same as the "no-" prefix.
+    /// </summary>
+    public string NegativeAlias { get; set; }
   }
 
   /// <summary>

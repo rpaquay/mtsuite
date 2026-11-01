@@ -219,6 +219,43 @@ namespace tests {
     }
 
     [TestMethod]
+    public void MtFindArgumentsShouldAcceptPatternAsPositional() {
+      // 1. Pattern only
+      {
+        var args = new MtFindArguments(new[] { "mypattern" });
+        Assert.IsTrue(args.IsValid);
+        Assert.AreEqual(Environment.CurrentDirectory, args.Values.Directory);
+        Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
+
+      // 2. Directory and pattern
+      {
+        var args = new MtFindArguments(new[] { "my/dir/path", "mypattern" });
+        Assert.IsTrue(args.IsValid);
+        Assert.AreEqual("my/dir/path", args.Values.Directory);
+        Assert.AreEqual("mypattern", args.Values.Pattern);
+      }
+
+      // 3. Pattern specified twice
+      {
+        var args = new MtFindArguments(new[] { "my/dir/path", "mypattern", "--name", "other" });
+        Assert.IsFalse(args.IsValid);
+      }
+
+      // 4. No pattern
+      {
+        var args = new MtFindArguments(Array.Empty<string>());
+        Assert.IsFalse(args.IsValid);
+      }
+
+      // 5. Help doesn't need a pattern
+      {
+        var args = new MtFindArguments(new[] { "--help" });
+        Assert.IsTrue(args.Values.Help);
+      }
+    }
+
+    [TestMethod]
     public void MtFindArgumentsShouldParsePositionalDirectoryAndPattern() {
       // 1. Omitted directory
       {

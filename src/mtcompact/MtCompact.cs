@@ -58,13 +58,9 @@ namespace mtcompact {
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithPositional("source-path", "The path of the source directory", true)
         .WithPositional("destination-path", "The path of the destination directory", true)
-        .WithFlag("fc", "Compare file contents (default)", "fc", "", "content")
-        .WithFlag("ft", "Fast comparison using file modification time only", "ft")
-        .WithFlag("dry-run", "Simulate compaction without modifying files to compute potential space savings", "dry-run", "n")
-        .WithProgressOption()
-        .WithThreadCountOption()
-        .WithGcFlag()
-        .WithHelpFlag()
+        .WithCompareContentFlag("Compare file contents instead of file modification time (faster)", defaultValue: true)
+        .WithDryRunFlag("Show the potential space savings, without changing anything")
+        .WithCommonOptions()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
@@ -88,10 +84,10 @@ namespace mtcompact {
       );
       _progressMonitor.ShowGc = parser["gc"].BoolValue;
       IFileComparer fileComparer;
-      if (parser["ft"].BoolValue) {
-        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
-      } else {
+      if (parser["fc"].BoolValue) {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
+      } else {
+        fileComparer = new LastWriteTimeFileComparer(_fileSystem);
       }
 
       var isDryRun = parser["dry-run"].BoolValue;
@@ -172,10 +168,10 @@ namespace mtcompact {
 
     private static void DisplayBanner() {
       Console.WriteLine();
-      Console.WriteLine("-------------------------------------------------------------------------");
+      Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine("MTCOMPACT :: Multi-Threaded File Compacting (Cloning) - version {0}",
         Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0.0");
-      Console.WriteLine("-------------------------------------------------------------------------");
+      Console.WriteLine("-------------------------------------------------------------------------------");
       Console.WriteLine();
     }
 

@@ -26,17 +26,13 @@ namespace mtfindstr {
 
     public MtFindStrArguments(string[] args) {
       _argumentDefinitions = new ArgumentDefinitionBuilder()
-        .WithHelpFlag()
-        .WithFlag("plain-output", "Plain output, i.e. only display list of file paths that match the search pattern", "po", "", "plain-output")
-        .WithProgressOption()
-        .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
-        .WithFlag("show-warnings", "Display warnings", "w", "", "warnings")
-        .WithFlag("show-errors", "Display errors", "e", "", "errors", defaultValue: true)
-        .WithThreadCountOption()
-        .WithGcFlag()
-        .WithStringOption("name", "The file name pattern to include files to search (default=\"*\")", "name", "pattern", "*")
-        .WithPositional("directory", "The directory tree to search", false, () => Environment.CurrentDirectory)
+        .WithPositional("directory-path", "The path of the directory to search (default is the current directory)", false, () => Environment.CurrentDirectory)
         .WithPositional("pattern", "The string to find in text files (e.g. \"build\")", true)
+        .WithStringOption("name", "The file name pattern of the files to search (default=\"*\")", "name", "pattern", "*")
+        .WithFlag("plain-output", "Plain output, i.e. only display the matches as path:line:column", "po", "", "plain-output")
+        .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
+        .WithWarningsAndErrorsFlags()
+        .WithCommonOptions()
         .Build();
 
       _parser = new ArgumentsParser(_argumentDefinitions, args);
@@ -74,7 +70,7 @@ namespace mtfindstr {
 
       public bool Help => _parser["help"].BoolValue;
 
-      public string Directory => _parser["directory"].StringValue;
+      public string Directory => _parser["directory-path"].StringValue;
 
       public IList<string> FileNamePatterns => new List<string> { _parser["name"].StringValue };
 

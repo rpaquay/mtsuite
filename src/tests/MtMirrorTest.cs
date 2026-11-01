@@ -13,10 +13,13 @@
 // limitations under the License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using mtmir;
 using mtsuite.CoreFileSystem;
 using mtsuite.CoreFileSystem.ObjectPool;
+using mtsuite.shared;
 using mtsuite.shared.CommandLine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tests.FileSystemHelpers;
@@ -64,6 +67,76 @@ namespace tests {
       Assert.AreEqual(0, stats.DirectoryCreatedCount);
       Assert.AreEqual(0, stats.EntryCopiedCount);
       Assert.AreEqual(0, stats.FileCopiedTotalSize);
+    }
+
+    private const CopyOptions MirrorDryRunOptions =
+      CopyOptions.DeleteMismatchedFiles | CopyOptions.SkipIdenticalFiles | CopyOptions.DeleteExtraFiles | CopyOptions.DryRun;
+
+    private static List<string> ListNames(DirectorySetup directory) {
+      return directory.GetEntries().Select(x => x.Path.Name).OrderBy(x => x, StringComparer.Ordinal).ToList();
+    }
+
+    [TestMethod]
+    public void MtMirrorDryRunShouldNotChangeDestination() {
+      _sourcefs.Root.CreateFile("new", 10);
+      _sourcefs.Root.CreateDirectory("newdir").CreateFile("x", 11);
+      // A file in source and a directory in destination, and the other way around
+      _sourcefs.Root.CreateFile("swap1", 12);
+      _sourcefs.Root.CreateDirectory("swap2").CreateFile("y", 13);
+      _destfs.Root.CreateDirectory("swap1").CreateFile("z", 14);
+      _destfs.Root.CreateFile("swap2", 15);
+      _destfs.Root.CreateFile("extra", 16);
+
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, MirrorDryRunOptions);
+
+      AssertExt.IsEmpty(stats.Errors);
+      Assert.AreEqual(4, stats.FileCopiedCount + stats.FileClonedCount);
+      Assert.AreEqual(46, stats.FileCopiedTotalSize + stats.FileClonedTotalSize);
+      Assert.AreEqual(2, stats.DirectoryCreatedCount);
+      Assert.AreEqual(1, stats.DirectoryDeletedCount);
+      Assert.AreEqual(3, stats.FileDeletedCount);
+
+      CollectionAssert.AreEqual(new[] { "extra", "swap1", "swap2" }, ListNames(_destfs.Root));
+      Assert.IsTrue(_destfs.Root.GetEntry("swap1").IsDirectory);
+      Assert.IsTrue(_destfs.Root.GetEntry("swap2").IsFile);
+      Assert.AreEqual(1, _destfs.Root.GetDirectory("swap1").GetEntries().Count);
+    }
+
+    [TestMethod]
+    public void MtMirrorDryRunShouldMatchRealRun() {
+      _sourcefs.Root.CreateFile("same", 10);
+      _sourcefs.Root.CreateFile("new", 11);
+      _sourcefs.Root.CreateDirectory("newdir").CreateFile("x", 12);
+      _destfs.Root.CreateDirectory("extradir").CreateFile("y", 13);
+
+      var dryRun = new MtMirror(_sourcefs.FileSystem, new MtPoolFactory())
+        .DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer, MirrorDryRunOptions);
+      var real = new MtMirror(_sourcefs.FileSystem, new MtPoolFactory())
+        .DoMirror(_sourcefs.Root.Path, _destfs.Root.Path, _fileComparer,
+          MirrorDryRunOptions & ~CopyOptions.DryRun);
+
+      AssertExt.IsEmpty(real.Errors);
+      Assert.AreEqual(real.FileCopiedCount, dryRun.FileCopiedCount);
+      Assert.AreEqual(real.FileClonedCount, dryRun.FileClonedCount);
+      Assert.AreEqual(real.FileCopiedTotalSize, dryRun.FileCopiedTotalSize);
+      Assert.AreEqual(real.FileClonedTotalSize, dryRun.FileClonedTotalSize);
+      Assert.AreEqual(real.DirectoryCreatedCount, dryRun.DirectoryCreatedCount);
+      Assert.AreEqual(real.DirectoryDeletedCount, dryRun.DirectoryDeletedCount);
+      Assert.AreEqual(real.FileDeletedCount, dryRun.FileDeletedCount);
+    }
+
+    [TestMethod]
+    public void MtMirrorDryRunShouldNotCreateMissingDestination() {
+      _sourcefs.Root.CreateFile("a", 10);
+      var destination = _destfs.Root.Path.Combine("missing").Combine("destination");
+
+      var mtmirror = new MtMirror(_sourcefs.FileSystem, _poolFactory);
+      var stats = mtmirror.DoMirror(_sourcefs.Root.Path, destination, _fileComparer, MirrorDryRunOptions);
+
+      AssertExt.IsEmpty(stats.Errors);
+      Assert.AreEqual(1, stats.FileCopiedCount + stats.FileClonedCount);
+      Assert.AreEqual(0, _destfs.Root.GetEntries().Count);
     }
 
     [TestMethod]
