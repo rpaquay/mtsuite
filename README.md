@@ -203,6 +203,12 @@ NativeAOT executables are smaller and start faster. They can't be cross-compiled
 
 The workflows only run when started by hand, from the repository's **Actions** tab: **Build all platforms**, **Build macOS**, **Build Linux**, and **Build Windows** (all labeled NativeAOT). Each one produces a zip file that you can download from the run's page.
 
+These builds aren't signed or notarized by Apple, so macOS may block the tools after a browser download. If you trust the zip file, unzip it and run the script included in the macOS builds, from that folder in Terminal:
+
+```bash
+bash "mtsuite - run this to remove quarantine.sh"
+```
+
 ---
 
 ## Changes

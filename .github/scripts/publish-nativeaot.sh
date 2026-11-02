@@ -48,6 +48,11 @@ for APP in mtinfo mtfind mtfindstr mtcopy mtmir mtdel mtcompact; do
 done
 "$STAGE/mtinfo$EXT" -p none src
 
+# These builds aren't notarized, so macOS blocks them after a download unless the quarantine flag is removed.
+if [[ "$RID" == osx-* ]]; then
+  cp ".github/scripts/mtsuite - run this to remove quarantine.sh" "$STAGE/"
+fi
+
 if [[ "$RID" == win-* ]]; then
   powershell -NoProfile -Command "Compress-Archive -Path '$STAGE/*' -DestinationPath '$ROOT/$PACKAGE.zip'"
 else
