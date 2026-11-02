@@ -48,12 +48,17 @@ namespace mtfindstr {
 
     public void Run(string[] args) {
       var arguments = new MtFindStrArguments(args);
-      if (!arguments.IsValid || arguments.Values.Help) {
+      if (arguments.Values.Help) {
         DisplayBanner();
-        if (!arguments.Values.Help) {
-          arguments.DisplayArgumentErrors();
-        }
         arguments.DisplayUsage();
+        throw new CommandLineReturnValueException(16); // To match robocopy
+      }
+      if (!arguments.IsValid) {
+        ProgramHelpers.WriteToStandardError(() => {
+          DisplayBanner();
+          arguments.DisplayArgumentErrors();
+          arguments.DisplayUsage();
+        });
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
 
@@ -61,7 +66,10 @@ namespace mtfindstr {
       var filePatterns = arguments.Values.FileNamePatterns;
       var searchPattern = arguments.Values.SearchPattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
-      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      // Plain output is meant to be consumed by other programs, so it never shows progress.
+      _progressMonitor.ProgressMode = arguments.Values.PlainOutput
+        ? ProgressMode.None
+        : ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
       _progressMonitor.ShowWarnings = arguments.Values.ShowWarnings;
       _progressMonitor.ShowErrors = arguments.Values.ShowErrors;
       _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
@@ -82,7 +90,11 @@ namespace mtfindstr {
       }
 
       if (arguments.Values.GarbageCollect) {
-        ProgramHelpers.DisplayGcStatistics(_poolFactory);
+        if (isPlainOutput) {
+          ProgramHelpers.WriteToStandardError(() => ProgramHelpers.DisplayGcStatistics(_poolFactory));
+        } else {
+          ProgramHelpers.DisplayGcStatistics(_poolFactory);
+        }
       }
 
       // 0 = success, 8 = fail (to match robocopy)
@@ -106,7 +118,9 @@ namespace mtfindstr {
       try {
         sourceDirectory = _fileSystem.GetEntry(sourcePath);
       } catch (Exception e) {
-        Console.WriteLine(e.Message);
+        if (_progressMonitor.ShowErrors) {
+          ProgramHelpers.DisplaySingleError(e);
+        }
         // 8 = fail (to match robocopy)
         throw new CommandLineReturnValueException(8);
       }

@@ -29,9 +29,8 @@ namespace mtfindstr {
         .WithPositional("directory-path", "The path of the directory to search (default is the current directory)", false, () => Environment.CurrentDirectory)
         .WithPositional("pattern", "The string to find in text files (e.g. \"build\")", true)
         .WithStringOption("name", "The file name pattern of the files to search (default=\"*\")", "name", "pattern", "*")
-        .WithFlag("plain-output", "Plain output, i.e. only display the matches as path:line:column", "po", "", "plain-output")
+        .WithFlag("plain-output", "Plain output, i.e. only display the matches as path:line:column, without progress", "po", "", "plain-output")
         .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
-        .WithWarningsAndErrorsFlags()
         .WithCommonOptions()
         .Build();
 

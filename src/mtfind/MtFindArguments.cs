@@ -29,9 +29,8 @@ namespace mtfind {
         .WithPositional("pattern", "The file name pattern to search for (e.g. \"*.xml\")", false)
         .WithStringOption("name", "Another way to specify the file name pattern", "name", "pattern", null)
         .WithFlag("include-dir", "Include directory names in search", "i", "", "include-dir")
-        .WithFlag("plain-output", "Plain output, i.e. only display the list of file paths that match the search pattern", "po", "", "plain-output")
+        .WithFlag("plain-output", "Plain output, i.e. only display the list of file paths that match the search pattern, without progress", "po", "", "plain-output")
         .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
-        .WithWarningsAndErrorsFlags()
         .WithCommonOptions()
         .Build();
 

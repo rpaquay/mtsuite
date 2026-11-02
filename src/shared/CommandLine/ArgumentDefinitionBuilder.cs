@@ -153,7 +153,8 @@ namespace mtsuite.shared.CommandLine {
     /// Adds the options that all tools have, so that they have the same order everywhere.
     /// </summary>
     public ArgumentDefinitionBuilder WithCommonOptions() {
-      return WithProgressOption()
+      return WithWarningsAndErrorsFlags()
+        .WithProgressOption()
         .WithThreadCountOption()
         .WithGcFlag()
         .WithHelpFlag();

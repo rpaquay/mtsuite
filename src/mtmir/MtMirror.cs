@@ -62,8 +62,6 @@ namespace mtmir {
     }
 
     public void Run(string[] args) {
-      DisplayBanner();
-
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithPositional("source-path", "The path of the source directory", true)
         .WithPositional("destination-path", "The path of the destination directory", true)
@@ -75,16 +73,23 @@ namespace mtmir {
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser["help"].BoolValue) {
-        if (!parser["help"].BoolValue) {
+      if (parser["help"].BoolValue) {
+        DisplayBanner();
+        DisplayUsage(argumentDefinitions);
+        throw new CommandLineReturnValueException(16); // To match robocopy
+      }
+      if (!parser.IsValid) {
+        ProgramHelpers.WriteToStandardError(() => {
+          DisplayBanner();
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
           Console.WriteLine();
-        }
-        DisplayUsage(argumentDefinitions);
+          DisplayUsage(argumentDefinitions);
+        });
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
+      DisplayBanner();
 
       var sourcePath = ProgramHelpers.MakeFullPath(parser["source-path"].StringValue);
       var destinationPath = ProgramHelpers.MakeFullPath(parser["destination-path"].StringValue);
@@ -93,6 +98,8 @@ namespace mtmir {
         parser["progress"].StringValue
       );
       _progressMonitor.ShowGc = parser["gc"].BoolValue;
+      _progressMonitor.ShowWarnings = parser["show-warnings"].BoolValue;
+      _progressMonitor.ShowErrors = parser["show-errors"].BoolValue;
       IFileComparer fileComparer;
       if (parser["fc"].BoolValue) {
         fileComparer = new FileContentsFileComparer(_fileSystem, _poolFactory);
@@ -140,7 +147,9 @@ namespace mtmir {
       try {
         sourceDirectory = _fileSystem.GetEntry(sourcePath);
       } catch (Exception e) {
-        Console.WriteLine(e.Message);
+        if (_progressMonitor.ShowErrors) {
+          ProgramHelpers.DisplaySingleError(e);
+        }
         // 8 = fail (to match robocopy)
         throw new CommandLineReturnValueException(8);
       }
@@ -159,7 +168,9 @@ namespace mtmir {
           }
         }
       } catch (Exception e) {
-        Console.WriteLine(e.Message);
+        if (_progressMonitor.ShowErrors) {
+          ProgramHelpers.DisplaySingleError(e);
+        }
         // 8 = fail (to match robocopy)
         throw new CommandLineReturnValueException(8);
       }

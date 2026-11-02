@@ -81,10 +81,14 @@ Run any tool with `--help` to see all of its options.
 | --- | --- | --- |
 | `--threads count` | `-t` | Number of concurrent threads, or `all` for one per CPU core |
 | `--progress mode` | `-p` | `none`, `line`, `default`, or `full` (adds per-thread output). `--no-progress` (`-np`) is the same as `none` |
+| `--warnings` | `-w` | Display warnings, such as entries that disappear during a search. Only `mtinfo`, `mtfind`, and `mtfindstr` report warnings for now |
+| `--no-errors` | | Don't display errors. The exit code still reports them |
 | `--gc` | | Display .NET garbage collector statistics |
 | `--help` | `-h` | Display help |
 
 Options start with `-` or `--` (or `/` on Windows), and take a value after a space or `=`, as in `--threads 4` or `--threads=4`. If an option is repeated, the last one wins. Arguments after `--` are positional, even if they start with `-`, as in `mtfindstr ./project -- "-foo"`.
+
+Warnings and errors go to stderr, each printed once as it happens, and the final statistics show how many there were. Results and statistics go to stdout. Progress is only drawn on a terminal, so nothing extra ends up in a redirected stdout.
 
 `mtcopy`, `mtmir`, `mtdel`, and `mtcompact` also have:
 
@@ -105,19 +109,12 @@ Options start with `-` or `--` (or `/` on Windows), and take a value after a spa
 | --- | --- | --- |
 | `--no-clone` | | Always copy, even where cloning is supported |
 
-`mtinfo`, `mtfind`, and `mtfindstr` also have:
-
-| Option | Short | Description |
-| --- | --- | --- |
-| `--warnings` | `-w` | Display warnings, such as entries that disappear during the search |
-| `--no-errors` | | Don't display errors |
-
 `mtfind` and `mtfindstr` also have:
 
 | Option | Short | Description |
 | --- | --- | --- |
 | `--follow-links` | `-fl` | Follow links to directories while searching |
-| `--plain-output` | `-po` | Print only the matches |
+| `--plain-output` | `-po` | Print only the matches, with no progress. `--gc` statistics go to stderr |
 
 `mtdel` also has:
 

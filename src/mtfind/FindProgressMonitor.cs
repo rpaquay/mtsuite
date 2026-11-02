@@ -37,6 +37,7 @@ namespace mtfind {
       var linksText = string.Format("{0:n0}", statistics.SymlinkEnumeratedCount);
       var filesMatchedCount = string.Format("{0:n0}", statistics.FileMatchedCount);
       var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds) : "0";
+      var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new List<PrinterEntry> {
@@ -47,6 +48,7 @@ namespace mtfind {
         new PrinterEntry("# of links", linksText, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("# of files matching pattern", filesMatchedCount, shortName: "matched", valueAlign: Align.Right),
         new PrinterEntry("# of entries/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       if (ShowGc) {

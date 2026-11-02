@@ -46,19 +46,27 @@ namespace mtfind {
 
     public void Run(string[] args) {
       var arguments = new MtFindArguments(args);
-      if (!arguments.IsValid || arguments.Values.Help) {
+      if (arguments.Values.Help) {
         DisplayBanner();
-        if (!arguments.Values.Help) {
-          arguments.DisplayArgumentErrors();
-        }
         arguments.DisplayUsage();
+        throw new CommandLineReturnValueException(16); // To match robocopy
+      }
+      if (!arguments.IsValid) {
+        ProgramHelpers.WriteToStandardError(() => {
+          DisplayBanner();
+          arguments.DisplayArgumentErrors();
+          arguments.DisplayUsage();
+        });
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
 
       var sourcePath = ProgramHelpers.MakeFullPath(arguments.Values.Directory);
       var pattern = arguments.Values.Pattern;
       ProgramHelpers.SetWorkerThreadCount(arguments.Values.ThreadCount);
-      _progressMonitor.ProgressMode = ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
+      // Plain output is meant to be consumed by other programs, so it never shows progress.
+      _progressMonitor.ProgressMode = arguments.Values.PlainOutput
+        ? ProgressMode.None
+        : ProgramHelpers.ParseProgressMode(arguments.Values.Progress);
       _progressMonitor.ShowWarnings = arguments.Values.ShowWarnings;
       _progressMonitor.ShowErrors = arguments.Values.ShowErrors;
       _progressMonitor.ShowGc = arguments.Values.GarbageCollect;
@@ -75,12 +83,16 @@ namespace mtfind {
 
       var statistics = _progressMonitor.GetStatistics();
       if (!isPlainOutput) {
-        DisplayStatistics(statistics, arguments.Values.ShowErrors);
+        DisplayStatistics(statistics);
         Console.WriteLine();
       }
 
       if (arguments.Values.GarbageCollect) {
-        ProgramHelpers.DisplayGcStatistics(_poolFactory);
+        if (isPlainOutput) {
+          ProgramHelpers.WriteToStandardError(() => ProgramHelpers.DisplayGcStatistics(_poolFactory));
+        } else {
+          ProgramHelpers.DisplayGcStatistics(_poolFactory);
+        }
       }
 
       // 0 = success, 8 = fail (to match robocopy)
@@ -104,7 +116,9 @@ namespace mtfind {
       try {
         sourceDirectory = _fileSystem.GetEntry(sourcePath);
       } catch (Exception e) {
-        Console.WriteLine(e.Message);
+        if (_progressMonitor.ShowErrors) {
+          ProgramHelpers.DisplaySingleError(e);
+        }
         // 8 = fail (to match robocopy)
         throw new CommandLineReturnValueException(8);
       }
@@ -132,7 +146,7 @@ namespace mtfind {
       };
     }
 
-    private static void DisplayStatistics(Statistics statistics, bool showErrors) {
+    private static void DisplayStatistics(Statistics statistics) {
       var elapsedTimeText = FormatHelpers.FormatElapsedTime(statistics.ElapsedTime);
       var cpuTimeText = FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime);
       var directoriesText = string.Format("{0:n0}", statistics.DirectoryTraversedCount);
@@ -154,10 +168,6 @@ namespace mtfind {
       };
       Console.WriteLine();
       FieldsPrinter.WriteLine(fields);
-
-      if (showErrors) {
-        ProgramHelpers.DisplayErrors(statistics.Errors);
-      }
     }
 
     private static void DisplayMatchesFiles(List<FileSystemEntry> matchedFiles, string searchPattern, bool isPlainOutput) {

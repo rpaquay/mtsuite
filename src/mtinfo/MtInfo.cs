@@ -49,8 +49,6 @@ namespace mtinfo {
     }
 
     public void Run(string[] args) {
-      DisplayBanner();
-
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithPositional("directory-path", "The path of the directory to examine (default is the current directory)", false, () => Environment.CurrentDirectory)
         .WithIntOption("depth",
@@ -77,22 +75,28 @@ namespace mtinfo {
           },
           "longestpath", // Former name, still accepted
           "longest-path")
-        .WithWarningsAndErrorsFlags()
         .WithCommonOptions()
         .Build();
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser["help"].BoolValue) {
-        if (!parser["help"].BoolValue) {
+      if (parser["help"].BoolValue) {
+        DisplayBanner();
+        DisplayUsage(argumentDefinitions);
+        throw new CommandLineReturnValueException(16); // To match robocopy
+      }
+      if (!parser.IsValid) {
+        ProgramHelpers.WriteToStandardError(() => {
+          DisplayBanner();
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
           Console.WriteLine();
-        }
-        DisplayUsage(argumentDefinitions);
+          DisplayUsage(argumentDefinitions);
+        });
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
+      DisplayBanner();
 
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       var levelCount = parser["depth"].IntValue;
@@ -111,7 +115,7 @@ namespace mtinfo {
       var summaryRoot = DoCollect(sourcePath, options);
 
       var statistics = _progressMonitor.GetStatistics();
-      DisplayResults(statistics, parser["show-errors"].BoolValue);
+      DisplayResults(statistics);
 
       Console.WriteLine();
       DisplayDirectoryEntries(summaryRoot, x => x.Stats.FileBytesTotal);
@@ -154,7 +158,9 @@ namespace mtinfo {
       try {
         sourceDirectory = _fileSystem.GetEntry(sourcePath);
       } catch (Exception e) {
-        Console.WriteLine(e.Message);
+        if (_progressMonitor.ShowErrors) {
+          ProgramHelpers.DisplaySingleError(e);
+        }
         // 8 = fail (to match robocopy)
         throw new CommandLineReturnValueException(8);
       }
@@ -242,7 +248,7 @@ namespace mtinfo {
       }
     }
 
-    private static void DisplayResults(Statistics statistics, bool showErrors) {
+    private static void DisplayResults(Statistics statistics) {
       Console.WriteLine("Statistics:");
       Console.WriteLine("  Elapsed time:             {0}", FormatHelpers.FormatElapsedTime(statistics.ElapsedTime));
       Console.WriteLine("  CPU time:                 {0}", FormatHelpers.FormatElapsedTime(statistics.TotalProcessorTime));
@@ -254,9 +260,6 @@ namespace mtinfo {
         statistics.EntryEnumeratedCount / statistics.ElapsedTime.TotalSeconds);
       Console.WriteLine("  # of warnings:            {0:n0}", statistics.Warnings.Count);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      if (showErrors) {
-        ProgramHelpers.DisplayErrors(statistics.Errors);
-      }
     }
 
     private static void DisplayDirectoryEntries(

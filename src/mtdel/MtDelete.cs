@@ -46,8 +46,6 @@ namespace mtdel {
     }
 
     public void Run(string[] args) {
-      DisplayBanner();
-
       var argumentDefinitions = new ArgumentDefinitionBuilder()
         .WithPositional("directory-path", "The path of the directory to delete", true)
         .WithFlag("quiet", "Quiet mode, do not ask if ok to delete", "q", "", "quiet")
@@ -62,16 +60,23 @@ I  Not content indexed Files  L  Reparse Points
 
       var parser = new ArgumentsParser(argumentDefinitions, args);
       parser.Parse();
-      if (!parser.IsValid || parser["help"].BoolValue) {
-        if (!parser["help"].BoolValue) {
+      if (parser["help"].BoolValue) {
+        DisplayBanner();
+        DisplayUsage(argumentDefinitions);
+        throw new CommandLineReturnValueException(16); // To match robocopy
+      }
+      if (!parser.IsValid) {
+        ProgramHelpers.WriteToStandardError(() => {
+          DisplayBanner();
           foreach (var error in parser.Errors) {
             Console.WriteLine("ERROR: {0}", error);
           }
           Console.WriteLine();
-        }
-        DisplayUsage(argumentDefinitions);
+          DisplayUsage(argumentDefinitions);
+        });
         throw new CommandLineReturnValueException(16); // To match robocopy
       }
+      DisplayBanner();
 
       var sourcePath = ProgramHelpers.MakeFullPath(parser["directory-path"].StringValue);
       ProgramHelpers.SetWorkerThreadCount(parser["thread-count"].IntValue);
@@ -79,6 +84,8 @@ I  Not content indexed Files  L  Reparse Points
         parser["progress"].StringValue
       );
       _progressMonitor.ShowGc = parser["gc"].BoolValue;
+      _progressMonitor.ShowWarnings = parser["show-warnings"].BoolValue;
+      _progressMonitor.ShowErrors = parser["show-errors"].BoolValue;
 
       var options = new Options {
         QuietMode = parser["quiet"].BoolValue,
@@ -116,7 +123,9 @@ I  Not content indexed Files  L  Reparse Points
       try {
         rootEntry = _fileSystem.GetEntry(sourcePath);
       } catch (Exception e) {
-        Console.WriteLine(e.Message);
+        if (_progressMonitor.ShowErrors) {
+          ProgramHelpers.DisplaySingleError(e);
+        }
         // 8 = fail (to match robocopy)
         throw new CommandLineReturnValueException(8); // To match robocopy
       }
@@ -187,8 +196,8 @@ I  Not content indexed Files  L  Reparse Points
       Console.WriteLine("  # of links deleted:       {0:n0}", statistics.SymlinkDeletedCount);
       Console.WriteLine("    Total bytes deleted:    {0}", FormatHelpers.FormatSize(statistics.FileDeletedTotalSize));
       Console.WriteLine("  # entries deleted/sec:    {0:n0}", statistics.EntryDeletedCount / statistics.ElapsedTime.TotalSeconds);
+      Console.WriteLine("  # of warnings:            {0:n0}", statistics.Warnings.Count);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      ProgramHelpers.DisplayErrors(statistics.Errors);
     }
   }
 }

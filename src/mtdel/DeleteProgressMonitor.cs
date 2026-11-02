@@ -26,6 +26,7 @@ namespace mtdel {
       var filesDeletedSizeText = $"({FormatHelpers.FormatSize(statistics.FileDeletedTotalSize)})";
       var linksDeletedText = string.Format("{0:n0}", statistics.SymlinkDeletedCount);
       var entriesPerSecondText = statistics.ElapsedTime.TotalSeconds > 0 ? string.Format("{0:n0}", statistics.EntryDeletedCount / statistics.ElapsedTime.TotalSeconds) : "0";
+      var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var fields = new List<PrinterEntry> {
@@ -35,6 +36,7 @@ namespace mtdel {
         new PrinterEntry("# of files deleted", filesDeletedText, shortName: "files", valueAlign: Align.Right, extraValue: filesDeletedSizeText),
         new PrinterEntry("# of links deleted", linksDeletedText, shortName: "links", valueAlign: Align.Right),
         new PrinterEntry("# of entries deleted/sec", entriesPerSecondText, shortName: "entries/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       if (ShowGc) {

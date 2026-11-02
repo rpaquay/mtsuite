@@ -47,6 +47,7 @@ namespace mtsuite.shared {
       var filesDeletedExtraText = $"({FormatHelpers.FormatSize(statistics.FileDeletedTotalSize)})";
       var linksDeletedText = string.Format("{0:n0}", statistics.SymlinkDeletedCount);
       var entriesPerSecondText = totalSeconds > 0 ? string.Format("{0:n0}", totalEntriesCount / totalSeconds) : "0";
+      var warningsText = string.Format("{0:n0}", statistics.Warnings.Count);
       var errorsText = string.Format("{0:n0}", statistics.Errors.Count);
 
       var copiedOrClonedLabel = isCloning ? "# of files cloned" : "# of files copied";
@@ -68,6 +69,7 @@ namespace mtsuite.shared {
         new PrinterEntry("# of extra files deleted", filesDeletedText, indent: 2, shortName: "files deleted", valueAlign: Align.Right, extraValue: filesDeletedExtraText),
         new PrinterEntry("# of extra links deleted", linksDeletedText, indent: 2, shortName: "links deleted", valueAlign: Align.Right),
         new PrinterEntry("# of entries processed/sec", entriesPerSecondText, shortName: "files/sec", valueAlign: Align.Right),
+        new PrinterEntry("# of warnings", warningsText, shortName: "warnings", valueAlign: Align.Right),
         new PrinterEntry("# of errors", errorsText, shortName: "errors", valueAlign: Align.Right),
       };
       if (ShowGc) {

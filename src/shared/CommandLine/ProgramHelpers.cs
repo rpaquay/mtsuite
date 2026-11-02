@@ -46,16 +46,18 @@ namespace mtsuite.shared.CommandLine {
       return new FullPath(PathHelpers.NormalizeUserInputPath(Environment.CurrentDirectory, pathValue));
     }
 
-    public static void DisplayErrors(IEnumerable<Exception> errors) {
-      foreach (var error in FlattenErrors(errors)) {
-        if (IsInternalError(error)) {
-          Console.Error.WriteLine("Internal error: {0}", error.Message);
-          foreach (var line in error.StackTrace.Replace("\r\n", "\n").Split('\n')) {
-            Console.Error.WriteLine("    {0}", line);
-          }
-        } else {
-          Console.Error.WriteLine("Error: {0}", error.Message);
-        }
+    /// <summary>
+    /// Runs <paramref name="action"/> with everything it writes to the standard output sent to the standard
+    /// error instead, so that the standard output only contains the results of the program.
+    /// </summary>
+    public static void WriteToStandardError(Action action) {
+      var output = Console.Out;
+      Console.SetOut(Console.Error);
+      try {
+        action();
+      }
+      finally {
+        Console.SetOut(output);
       }
     }
 
@@ -168,8 +170,8 @@ namespace mtsuite.shared.CommandLine {
         (statistics.EntryCopiedCount + statistics.EntryDeletedCount + statistics.FileSkippedCount) /
         statistics.ElapsedTime.TotalSeconds);
 
+      Console.WriteLine("  # of warnings:            {0:n0}", statistics.Warnings.Count);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      DisplayErrors(statistics.Errors);
     }
 
     public static void DisplayCompactStatistics(Statistics statistics, bool isDryRun = false) {
@@ -203,8 +205,8 @@ namespace mtsuite.shared.CommandLine {
       Console.WriteLine("  # entries/sec:            {0:n0}",
         (statistics.DirectoryTraversedCount + statistics.FileClonedCount + statistics.FileAlreadyClonedCount + statistics.FileCloneSkippedCount) /
         statistics.ElapsedTime.TotalSeconds);
+      Console.WriteLine("  # of warnings:            {0:n0}", statistics.Warnings.Count);
       Console.WriteLine("  # of errors:              {0:n0}", statistics.Errors.Count);
-      DisplayErrors(statistics.Errors);
     }
 
     public static void DisplayGcStatistics(MtPoolFactory poolFactory) {
