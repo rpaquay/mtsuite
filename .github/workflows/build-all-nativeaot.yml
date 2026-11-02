@@ -30,7 +30,7 @@ jobs:
           skip-decompress: true
       - name: Combine
         id: combine
-        run: bash .github/scripts/package-all-nativeaot.sh artifacts publish/nativeaot 5
+        run: bash .github/scripts/package-all-nativeaot.sh artifacts publish/nativeaot 6
       - name: Upload zip file
         uses: actions/upload-artifact@v7
         with:
