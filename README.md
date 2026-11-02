@@ -205,6 +205,10 @@ The workflows only run when started by hand, from the repository's **Actions** t
 
 ---
 
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md) for the changes in each version.
+
 ## License
 
 [Apache License 2.0](LICENSE)
