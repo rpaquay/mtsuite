@@ -113,6 +113,57 @@ namespace tests {
       Assert.AreEqual(10, summary.Stats.FileBytesTotal);
     }
 
+    private DirectorySummary CollectFollowingLinks(bool followLinks) {
+      var mtinfo = new MtInfo(_fileSystemSetup.FileSystem, _poolFactory);
+      var options = new MtInfo.CollectOptions { LevelCount = 3, FollowLinks = followLinks };
+      return mtinfo.DoCollect(_fileSystemSetup.Root.Path, options).Summary;
+    }
+
+    private void RequireSymbolicLinks() {
+      if (!_fileSystemSetup.SupportsSymbolicLinkCreation()) {
+        Assert.Inconclusive("Symbolic links are not supported. Try running test (or Visual Studio) as Administrator.");
+      }
+    }
+
+    [TestMethod]
+    public void MtInfoShouldNotFollowLinksByDefault() {
+      RequireSymbolicLinks();
+      var dir = _fileSystemSetup.Root.CreateDirectory("a");
+      dir.CreateFile("f", 10);
+      _fileSystemSetup.CreateDirectorySymbolicLink(_fileSystemSetup.Root.Path.Combine("link"), dir.Path.FullName);
+
+      var stats = CollectFollowingLinks(followLinks: false).Stats;
+      Assert.AreEqual(1, stats.FileCount);
+      Assert.AreEqual(1, stats.SymlinkCount);
+      Assert.AreEqual(10, stats.FileBytesTotal);
+    }
+
+    [TestMethod]
+    public void MtInfoShouldCountLinkTargetsWhenFollowingLinks() {
+      RequireSymbolicLinks();
+      var dir = _fileSystemSetup.Root.CreateDirectory("a");
+      dir.CreateFile("f", 10);
+      _fileSystemSetup.CreateDirectorySymbolicLink(_fileSystemSetup.Root.Path.Combine("link"), dir.Path.FullName);
+
+      var stats = CollectFollowingLinks(followLinks: true).Stats;
+      Assert.AreEqual(2, stats.FileCount);
+      Assert.AreEqual(1, stats.SymlinkCount);
+      Assert.AreEqual(20, stats.FileBytesTotal);
+    }
+
+    [TestMethod]
+    public void MtInfoShouldStopAtLinkLoopWhenFollowingLinks() {
+      RequireSymbolicLinks();
+      var dir = _fileSystemSetup.Root.CreateDirectory("a");
+      dir.CreateFile("f", 10);
+      _fileSystemSetup.CreateDirectorySymbolicLink(dir.Path.Combine("up"), dir.Path.FullName);
+
+      var stats = CollectFollowingLinks(followLinks: true).Stats;
+      Assert.AreEqual(1, stats.FileCount);
+      Assert.AreEqual(1, stats.SymlinkCount);
+      Assert.AreEqual(10, stats.FileBytesTotal);
+    }
+
     [TestMethod]
     public void MtInfoShouldWorkWithJunctionPoints() {
       // [root]

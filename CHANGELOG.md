@@ -2,6 +2,16 @@
 
 All notable changes to mtsuite, newest first. Entries before 0.10.0 were written later from the commit history, so they are less detailed. There were no versions 0.9.4 and 0.9.20.
 
+## Unreleased
+
+### Changed
+
+- The short name of `--follow-links` is now `-L`, as in `find` and `du`. The old name `-fl` still works.
+
+### Added
+
+- `--follow-links` on `mtinfo`.
+
 ## 0.10.0 (2026-11-01)
 
 ### Changed

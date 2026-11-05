@@ -177,6 +177,10 @@ namespace mtsuite.shared.CommandLine {
       return this;
     }
 
+    public ArgumentDefinitionBuilder WithFollowLinksFlag() {
+      return WithFlag("follow-links", "Follow symbolic links when traversing directories", "L", "fl", "follow-links"); // "fl" is the former name, still accepted
+    }
+
     public ArgumentDefinitionBuilder WithDryRunFlag(string description) {
       return WithFlag("dry-run", description, "n", "", "dry-run");
     }

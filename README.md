@@ -109,11 +109,16 @@ Warnings and errors go to stderr, each printed once as it happens, and the final
 | --- | --- | --- |
 | `--no-clone` | | Always copy, even where cloning is supported |
 
+`mtinfo`, `mtfind`, and `mtfindstr` also have:
+
+| Option | Short | Description |
+| --- | --- | --- |
+| `--follow-links` | `-L` | Follow links to directories. `mtinfo` then counts what they point to, so its totals can include the same files more than once |
+
 `mtfind` and `mtfindstr` also have:
 
 | Option | Short | Description |
 | --- | --- | --- |
-| `--follow-links` | `-fl` | Follow links to directories while searching |
 | `--plain-output` | `-po` | Print only the matches, with no progress. `--gc` statistics go to stderr |
 
 `mtdel` also has:
@@ -142,8 +147,7 @@ A symbolic link (or a junction point on Windows) points to another file or direc
 
 - **`mtcopy` / `mtmir`** create a new link with the same target instead of copying the target's contents.
 - **`mtdel`** removes the link and leaves its target alone.
-- **`mtinfo`** counts the link and doesn't traverse it.
-- **`mtfind` / `mtfindstr`** don't follow links unless you pass `--follow-links`. When following them, they detect link loops and skip them, and report loops and dangling links as warnings.
+- **`mtinfo` / `mtfind` / `mtfindstr`** don't follow links unless you pass `--follow-links`. `mtinfo` counts each link either way. When following them, they detect link loops and skip them, and report loops and dangling links as warnings.
 
 Because the target is copied as is, what a copied link points to depends on the kind of target:
 

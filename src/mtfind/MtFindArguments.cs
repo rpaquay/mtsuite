@@ -30,7 +30,7 @@ namespace mtfind {
         .WithStringOption("name", "Another way to specify the file name pattern", "name", "pattern", null)
         .WithFlag("include-dir", "Include directory names in search", "i", "", "include-dir")
         .WithFlag("plain-output", "Plain output, i.e. only display the list of file paths that match the search pattern, without progress", "po", "", "plain-output")
-        .WithFlag("follow-links", "Follow symbolic links when traversing directories", "fl", "", "follow-links")
+        .WithFollowLinksFlag()
         .WithCommonOptions()
         .Build();
 

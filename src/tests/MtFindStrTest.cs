@@ -145,6 +145,8 @@ namespace tests {
     public void MtFindStrShouldNotFollowLinksByDefault() {
       Assert.IsFalse(new MtFindStrArguments(new[] { "x" }).Values.FollowLinks);
       Assert.IsTrue(new MtFindStrArguments(new[] { "--follow-links", "x" }).Values.FollowLinks);
+      Assert.IsTrue(new MtFindStrArguments(new[] { "-L", "x" }).Values.FollowLinks);
+      Assert.IsTrue(new MtFindStrArguments(new[] { "-fl", "x" }).Values.FollowLinks);
     }
 
     [TestMethod]

@@ -75,6 +75,7 @@ namespace mtinfo {
           },
           "longestpath", // Former name, still accepted
           "longest-path")
+        .WithFollowLinksFlag()
         .WithCommonOptions()
         .Build();
 
@@ -111,6 +112,7 @@ namespace mtinfo {
       var options = new CollectOptions {
         LevelCount = levelCount,
         LongestPathsToCollect = parser["longest-path"].IntValue,
+        FollowLinks = parser["follow-links"].BoolValue,
       };
       var summaryRoot = DoCollect(sourcePath, options);
 
@@ -150,6 +152,7 @@ namespace mtinfo {
     public class CollectOptions {
       public int LevelCount { get; set; }
       public int LongestPathsToCollect { get; set; }
+      public bool FollowLinks { get; set; }
     }
 
     public DirectorySummaryRoot DoCollect(FullPath sourcePath, CollectOptions options) {
@@ -170,7 +173,7 @@ namespace mtinfo {
       _progressMonitor.SourcePath = sourcePath;
       _progressMonitor.Start();
       var directorySummaryCollector = new DirectorySummaryCollector(options);
-      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector);
+      var task = _parallelFileSystem.TraverseDirectoryAsync(sourceDirectory, directorySummaryCollector, options.FollowLinks);
       _parallelFileSystem.WaitForTask(task);
       _progressMonitor.Stop();
       return directorySummaryCollector.Root;
