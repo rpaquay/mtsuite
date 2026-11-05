@@ -93,6 +93,11 @@ foreach ($rid in $Platforms) {
     Copy-Item $binPath -Destination (Join-Path $outDir $binName)
   }
 
+  # These builds aren't notarized, so macOS blocks them after a download unless the quarantine flag is removed.
+  if ($rid.StartsWith("osx-")) {
+    Copy-Item (Join-Path $ScriptDir ".github\scripts\mtsuite - run this to remove quarantine.sh") -Destination $outDir
+  }
+
   $zipFile = Join-Path $PublishRoot "$packageName.zip"
   if (Test-Path $zipFile) { Remove-Item $zipFile -Force }
 

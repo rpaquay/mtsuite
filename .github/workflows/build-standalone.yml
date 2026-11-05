@@ -1,0 +1,63 @@
+# Builds standalone (self-contained, single-file, non-NativeAOT) executables for all platforms.
+# Only runs when started manually.
+name: Build standalone
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: All platforms
+    # These builds can be cross-compiled, so one runner is enough. It has to be macOS, because macOS
+    # arm64 executables must be code signed, which .NET 8 only does when building on macOS.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish and zip
+        run: ./publish-all.sh
+      # The test suite doesn't run against these binaries, so at least check that a real directory walk
+      # succeeds on the platform of this runner.
+      - name: Check the macOS arm64 binaries start
+        run: publish/mtsuite-*-osx-arm64/mtinfo -p none src
+      - name: Upload linux-x64 zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/mtsuite-*-linux-x64.zip
+          archive: false
+          if-no-files-found: error
+      - name: Upload linux-arm64 zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/mtsuite-*-linux-arm64.zip
+          archive: false
+          if-no-files-found: error
+      - name: Upload win-x64 zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/mtsuite-*-win-x64.zip
+          archive: false
+          if-no-files-found: error
+      - name: Upload win-arm64 zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/mtsuite-*-win-arm64.zip
+          archive: false
+          if-no-files-found: error
+      - name: Upload osx-x64 zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/mtsuite-*-osx-x64.zip
+          archive: false
+          if-no-files-found: error
+      - name: Upload osx-arm64 zip file
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/mtsuite-*-osx-arm64.zip
+          archive: false
+          if-no-files-found: error

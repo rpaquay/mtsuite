@@ -107,6 +107,11 @@ for RID in "${PLATFORMS[@]}"; do
     chmod +x "$OUT_DIR/$BIN_NAME"
   done
 
+  # These builds aren't notarized, so macOS blocks them after a download unless the quarantine flag is removed.
+  if [[ "$RID" == osx-* ]]; then
+    cp ".github/scripts/mtsuite - run this to remove quarantine.sh" "$OUT_DIR/"
+  fi
+
   # Create flat zip file
   ZIP_FILE="$PUBLISH_ROOT/${PACKAGE_NAME}.zip"
   rm -f "$ZIP_FILE"

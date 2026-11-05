@@ -201,6 +201,8 @@ To create standalone executables for every supported platform in `publish/`, run
 ./publish-all.sh
 ```
 
+These executables are self-contained and don't use NativeAOT, so one machine can build them all. Build macOS arm64 executables on a Mac, because they need a code signature that .NET 8 only adds there. To build them on GitHub Actions instead, start **Build standalone** from the repository's **Actions** tab. It produces one zip file per platform.
+
 ### NativeAOT builds
 
 NativeAOT executables are smaller and start faster. They can't be cross-compiled, so each platform is built on its own GitHub Actions runner.
@@ -212,6 +214,23 @@ These builds aren't signed or notarized by Apple, so macOS may block the tools a
 ```bash
 bash "mtsuite - run this to remove quarantine.sh"
 ```
+
+### Creating a release
+
+1. Set the new version in `src/core-filesystem/VersionNumber.cs`.
+2. In [CHANGELOG.md](CHANGELOG.md), rename the "Unreleased" section to the new version and date.
+3. Commit and push, then tag that commit and push the tag:
+
+   ```bash
+   git tag v1.2.3
+   ```
+
+   ```bash
+   git push origin v1.2.3
+   ```
+
+4. In the repository's **Actions** tab, start both **Build all platforms (NativeAOT)** and **Build standalone**, and pick the tag under **Use workflow from**, so that the binaries match the tagged code. Download the zip files from each run's page when it finishes.
+5. In the repository's **Releases** page, draft a new release from the tag, paste the version's changelog section as the description, and attach the zip files.
 
 ---
 
